@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教室座位抽籤系統</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', sans-serif;
+            background-color: #faf3e0;
+            text-align: center;
+        }
+
+        .blackboard {
+            width: 600px;
+            height: 40px;          
+	    background-color: #2b3e50;
+            color: #f5f5f5;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 80%;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            font-size: 1.5em;
+        }
+
+        .seating-chart {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+            justify-content: center;
+            margin: 0 auto;
+            max-width: 80%;
+        }
+
+        .seat {
+            width: 150px;
+            height: 80px;
+            padding: 0;
+            font-size: 24px;
+            border: 2px solid #00796b;
+            background-color: #ffffff;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .seat:hover {
+            transform: scale(1.05);
+        }
+
+        .empty {
+            background-color: #f0f0f0;
+        }
+
+        .green {
+            background-color: #81c784;
+        }
+
+        .blue {
+            background-color: #64b5f6;
+        }
+
+        .red {
+            background-color: #ffcdd2;
+        }
+
+        .button-section {
+            margin: 20px 0;
+        }
+
+        .input-section {
+            display: flex;
+            justify-content: space-around;
+            margin: 5px auto;
+            max-width: 80%;
+        }
+
+        textarea {
+            width: 30%;
+            height: 100px;
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+            background-color: #fdfdfd;
+        }
+
+        button {
+            padding: 12px 25px;
+            margin: 15px;
+            font-size: 18px;
+            background-color: #00897b;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #004d40;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="blackboard">黑板</div>
+
+    <div class="seating-chart">
+        <div class="seat empty" style="visibility:hidden;"></div> <!-- [1,1] 不使用 -->
+        <div class="seat green" id="seat1"></div>  <!-- 第1行第2個 -->
+        <div class="seat green" id="seat2"></div>  <!-- 第1行第3個 -->
+        <div class="seat green" id="seat3"></div>  <!-- 第1行第4個 -->
+        <div class="seat green" id="seat4"></div>  <!-- 第1行第5個 -->
+        <div class="seat green" id="seat5"></div>  <!-- 第1行第6個 -->
+
+        <div class="seat blue" id="seat21"></div>   <!-- 第2行第1個 -->
+        <div class="seat green" id="seat6"></div>  <!-- 第2行第2個 -->
+        <div class="seat green" id="seat7"></div>  <!-- 第2行第3個 -->
+        <div class="seat green" id="seat8"></div>  <!-- 第2行第4個 -->
+        <div class="seat green" id="seat9"></div>  <!-- 第2行第5個 -->
+        <div class="seat green" id="seat10"></div> <!-- 第2行第6個 -->
+
+        <div class="seat blue" id="seat22"></div>  <!-- 第3行第1個 -->
+        <div class="seat red" id="seat11"></div>   <!-- 第3行第2個 -->
+        <div class="seat red" id="seat12"></div>   <!-- 第3行第3個 -->
+        <div class="seat red" id="seat13"></div>   <!-- 第3行第4個 -->
+        <div class="seat red" id="seat14"></div>   <!-- 第3行第5個 -->
+        <div class="seat red" id="seat15"></div>   <!-- 第3行第6個 -->
+
+        <div class="seat blue" id="seat23"></div>  <!-- 第4行第1個 -->
+        <div class="seat red" id="seat16"></div>   <!-- 第4行第2個 -->
+        <div class="seat red" id="seat17"></div>   <!-- 第4行第3個 -->
+        <div class="seat red" id="seat18"></div>   <!-- 第4行第4個 -->
+        <div class="seat red" id="seat19"></div>   <!-- 第4行第5個 -->
+        <div class="seat red" id="seat20"></div>   <!-- 第4行第6個 -->
+
+        <div class="seat blue" id="seat24"></div>  <!-- 第5行第1個 -->
+        <div class="seat blue" id="seat25"></div>  <!-- 第5行第2個 -->
+        <div class="seat blue" id="seat26"></div>  <!-- 第5行第3個 -->
+        <div class="seat blue" id="seat27"></div>  <!-- 第5行第4個 -->
+        <div class="seat blue" id="seat28"></div>  <!-- 第5行第5個 -->
+        <div class="seat blue" id="seat29"></div>  <!-- 第5行第6個 -->
+    </div>
+    <div class="button-section">
+        <button id="initButton">座位初始化</button>
+        <button id="drawButton">座位抽籤</button>
+        <button id="generatePdf">生成 PDF</button>
+    </div>
+
+    <div class="input-section">
+        <h3>綠色座位：</h3>
+        <textarea id="greenInput" placeholder="請輸入綠色座位內容，每行一位學生..."></textarea>
+        <h3>紅色座位：</h3>
+        <textarea id="redInput" placeholder="請輸入紅色座位內容，每行一位學生..."></textarea>
+        <h3>藍色座位：</h3>
+        <textarea id="blueInput" placeholder="請輸入藍色座位內容，每行一位學生..."></textarea>
+    </div>
+
+<style>
+h3, textarea {
+    display: block; /* 自動換行顯示 */
+    margin-bottom: 10px; /* 調整間距 */
+}
+
+</style>
+    <script>
+        // 座位初始化功能
+        document.getElementById('initButton').addEventListener('click', () => {
+            const greenInputs = document.getElementById('greenInput').value.split('\n').map(s => s.trim());
+            const redInputs = document.getElementById('redInput').value.split('\n').map(s => s.trim());
+            const blueInputs = document.getElementById('blueInput').value.split('\n').map(s => s.trim());
+
+            // 填入綠色座位內容
+            for (let i = 0; i < greenInputs.length; i++) {
+                const seatId = 'seat' + (i + 1);
+                const seatElement = document.getElementById(seatId);
+                if (seatElement) {
+                    seatElement.textContent = greenInputs[i];
+                    seatElement.style.color = 'black'; // 初始化後字體為黑色
+                }
+            }
+
+            // 填入紅色座位內容
+            for (let i = 0; i < redInputs.length; i++) {
+                const seatId = 'seat' + (i + 11); // 紅色座位從seat11開始
+                const seatElement = document.getElementById(seatId);
+                if (seatElement) {
+                    seatElement.textContent = redInputs[i];
+                    seatElement.style.color = 'black'; // 初始化後字體為黑色
+                }
+            }
+
+            // 填入藍色座位內容
+            for (let i = 0; i < blueInputs.length; i++) {
+                const seatId = 'seat' + (i + 21); // 藍色座位從seat21開始
+                const seatElement = document.getElementById(seatId);
+                if (seatElement) {
+                    seatElement.textContent = blueInputs[i];
+                    seatElement.style.color = 'black'; // 初始化後字體為黑色
+                }
+            }
+        });
+
+        // 座位抽籤功能
+        document.getElementById('drawButton').addEventListener('click', () => {
+            // 處理綠色座位區
+            let a_green = []; // 原始順序
+            let b_green = []; // 隨機順序
+            for (let i = 1; i <= 10; i++) {
+                const seatElement = document.getElementById('seat' + i);
+                if (seatElement) {
+                    a_green.push(seatElement.textContent);
+                }
+            }
+            b_green = shuffleArray([...a_green]); // 複製一份並隨機打亂
+
+            // 確保沒有學生坐在原本的位置
+            while (!isValidShuffle(a_green, b_green)) {
+                b_green = shuffleArray([...a_green]);
+            }
+
+            // 依序顯示變化，間隔0.5秒
+            for (let i = 0; i < 10; i++) {
+                setTimeout(() => {
+                    const seatElement = document.getElementById('seat' + (i + 1));
+                    if (seatElement) {
+                        seatElement.textContent = b_green[i];
+                        seatElement.style.color = 'red'; // 抽籤完成後字體變紅色
+                    }
+                }, i * 500);
+            }
+
+            // 同樣處理紅色座位區
+            let a_red = [];
+            let b_red = [];
+            for (let i = 11; i <= 20; i++) {
+                const seatElement = document.getElementById('seat' + i);
+                if (seatElement) {
+                    a_red.push(seatElement.textContent);
+                }
+            }
+            b_red = shuffleArray([...a_red]);
+            while (!isValidShuffle(a_red, b_red)) {
+                b_red = shuffleArray([...a_red]);
+            }
+            for (let i = 0; i < 10; i++) {
+                setTimeout(() => {
+                    const seatElement = document.getElementById('seat' + (i + 11));
+                    if (seatElement) {
+                        seatElement.textContent = b_red[i];
+                        seatElement.style.color = 'red'; // 抽籤完成後字體變紅色
+                    }
+                }, (i + 10) * 500); // 接續綠色區域後
+            }
+
+            // 處理藍色座位區
+            let a_blue = [];
+            let b_blue = [];
+            for (let i = 21; i <= 29; i++) {
+                const seatElement = document.getElementById('seat' + i);
+                if (seatElement) {
+                    a_blue.push(seatElement.textContent);
+                }
+            }
+            b_blue = shuffleArray([...a_blue]);
+            while (!isValidShuffle(a_blue, b_blue)) {
+                b_blue = shuffleArray([...a_blue]);
+            }
+            for (let i = 0; i < 9; i++) {
+                setTimeout(() => {
+                    const seatElement = document.getElementById('seat' + (i + 21));
+                    if (seatElement) {
+                        seatElement.textContent = b_blue[i];
+                        seatElement.style.color = 'red'; // 抽籤完成後字體變紅色
+                    }
+                }, (i + 20) * 500); // 接續紅色區域後
+            }
+        });
+
+        // 工具函數：隨機打亂數組
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // 工具函數：檢查新舊數組是否沒有相同位置的元素
+        function isValidShuffle(a, b) {
+            for (let i = 0; i < a.length; i++) {
+                if (a[i] === b[i]) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    </script>
+
+
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+
+    <script>
+        document.getElementById('generatePdf').addEventListener('click', function() {
+            document.querySelector('.button-section').style.display = 'none';
+            document.querySelector('.input-section').style.display = 'none';
+
+            var body = document.body;
+            var blackboard = document.querySelector('.blackboard');
+            var seats = document.querySelectorAll('.seat');
+
+            var originalBodyStyle = body.style.cssText;
+            var originalBlackboardStyle = blackboard.style.cssText;
+            var originalSeatStyles = [];
+
+            seats.forEach(seat => {
+                originalSeatStyles.push(seat.style.cssText);
+                seat.style.backgroundColor = '#ffffff';
+                seat.style.color = '#000000';
+                seat.style.border = '1px solid #000000';
+            });
+
+            blackboard.style.backgroundColor = '#ffffff';
+            blackboard.style.color = '#000000';
+            blackboard.style.border = '2px solid #000000';
+
+            body.style.backgroundColor = '#ffffff';
+            body.style.width = '297mm';
+            body.style.height = '210mm';
+            body.style.margin = '0 auto';
+            body.style.padding = '20px';
+
+            var element = document.body;
+
+            var opt = {
+                margin:       0,
+                filename:     '教室座位抽籤系統.pdf',
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, logging: true, scrollX: 0, scrollY: 0 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            html2pdf().from(element).set(opt).save().then(() => {
+                body.style.cssText = originalBodyStyle;
+                blackboard.style.cssText = originalBlackboardStyle;
+                seats.forEach((seat, index) => {
+                    seat.style.cssText = originalSeatStyles[index];
+                });
+
+                document.querySelector('.button-section').style.display = 'block';
+                document.querySelector('.input-section').style.display = 'block';
+            });
+        });
+    </script>
+
+</body>
+</html>
