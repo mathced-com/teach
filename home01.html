@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>學生作業追蹤系統</title>
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    .not-submitted {
+      background-color: #ffcccc;
+    }
+    .submitted {
+      background-color: #ccffcc;
+    }
+  </style>
+</head>
+<body>
+
+<h2>學生作業追蹤系統</h2>
+
+<table id="assignmentTable">
+  <thead>
+    <tr>
+      <th>學生名稱</th>
+      <th>作業1</th>
+      <th>作業2</th>
+      <th>操作</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- 動態生成學生資料 -->
+  </tbody>
+</table>
+
+<script>
+  // 使用網頁應用程式 URL 來存取 Google Apps Script
+  const scriptURL = 'https://script.google.com/a/macros/go.edu.tw/s/AKfycbxZp5p8-5tjhsnb6gcjzE4KcqsvaDT7FTfvYXe2NbxBic8o5BO6sY0lSJEnh0UNs47t_Q/exec';
+
+  // 讀取學生數據
+  function loadStudentData() {
+    fetch(scriptURL + '?action=getStudentData')
+      .then(response => response.json())
+      .then(data => {
+        renderTable(data);
+      })
+      .catch(error => console.error('Error:', error));
+  }
+
+  // 動態生成表格資料
+  function renderTable(data) {
+    const tableBody = document.getElementById('assignmentTable').getElementsByTagName('tbody')[0];
+    tableBody.innerHTML = ''; // 清空現有表格資料
+
+    data.forEach((student, rowIndex) => {
+      const tr = document.createElement('tr');
+
+      student.forEach((assignment, colIndex) => {
+        const td = document.createElement('td');
+        td.textContent = assignment;
+        td.classList.add(assignment === '已交' ? 'submitted' : 'not-submitted');
+        tr.appendChild(td);
+      });
+
+      // 添加更新狀態的按鈕
+      const actionTd = document.createElement('td');
+      const updateButton = document.createElement('button');
+      updateButton.textContent = '更新狀態';
+      updateButton.onclick = () => updateStatus(rowIndex + 2, 2, '已交'); // 假設更新作業1
+      actionTd.appendChild(updateButton);
+      tr.appendChild(actionTd);
+
+      tableBody.appendChild(tr);
+    });
+  }
+
+  // 更新學生作業狀態
+  function updateStatus(row, col, status) {
+    fetch(scriptURL + '?action=updateStudentStatus&row=' + row + '&col=' + col + '&status=' + status)
+      .then(response => response.json())
+      .then(() => {
+        loadStudentData(); // 更新完數據後重新加載表格
+      })
+      .catch(error => console.error('Error:', error));
+  }
+
+  // 初始化表格
+  loadStudentData();
+</script>
+
+</body>
+</html>
