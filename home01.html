@@ -48,14 +48,16 @@
   const scriptURL = 'https://script.google.com/a/macros/go.edu.tw/s/AKfycbxZp5p8-5tjhsnb6gcjzE4KcqsvaDT7FTfvYXe2NbxBic8o5BO6sY0lSJEnh0UNs47t_Q/exec';
 
   // 讀取學生數據
-  function loadStudentData() {
-    fetch(scriptURL + '?action=getStudentData')
-      .then(response => response.json())
-      .then(data => {
-        renderTable(data);
-      })
-      .catch(error => console.error('Error:', error));
-  }
+function loadStudentData() {
+  fetch(scriptURL + '?action=getStudentData')
+    .then(response => response.json())
+    .then(data => {
+      console.log(data); // 查看返回的數據
+      renderTable(data); // 使用數據渲染表格
+    })
+    .catch(error => console.error('Error:', error));
+}
+
 
   // 動態生成表格資料
   function renderTable(data) {
