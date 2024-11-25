@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學生作業追蹤系統</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #d3d3d3; /* 淺灰色背景 */
+            color: #000000;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h2 {
+            color: #000080;
+            margin-bottom: 20px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #add8e6; /* 淺藍色標題列 */
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        .未交 {
+            color: red;
+        }
+        .完成 {
+            color: green;
+        }
+        .需訂正 {
+            color: blue;
+        }
+        tr:hover {
+            background-color: #ffff00; /* 懸停效果的黃色 */
+        }
+        .tooltip {
+            position: absolute;
+            background-color: #333;
+            color: #fff;
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 12px;
+            pointer-events: none;
+            display: none;
+        }
+        button {
+            margin: 5px;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<h2>學生作業追蹤系統</h2>
+
+<div class="controls">
+    <input type="file" id="excelFile" accept=".xlsx" />
+    <button onclick="loadExcel()">加載 Excel</button>
+    <button onclick="addAssignment()">新增作業</button>
+    <button onclick="downloadExcel()">下載最新 Excel</button>
+</div>
+
+<div id="tooltip" class="tooltip"></div> <!-- 座號提示 -->
+
+<table id="assignmentTable">
+    <thead>
+        <tr>
+            <th>座號</th>
+            <!-- 作業標題將動態生成 -->
+        </tr>
+        <tr id="bulkActionRow" style="display:none;">
+            <th>批量修改</th>
+            <!-- 批量選擇選項將動態生成 -->
+        </tr>
+    </thead>
+    <tbody>
+        <!-- 動態生成學生資料 -->
+    </tbody>
+</table>
+
+<script>
+    let students = [];
+    let headers = [];
+    let editingColumn = -1;  // 當前編輯的作業欄位
+    const tooltip = document.getElementById('tooltip');
+
+    function loadExcel() {
+        const input = document.getElementById('excelFile').files[0];
+        if (!input) {
+            alert("請選擇一個 Excel 文件！");
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
+            const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+            parseExcel(json);
+        };
+        reader.readAsArrayBuffer(input);
+    }
+
+    function parseExcel(data) {
+        headers = data[0]; // 表頭
+        students = data.slice(1); // 學生資料
+        renderTable(false); // 初始載入，顯示瀏覽模式
+    }
+
+    function renderTable(isEditing) {
+        const tableHead = document.getElementById('assignmentTable').getElementsByTagName('thead')[0].getElementsByTagName('tr')[0];
+        tableHead.innerHTML = '<th>座號</th>'; // 清空表頭
+
+        const bulkActionRow = document.getElementById('bulkActionRow');
+        bulkActionRow.innerHTML = '<th>批量修改</th>'; // 清空批量修改行
+
+        headers.slice(1).forEach((header, i) => {
+            const th = document.createElement('th');
+            th.textContent = header;
+
+            const editButton = document.createElement('button');
+            editButton.textContent = (isEditing && editingColumn === i + 1) ? '儲存' : '編輯';
+            editButton.onclick = () => toggleEditMode(i + 1, editButton, isEditing);
+            th.appendChild(editButton);
+
+            // 添加批量選擇功能
+            const bulkSelect = document.createElement('select');
+            bulkSelect.innerHTML = `
+                <option value="">批量選擇</option>
+                <option value="0">未交</option>
+                <option value="1">完成</option>
+                <option value="2">需訂正</option>
+            `;
+            bulkSelect.onchange = () => bulkUpdate(i + 1, bulkSelect.value);
+            bulkActionRow.appendChild(document.createElement('td')).appendChild(bulkSelect);
+
+            // 刪除按鈕
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = '刪除';
+            deleteButton.onclick = () => deleteAssignment(i + 1);
+            th.appendChild(deleteButton);
+
+            tableHead.appendChild(th);
+        });
+
+        bulkActionRow.style.display = isEditing ? '' : 'none'; // 只在編輯模式顯示批量操作行
+
+        const tableBody = document.getElementById('assignmentTable').getElementsByTagName('tbody')[0];
+        tableBody.innerHTML = ''; // 清空表格資料
+
+        students.forEach((student, rowIndex) => {
+            const allSubmitted = student.slice(1).every(value => value === 1);
+
+            // 如果不在編輯模式且該名學生所有作業已完成，則隱藏該學生
+            if (!isEditing && allSubmitted) {
+                return;
+            }
+
+            const tr = document.createElement('tr');
+
+            student.forEach((value, colIndex) => {
+                const td = document.createElement('td');
+                if (colIndex === 0) {
+                    td.textContent = value; // 顯示座號
+                } else {
+                    const statusText = value === 0 ? '未交' : (value === 1 ? '完成' : '需訂正');
+                    td.textContent = statusText;
+                    td.classList.add(statusText);
+
+                    // 滑鼠移動時顯示座號提示
+                    td.addEventListener('mousemove', (e) => {
+                        showTooltip(e, student[0]); // student[0] 是座號
+                    });
+
+                    td.addEventListener('mouseleave', hideTooltip);
+
+                    // 僅對當前編輯的欄位進行編輯
+                    if (isEditing && colIndex === editingColumn) {
+                        const container = document.createElement('div');
+                        ['0', '1', '2'].forEach(optionValue => {
+                            const label = document.createElement('label');
+                            const radio = document.createElement('input');
+                            radio.type = 'radio';
+                            radio.name = `status-${rowIndex}`;
+                            radio.value = optionValue;
+                            if (parseInt(optionValue, 10) === value) {
+                                radio.checked = true;
+                            }
+                            label.appendChild(radio);
+                            label.appendChild(document.createTextNode(optionValue === '0' ? '未交' : (optionValue === '1' ? '完成' : '需訂正')));
+                            container.appendChild(label);
+                        });
+                        td.innerHTML = ''; // 清空原內容
+                        td.appendChild(container);
+                    }
+                }
+                tr.appendChild(td);
+            });
+
+            tableBody.appendChild(tr);
+        });
+    }
+
+    function showTooltip(e, seatNumber) {
+        tooltip.textContent = `座號: ${seatNumber}`;
+        tooltip.style.display = 'block';
+        tooltip.style.left = e.pageX + 10 + 'px';
+        tooltip.style.top = e.pageY + 10 + 'px';
+    }
+
+    function hideTooltip() {
+        tooltip.style.display = 'none';
+    }
+
+    function toggleEditMode(colIndex, button, isEditing) {
+        if (button.textContent === '儲存') {
+            // 保存狀態
+            const tableBody = document.getElementById('assignmentTable').getElementsByTagName('tbody')[0];
+            tableBody.querySelectorAll('tr').forEach((row, rowIndex) => {
+                const radios = row.cells[colIndex].querySelectorAll('input[type="radio"]');
+                radios.forEach(radio => {
+                    if (radio.checked) {
+                        students[rowIndex][colIndex] = parseInt(radio.value, 10);
+                    }
+                });
+            });
+            editingColumn = -1; // 取消編輯模式
+            renderTable(false); // 返回瀏覽模式
+        } else {
+            // 切換到編輯模式，僅編輯當前欄位
+            editingColumn = colIndex;
+            renderTable(true);
+        }
+    }
+
+    function bulkUpdate(colIndex, statusValue) {
+        if (statusValue === "") return;
+        students.forEach(student => {
+            student[colIndex] = parseInt(statusValue, 10);
+        });
+        renderTable(true); // 保持編輯模式
+    }
+
+    function deleteAssignment(colIndex) {
+        headers.splice(colIndex, 1);
+        students.forEach(student => {
+            student.splice(colIndex, 1);
+        });
+        renderTable(false); // 刪除後重新渲染表格
+    }
+
+    function downloadExcel() {
+        // 建立新的工作簿
+        const newWorkbook = XLSX.utils.book_new();
+        // 建立新的工作表數據
+        const newWorksheetData = [headers, ...students];
+        const newWorksheet = XLSX.utils.aoa_to_sheet(newWorksheetData);
+        // 將工作表添加到工作簿
+        XLSX.utils.book_append_sheet(newWorkbook, newWorksheet, "Sheet1");
+        // 生成並下載新的 Excel 檔案
+        XLSX.writeFile(newWorkbook, "updated_students.xlsx");
+    }
+
+    function addAssignment() {
+        const newAssignmentName = prompt("請輸入新作業名稱");
+        if (newAssignmentName) {
+            headers.push(newAssignmentName);
+            students.forEach(student => {
+                student.push(0); // 預設新作業狀態為未交
+            });
+            renderTable(false);
+        }
+    }
+</script>
+
+</body>
+</html>
