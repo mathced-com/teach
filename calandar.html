@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自訂 AI Google 日曆活動生成工具</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts - Inter for a clean, modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* A subtle, professional gradient background */
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        /* Custom scrollbar for better aesthetics */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #e0e0e0;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #a8a8a8;
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #888888;
+        }
+
+        /* Modal styles for confirmation dialogs */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-width: 90vw;
+            width: 500px;
+        }
+    </style>
+    <!-- React and ReactDOM CDNs for dynamic UI -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for in-browser JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- PDF.js CDN for PDF parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Required configuration for PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Helper function to get an item from localStorage or return a default value
+        const getLocalStorageItem = (key, defaultValue) => {
+            try {
+                const item = localStorage.getItem(key);
+                return item ? JSON.parse(item) : defaultValue;
+            } catch (error) {
+                console.error(`Error reading localStorage key "${key}":`, error);
+                return defaultValue;
+            }
+        };
+
+        // Helper function to set an item in localStorage
+        const setLocalStorageItem = (key, value) => {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (error) {
+                console.error(`Error writing localStorage key "${key}":`, error);
+            }
+        };
+
+        // Function to generate a random light pastel color for event cards
+        const getRandomLightColor = (() => {
+            const colors = [
+                '#E6E6FA', '#ADD8E6', '#F0F8FF', '#F5FFFA', '#F0FFF0',
+                '#FAFAD2', '#FFFAF0', '#FAEBD7', '#FFE4E1', '#FFF0F5'
+            ];
+            let lastColorIndex = -1;
+            return () => {
+                let index;
+                do {
+                    index = Math.floor(Math.random() * colors.length);
+                } while (index === lastColorIndex);
+                lastColorIndex = index;
+                return colors[index];
+            };
+        })();
+
+        // --- React Components ---
+
+        // Confirmation Modal Component
+        const ConfirmationModal = ({ message, onConfirm, onCancel }) => {
+            return (
+                <div className="modal-overlay">
+                    <div className="modal-content text-center">
+                        <h3 className="text-xl font-semibold text-gray-800 mb-4">確認操作</h3>
+                        <p className="text-gray-600 mb-6">{message}</p>
+                        <div className="flex justify-center space-x-4">
+                            <button
+                                onClick={onConfirm}
+                                className="bg-red-500 text-white py-2 px-6 rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition duration-150"
+                            >
+                                確認
+                            </button>
+                            <button
+                                onClick={onCancel}
+                                className="bg-gray-300 text-gray-800 py-2 px-6 rounded-lg hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-150"
+                            >
+                                取消
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Event Card Component for displaying and editing a single calendar event
+        const EventCard = ({ event, index, onEventChange }) => {
+            const handleInputChange = (e) => {
+                const { name, value, type, checked } = e.target;
+                onEventChange(index, name, type === 'checkbox' ? checked : value);
+            };
+
+            const formatDateForInput = (dateString) => {
+                if (!dateString) return '';
+                try {
+                    const date = new Date(dateString);
+                    if (isNaN(date.getTime())) return '';
+                    return date.toISOString().split('T')[0];
+                } catch (e) {
+                    return '';
+                }
+            };
+
+            const formatTimeForInput = (timeString) => {
+                if (!timeString || !/^\d{2}:\d{2}$/.test(timeString)) return '';
+                return timeString;
+            };
+
+            const generateGoogleCalendarUrl = () => {
+                const baseUrl = "https://www.google.com/calendar/render?action=TEMPLATE";
+                const text = encodeURIComponent(event.summary || '');
+                const details = encodeURIComponent(event.description || '');
+                const location = encodeURIComponent(event.location || '');
+
+                const validStartDate = event.startDate && !isNaN(new Date(event.startDate).getTime()) ? event.startDate : new Date().toISOString().split('T')[0];
+                const validEndDate = event.endDate && !isNaN(new Date(event.endDate).getTime()) ? event.endDate : validStartDate;
+
+                let dates;
+                if (event.allDay) {
+                    const startDate = new Date(validStartDate);
+                    const endDate = new Date(validEndDate);
+                    endDate.setDate(endDate.getDate() + 1);
+                    const formatAllDay = (d) => d.toISOString().split('T')[0].replace(/-/g, '');
+                    dates = `&dates=${formatAllDay(startDate)}/${formatAllDay(endDate)}`;
+                } else {
+                    const startDateTime = new Date(`${validStartDate}T${event.startTime || '00:00'}:00`);
+                    const endDateTime = new Date(`${validEndDate}T${event.endTime || '00:00'}:00`);
+                    const formatTimed = (d) => d.toISOString().replace(/[:-]/g, '').split('.')[0] + 'Z';
+                    dates = `&dates=${formatTimed(startDateTime)}/${formatTimed(endDateTime)}`;
+                }
+                return `${baseUrl}&text=${text}&details=${details}&location=${location}${dates}`;
+            };
+
+            return (
+                <div className="p-6 rounded-xl shadow-lg border space-y-4" style={{ backgroundColor: event.color || '#ffffff', borderColor: 'rgba(0,0,0,0.1)' }}>
+                    <h3 className="text-xl font-bold text-gray-700">活動 {index + 1}</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600">活動名稱</label>
+                            <input type="text" name="summary" value={event.summary} onChange={handleInputChange} className="w-full mt-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600">地點</label>
+                            <input type="text" name="location" value={event.location} onChange={handleInputChange} className="w-full mt-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                        </div>
+                        <div className="flex items-center">
+                            <input type="checkbox" id={`allDay-${index}`} name="allDay" checked={event.allDay} onChange={handleInputChange} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" />
+                            <label htmlFor={`allDay-${index}`} className="ml-2 text-sm font-medium text-gray-700">設為全日活動</label>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600">開始日期</label>
+                                <input type="date" name="startDate" value={formatDateForInput(event.startDate)} onChange={handleInputChange} className="w-full mt-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-600">結束日期</label>
+                                <input type="date" name="endDate" value={formatDateForInput(event.endDate)} onChange={handleInputChange} className="w-full mt-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            {!event.allDay && <>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-600">開始時間</label>
+                                    <input type="time" name="startTime" value={formatTimeForInput(event.startTime)} onChange={handleInputChange} className="w-full mt-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-600">結束時間</label>
+                                    <input type="time" name="endTime" value={formatTimeForInput(event.endTime)} onChange={handleInputChange} className="w-full mt-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" />
+                                </div>
+                            </>}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-600">備註/說明</label>
+                            <textarea name="description" value={event.description} onChange={handleInputChange} rows="3" className="w-full mt-1 p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"></textarea>
+                        </div>
+                    </div>
+                    <div className="flex justify-center mt-4">
+                        <a href={generateGoogleCalendarUrl()} target="_blank" rel="noopener noreferrer" className="inline-flex items-center bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-2 px-6 rounded-full shadow-md hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 transition duration-150 font-semibold">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            加入 Google 行事曆
+                        </a>
+                    </div>
+                </div>
+            );
+        };
+
+        // Main Application Component
+        const App = () => {
+            // --- State Management ---
+            const [authMode, setAuthMode] = React.useState(() => getLocalStorageItem('authMode', 'googleAccount'));
+            const [geminiApiKey, setGeminiApiKey] = React.useState(() => getLocalStorageItem('geminiApiKey', ''));
+            const [uploadedFile, setUploadedFile] = React.useState(null);
+            const [fileContent, setFileContent] = React.useState('');
+            const [isLoading, setIsLoading] = React.useState(false);
+            const [message, setMessage] = React.useState('');
+            const [isManualInputMode, setIsManualInputMode] = React.useState(true);
+            const [calendarEvents, setCalendarEvents] = React.useState([]);
+            const [showResetConfirmModal, setShowResetConfirmModal] = React.useState(false);
+
+            // --- Effects ---
+            React.useEffect(() => {
+                setLocalStorageItem('authMode', authMode);
+            }, [authMode]);
+            React.useEffect(() => {
+                setLocalStorageItem('geminiApiKey', geminiApiKey);
+            }, [geminiApiKey]);
+
+            // --- Helper Functions ---
+            const resetInputState = () => {
+                setUploadedFile(null);
+                setFileContent('');
+                setMessage('');
+                setCalendarEvents([]);
+            };
+
+            const convertPdfToText = async (file) => {
+                const reader = new FileReader();
+                reader.readAsArrayBuffer(file);
+                return new Promise((resolve, reject) => {
+                    reader.onload = async (event) => {
+                        try {
+                            const pdf = await pdfjsLib.getDocument({ data: event.target.result }).promise;
+                            let fullText = '';
+                            for (let i = 1; i <= pdf.numPages; i++) {
+                                const page = await pdf.getPage(i);
+                                const textContent = await page.getTextContent();
+                                fullText += textContent.items.map(item => item.str).join(' ') + '\n';
+                            }
+                            resolve(fullText);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    reader.onerror = reject;
+                });
+            };
+
+            const convertImageToBase64 = (file) => {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(',')[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            };
+
+            // --- Event Handlers ---
+            const handleFileChange = async (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                resetInputState();
+                setUploadedFile(file);
+                setIsLoading(true);
+                setMessage(`正在處理檔案：${file.name}...`);
+
+                try {
+                    if (file.type === 'application/pdf') {
+                        const text = await convertPdfToText(file);
+                        setFileContent(text);
+                        setMessage(`PDF 檔案已成功轉換為文字。`);
+                    } else if (file.type.startsWith('image/')) {
+                        setMessage('圖片上傳成功，請點擊生成按鈕以提取文字並分析。');
+                        // Content will be processed during generation
+                    } else if (file.type === 'text/plain') {
+                        const text = await file.text();
+                        setFileContent(text);
+                        setMessage(`TXT 檔案已成功載入。`);
+                    } else {
+                        throw new Error('不支援的檔案類型。請上傳 TXT, PDF, 或圖片檔案。');
+                    }
+                } catch (error) {
+                    setMessage(`處理檔案失敗: ${error.message}`);
+                    console.error("File processing error:", error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            const handleManualInputChange = (e) => {
+                resetInputState();
+                setFileContent(e.target.value);
+            };
+            
+            const handleEventChange = (index, field, value) => {
+                setCalendarEvents(prevEvents => {
+                    const newEvents = [...prevEvents];
+                    newEvents[index] = { ...newEvents[index], [field]: value };
+                    return newEvents;
+                });
+            };
+
+            const performResetSettings = () => {
+                setShowResetConfirmModal(false);
+                localStorage.clear();
+                setAuthMode('googleAccount');
+                setGeminiApiKey('');
+                resetInputState();
+                setMessage('所有設定已重置。');
+            };
+
+            // --- Core AI Logic ---
+            const generateCalendarEvents = async () => {
+                const hasTextInput = fileContent.trim();
+                const hasImageInput = uploadedFile && uploadedFile.type.startsWith('image/');
+
+                if (!hasTextInput && !hasImageInput) {
+                    setMessage('沒有要生成的內容。請上傳檔案或貼上文字。');
+                    return;
+                }
+                if (authMode === 'apiKey' && !geminiApiKey) {
+                    setMessage('請先在設定中填寫您的 Gemini API Key。');
+                    return;
+                }
+
+                setIsLoading(true);
+                setMessage('正在與 AI 通訊，請稍候...');
+                setCalendarEvents([]);
+
+                try {
+                    const currentYear = new Date().getFullYear();
+                    const promptTemplate = `請扮演一個專業的活動助理。從以下提供的內容中，識別出所有可能的日曆活動。
+                    重要規則：
+                    1.  如果日期沒有指定年份，請預設為 ${currentYear} 年。
+                    2.  提取每個活動的「活動名稱 (summary)」、「地點 (location)」、「開始日期 (startDate)」、「開始時間 (startTime)」、「結束日期 (endDate)」、「結束時間 (endTime)」，以及「備註 (description)」。
+                    3.  判斷活動是否為「全日活動 (allDay)」。
+                    4.  日期格式必須是 YYYY-MM-DD，時間格式必須是 HH:MM。
+                    5.  如果缺少結束時間/日期，使其與開始時間/日期相同。
+                    6.  將結果以一個 JSON 陣列格式輸出，不要包含任何額外的解釋文字。
+
+                    JSON 範例 (使用今年: ${currentYear}):
+                    [
+                        {
+                            "summary": "AI 技術研討會",
+                            "location": "台北國際會議中心 101 會議室",
+                            "startDate": "${currentYear}-09-15",
+                            "startTime": "09:00",
+                            "endDate": "${currentYear}-09-15",
+                            "endTime": "17:00",
+                            "description": "主講人：李博士。討論最新的 AI 發展趨勢。",
+                            "allDay": false
+                        },
+                        {
+                            "summary": "公司年度旅遊",
+                            "location": "宜蘭",
+                            "startDate": "${currentYear}-11-20",
+                            "startTime": "00:00",
+                            "endDate": "${currentYear}-11-22",
+                            "endTime": "00:00",
+                            "description": "三天兩夜的員工旅遊活動。",
+                            "allDay": true
+                        }
+                    ]
+
+                    現在，請分析以下內容：`;
+
+                    let payload;
+                    const promptText = hasImageInput ? `${promptTemplate}\n[圖片內容]` : `${promptTemplate}\n${fileContent}`;
+
+                    if (hasImageInput) {
+                        const base64ImageData = await convertImageToBase64(uploadedFile);
+                        payload = {
+                            contents: [{
+                                role: "user",
+                                parts: [
+                                    { text: promptText },
+                                    { inlineData: { mimeType: uploadedFile.type, data: base64ImageData } }
+                                ]
+                            }]
+                        };
+                    } else {
+                        payload = {
+                            contents: [{ parts: [{ text: promptText }] }]
+                        };
+                    }
+
+                    payload.generationConfig = {
+                        responseMimeType: "application/json",
+                    };
+
+                    const apiKeyToUse = authMode === 'apiKey' ? geminiApiKey : "";
+                    // FIX: Use gemini-2.0-flash model which is supported by the environment for keyless calls.
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKeyToUse}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`API 錯誤: ${errorData.error?.message || response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (!result.candidates || result.candidates.length === 0) {
+                        throw new Error('AI 未返回有效的候選結果。');
+                    }
+
+                    const eventsJsonText = result.candidates[0].content.parts[0].text;
+                    let parsedEvents = JSON.parse(eventsJsonText);
+
+                    if (!Array.isArray(parsedEvents)) {
+                        // Sometimes the model might wrap the array in an object. Let's try to find it.
+                        if (typeof parsedEvents === 'object' && parsedEvents !== null) {
+                            const key = Object.keys(parsedEvents).find(k => Array.isArray(parsedEvents[k]));
+                            if (key) {
+                                parsedEvents = parsedEvents[key];
+                            } else {
+                                throw new Error('AI 返回的 JSON 格式不正確，不是一個有效的陣列。');
+                            }
+                        } else {
+                           throw new Error('AI 返回的 JSON 格式不正確，不是一個有效的陣列。');
+                        }
+                    }
+                    
+                    const processedEvents = parsedEvents.map(event => ({
+                        ...event,
+                        summary: event.summary || '未命名活動',
+                        location: event.location || '',
+                        description: event.description || '',
+                        allDay: event.allDay || false,
+                        color: getRandomLightColor(),
+                    }));
+
+                    setCalendarEvents(processedEvents);
+                    setMessage(`成功生成 ${processedEvents.length} 個活動！您可以檢視、修改並加入行事曆。`);
+
+                } catch (error) {
+                    setMessage(`生成活動失敗：${error.message}`);
+                    console.error("Event generation error:", error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            // --- Render JSX ---
+            return (
+                <div className="min-h-screen p-4 sm:p-6 lg:p-8 flex flex-col items-center">
+                    <div className="bg-white/80 backdrop-blur-sm p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-5xl space-y-8 border border-gray-200">
+                        <header className="text-center">
+                            <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-800">
+                                AI 日曆活動生成工具
+                            </h1>
+                            <p className="mt-2 text-gray-600">上傳文件、貼上文字，讓 AI 為您安排行事曆。</p>
+                        </header>
+
+                        {/* Settings Section */}
+                        <section className="p-6 border border-gray-200 rounded-xl bg-white/50">
+                            <h2 className="text-xl font-bold text-gray-700 mb-4">第一步：選擇 AI 驗證模式</h2>
+                            <div className="flex items-center space-x-6">
+                                <label className="flex items-center cursor-pointer">
+                                    <input type="radio" name="authMode" value="googleAccount" checked={authMode === 'googleAccount'} onChange={(e) => setAuthMode(e.target.value)} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500" />
+                                    <span className="ml-2 text-gray-700 font-medium">使用 Google 帳號 (推薦)</span>
+                                </label>
+                                <label className="flex items-center cursor-pointer">
+                                    <input type="radio" name="authMode" value="apiKey" checked={authMode === 'apiKey'} onChange={(e) => setAuthMode(e.target.value)} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500" />
+                                    <span className="ml-2 text-gray-700 font-medium">使用自己的 API Key</span>
+                                </label>
+                            </div>
+                            {authMode === 'googleAccount' && (
+                                <p className="mt-3 text-sm text-gray-600 bg-blue-50 p-3 rounded-lg border border-blue-200">您將使用登入此環境的 Google 帳號進行 AI 分析，無需額外設定。</p>
+                            )}
+                            {authMode === 'apiKey' && (
+                                <div className="mt-4">
+                                    <label htmlFor="geminiApiKey" className="block text-sm font-medium text-gray-600 mb-1">
+                                        您的 Gemini API Key:
+                                    </label>
+                                    <input
+                                        type="password"
+                                        id="geminiApiKey"
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                        value={geminiApiKey}
+                                        onChange={(e) => setGeminiApiKey(e.target.value)}
+                                        placeholder="貼上您的 Google AI Studio API Key"
+                                        disabled={isLoading}
+                                    />
+                                    <p className="mt-2 text-xs text-gray-500">您的 API Key 將儲存在瀏覽器中。您可以在 <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google AI Studio</a> 取得。
+                                    </p>
+                                </div>
+                            )}
+                        </section>
+
+                        {/* Input Section */}
+                        <section className="p-6 border border-gray-200 rounded-xl bg-white/50">
+                            <h2 className="text-xl font-bold text-gray-700 mb-4">第二步：提供活動內容</h2>
+                            <div className="flex items-center space-x-4 mb-4 border-b pb-4">
+                                <label className="flex items-center cursor-pointer">
+                                    <input type="radio" name="inputMode" checked={isManualInputMode} onChange={() => { setIsManualInputMode(true); resetInputState(); }} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500" />
+                                    <span className="ml-2 text-gray-700">手動貼上文字</span>
+                                </label>
+                                <label className="flex items-center cursor-pointer">
+                                    <input type="radio" name="inputMode" checked={!isManualInputMode} onChange={() => { setIsManualInputMode(false); resetInputState(); }} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500" />
+                                    <span className="ml-2 text-gray-700">上傳檔案</span>
+                                </label>
+                            </div>
+                            
+                            {isManualInputMode ? (
+                                <textarea
+                                    rows="8"
+                                    className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 custom-scrollbar"
+                                    value={fileContent}
+                                    onChange={handleManualInputChange}
+                                    placeholder="例如：貼上會議通知、活動議程、課程表等文字內容..."
+                                    disabled={isLoading}
+                                ></textarea>
+                            ) : (
+                                <div>
+                                    <input
+                                        type="file"
+                                        accept=".txt,.pdf,.jpg,.jpeg,.png"
+                                        onChange={handleFileChange}
+                                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                                        disabled={isLoading}
+                                    />
+                                    {uploadedFile && <p className="mt-2 text-sm text-gray-600">已選擇檔案: <span className="font-medium text-indigo-600">{uploadedFile.name}</span></p>}
+                                </div>
+                            )}
+                        </section>
+
+                        {/* Action Button */}
+                        <div className="flex justify-center">
+                            <button
+                                onClick={generateCalendarEvents}
+                                className="w-full md:w-auto bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-10 rounded-full shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-bold text-lg"
+                                disabled={isLoading || (!fileContent.trim() && !uploadedFile) || (authMode === 'apiKey' && !geminiApiKey)}
+                            >
+                                {isLoading ? (
+                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                ) : (
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
+                                )}
+                                {isLoading ? '處理中...' : '生成日曆活動'}
+                            </button>
+                        </div>
+
+                        {/* Message & Results Section */}
+                        {(message || calendarEvents.length > 0) && (
+                            <section className="p-6 border border-gray-200 rounded-xl bg-white/50 space-y-6">
+                                <h2 className="text-xl font-bold text-gray-700">第三步：檢視與修改結果</h2>
+                                {message && (
+                                    <div className={`p-4 rounded-lg text-center ${message.includes('失敗') ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
+                                        {message}
+                                    </div>
+                                )}
+                                {calendarEvents.length > 0 && (
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        {calendarEvents.map((event, index) => (
+                                            <EventCard
+                                                key={index}
+                                                event={event}
+                                                index={index}
+                                                onEventChange={handleEventChange}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        )}
+                    </div>
+                    
+                    {/* Reset Button */}
+                    <div className="fixed bottom-4 left-4 z-40">
+                        <button onClick={() => setShowResetConfirmModal(true)} className="bg-red-500 text-white p-3 rounded-full shadow-lg hover:bg-red-600 transition-transform transform hover:scale-110">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                    </div>
+
+                    {/* Modal */}
+                    {showResetConfirmModal && (
+                        <ConfirmationModal
+                            message="您確定要重置所有設定嗎？這將清除您儲存的 API Key 和模式選擇。"
+                            onConfirm={performResetSettings}
+                            onCancel={() => setShowResetConfirmModal(false)}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        // Render the React app into the DOM
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
