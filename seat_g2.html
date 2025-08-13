@@ -80,18 +80,18 @@
         #seating-chart {
             display: grid;
             grid-template-columns: repeat(6, 1fr);
-            gap: 18px; /* Increased gap */
+            gap: 18px; 
         }
 
         .seat {
-            aspect-ratio: 2 / 1; /* Made seats shorter */
+            aspect-ratio: 2 / 1; 
             border: 1px solid var(--border-color);
             border-radius: 8px;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 5px;
+            padding: 2px; /* Adjusted padding */
             box-shadow: 0 2px 4px var(--shadow-color);
             transition: background-color 0.3s, box-shadow 0.3s;
             position: relative;
@@ -123,7 +123,7 @@
         }
 
         .student-name {
-            font-size: 1.3em; /* Adjusted font size */
+            font-size: 2.5em; /* Adjusted font size */
             font-weight: bold;
             text-align: center;
             word-break: break-all;
@@ -132,7 +132,7 @@
         }
 
         .seat.two-line .student-name {
-            font-size: 1em; /* Adjusted font size */
+            font-size: 2em; /* Adjusted font size */
         }
 
         /* --- Control Panels --- */
@@ -654,7 +654,7 @@
             const sortedSeatIds = Object.keys(newArrangement).map(Number).sort((a, b) => a - b);
             
             for (let i = 0; i < sortedSeatIds.length; i++) {
-                await new Promise(resolve => setTimeout(resolve, 80));
+                await new Promise(resolve => setTimeout(resolve, 300)); /* Adjusted delay */
                 const seatId = sortedSeatIds[i];
                 const studentInfo = newArrangement[seatId];
                 const seat = seatData.find(s => s.id === seatId);
