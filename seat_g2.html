@@ -80,11 +80,11 @@
         #seating-chart {
             display: grid;
             grid-template-columns: repeat(6, 1fr);
-            gap: 15px;
+            gap: 18px; /* Increased gap */
         }
 
         .seat {
-            aspect-ratio: 4 / 3;
+            aspect-ratio: 2 / 1; /* Made seats shorter */
             border: 1px solid var(--border-color);
             border-radius: 8px;
             display: flex;
@@ -123,7 +123,7 @@
         }
 
         .student-name {
-            font-size: 1.5em;
+            font-size: 1.3em; /* Adjusted font size */
             font-weight: bold;
             text-align: center;
             word-break: break-all;
@@ -132,7 +132,7 @@
         }
 
         .seat.two-line .student-name {
-            font-size: 1.1em;
+            font-size: 1em; /* Adjusted font size */
         }
 
         /* --- Control Panels --- */
