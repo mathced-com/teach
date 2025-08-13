@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教學用工具</title>
+    <style>
+        /* --- CSS 樣式開始 --- */
+
+        /* 整體頁面樣式 */
+        body {
+            font-family: 'Helvetica Neue', Arial, '蘋方-繁', 'Microsoft JhengHei', sans-serif;
+            background-color: #f4f7f6; /* 柔和的淺灰色背景 */
+            color: #333; /* 主要文字顏色 */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center; /* 水平置中 */
+            align-items: center; /* 垂直置中 */
+            min-height: 100vh; /* 讓 body 至少和視窗一樣高 */
+        }
+
+        /* 主要內容容器 */
+        .container {
+            width: 90%;
+            max-width: 680px; /* 設定最大寬度，在大螢幕上也不會過寬 */
+            background-color: #ffffff; /* 內容區塊為白色 */
+            padding: 40px 50px; /* 內邊距 (上下 左右) */
+            border-radius: 12px; /* 圓角 */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* subtle shadow for depth */
+            text-align: center; /* 讓內部文字置中 */
+        }
+
+        /* 標題樣式 */
+        h1 {
+            color: #2c3e50; /* 較深的藍灰色標題 */
+            font-size: 2.5em; /* 標題字體大小 */
+            margin-bottom: 30px; /* 與下方連結的距離 */
+        }
+
+        /* 連結列表樣式 */
+        ul {
+            list-style-type: none; /* 移除項目符號 (點點) */
+            padding: 0;
+            margin: 0;
+        }
+
+        li {
+            margin-bottom: 15px; /* 每個連結之間的距離 */
+        }
+
+        /* 超連結樣式 */
+        a {
+            display: block; /* 讓整個區域都可以點擊 */
+            background-color: #eaf2f8; /* 連結的淺藍色背景 */
+            color: #3498db; /* 連結文字顏色 */
+            padding: 15px 20px;
+            text-decoration: none; /* 移除底線 */
+            font-size: 1.1em;
+            border-radius: 8px; /* 連結的圓角 */
+            transition: all 0.3s ease; /* 滑鼠移過時的平滑過渡效果 */
+        }
+
+        /* 滑鼠移到連結上的樣式 (Hover Effect) */
+        a:hover {
+            background-color: #3498db; /* 背景變深藍 */
+            color: #ffffff; /* 文字變白 */
+            transform: translateY(-2px); /* 輕微向上移動 */
+            box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3); /* 增加陰影 */
+        }
+
+        /* --- CSS 樣式結束 --- */
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>教學用工具</h1>
+        <ul>
+            <li><a href="seat_g2.html">座位抽籤gemini版-v2</a></li>
+            <li><a href="home01.html">作業檢核網頁</a></li>
+            </ul>
+    </div>
+
+</body>
+</html>
