@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>10x10 數字網格</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 2rem;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            max-width: 800px;
+            width: 100%;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(10, minmax(0, 1fr));
+            gap: 0.5rem;
+            width: 100%;
+        }
+        .grid-cell {
+            background-color: #e2e8f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #4a5568;
+            border-radius: 0.5rem;
+            padding-top: 100%; /* 創建正方形單元格 */
+            position: relative;
+            transition: background-color 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .grid-cell span {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .grid-cell.highlighted {
+            background-color: #fca5a5; /* 淺紅色 */
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">10x10 數字網格</h1>
+    <div id="grid" class="grid-container">
+        <!-- 數字單元格將由 JavaScript 動態生成 -->
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const grid = document.getElementById('grid');
+
+        // 生成 10x10 網格並填充數字 1-100
+        for (let i = 1; i <= 100; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            const span = document.createElement('span');
+            span.textContent = i;
+            cell.appendChild(span);
+            grid.appendChild(cell);
+
+            // 當點擊單元格時，切換 'highlighted' 類別
+            cell.addEventListener('click', () => {
+                cell.classList.toggle('highlighted');
+            });
+        }
+    });
+</script>
+
+</body>
+</html>
