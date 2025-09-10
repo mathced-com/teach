@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幸運大轉盤</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts (Poppins) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* 自定義樣式 */
+        body {
+            font-family: 'Poppins', 'Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif';
+            overflow-x: hidden;
+        }
+
+        /* 指針樣式 */
+        .pointer {
+            width: 0;
+            height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-top: 28px solid #ef4444; /* 紅色指針 */
+            position: absolute;
+            top: -10px; /* 調整指針位置 */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+        }
+
+        /* 抽中者文字的放大動畫 */
+        .winner-animate {
+            animation: zoom-in-out 0.8s ease-in-out;
+        }
+
+        @keyframes zoom-in-out {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* 卡片淡入動畫 */
+        .fade-in {
+            animation: fade-in 0.5s ease-out forwards;
+        }
+
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 讓 Canvas 可點擊 */
+        canvas {
+            cursor: pointer;
+            transition: transform 0.3s ease, filter 0.3s ease;
+            border-radius: 50%;
+        }
+        canvas:hover {
+            transform: scale(1.03);
+            filter: brightness(1.05);
+        }
+        
+        /* Modal Overlay 的轉場效果 */
+        #modal-overlay {
+            transition: opacity 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800">
+
+    <div class="flex flex-col lg:flex-row min-h-screen">
+        
+        <!-- 左側固定控制面板 -->
+        <div class="w-full lg:w-96 bg-white/70 backdrop-blur-xl p-6 shadow-2xl flex-shrink-0 border-r border-white/50">
+            <div class="sticky top-6">
+                <h1 class="text-3xl font-bold text-center mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">轉盤設定</h1>
+                
+                <!-- 選擇轉盤數量 -->
+                <div class="mb-4">
+                    <label for="wheel-count" class="block text-sm font-medium text-gray-600 mb-2">選擇轉盤數量</label>
+                    <select id="wheel-count" class="w-full p-3 bg-white/50 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <option value="1">1 組</option>
+                        <option value="2">2 組</option>
+                        <option value="3">3 組</option>
+                        <option value="4">4 組</option>
+                        <option value="5">5 組</option>
+                        <option value="6">6 組</option>
+                    </select>
+                </div>
+                
+                <!-- 抽籤模式 -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-600 mb-2">抽籤模式</label>
+                    <div class="flex items-center space-x-4 bg-gray-50/50 p-3 rounded-lg border border-gray-200/50">
+                        <div class="flex items-center">
+                            <input id="mode-repeat" type="radio" name="draw-mode" value="repeat" class="h-4 w-4 text-blue-600 focus:ring-blue-500" checked>
+                            <label for="mode-repeat" class="ml-2 block text-sm text-gray-900">重複抽籤</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input id="mode-no-repeat" type="radio" name="draw-mode" value="no-repeat" class="h-4 w-4 text-blue-600 focus:ring-blue-500">
+                            <label for="mode-no-repeat" class="ml-2 block text-sm text-gray-900">不重複抽籤</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 動態輸入欄位容器 -->
+                <div id="input-container" class="space-y-4 mb-4 max-h-[calc(100vh-400px)] overflow-y-auto pr-2"></div>
+                
+                <!-- 按鈕 -->
+                <button id="setup-btn" class="w-full flex items-center justify-center bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:shadow-lg hover:shadow-indigo-500/40 hover:from-blue-600 hover:to-indigo-700 active:scale-95 transition-all duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.982.54 2.295 0 3.277-1.372.836-.836 2.942 2.106 2.106.948-.574 2.286-.574 3.234 0 .948.574 2.286.574 3.234 0 1.372.836 2.942-.734 2.106-2.106a1.532 1.532 0 010-3.277c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.286-.948zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+                    </svg>
+                    產生/更新所有轉盤
+                </button>
+            </div>
+        </div>
+
+        <!-- 右側轉盤顯示區 -->
+        <main class="flex-grow p-6">
+            <div id="wheels-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                <!-- 轉盤會動態生成於此 -->
+            </div>
+        </main>
+    </div>
+    
+    <!-- 全螢幕置中放大用的 Modal -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div id="modal-content" class="relative w-full max-w-2xl aspect-square transform scale-75 transition-transform duration-300">
+             <div class="pointer" style="border-left-width: 25px; border-right-width: 25px; border-top-width: 55px; top: -20px;"></div>
+             <canvas id="modal-canvas" width="600" height="600"></canvas>
+             <div id="modal-winner" class="absolute inset-0 flex items-center justify-center text-[10rem] leading-none font-extrabold text-white text-center p-4 opacity-0 transition-opacity duration-500 whitespace-nowrap" style="pointer-events: none; text-shadow: 3px 3px 10px rgba(0,0,0,0.8);"></div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM 元素 ---
+            const wheelCountSelect = document.getElementById('wheel-count');
+            const inputContainer = document.getElementById('input-container');
+            const wheelsContainer = document.getElementById('wheels-container');
+            const setupBtn = document.getElementById('setup-btn');
+            const modalOverlay = document.getElementById('modal-overlay');
+            const modalContent = document.getElementById('modal-content');
+            const modalCanvas = document.getElementById('modal-canvas');
+            const modalWinner = document.getElementById('modal-winner');
+
+            // --- 全局狀態 ---
+            let wheels = []; 
+            let activeWheelIndex = null;
+            let allowDuplicates = true;
+            const colors = ["#fdba74", "#fca5a5", "#86efac", "#93c5fd", "#a5b4fc", "#d8b4fe", "#f9a8d4", "#fde047", "#6ee7b7", "#7dd3fc"];
+
+            // --- 函數 ---
+
+            function generateInputFields() {
+                const count = parseInt(wheelCountSelect.value);
+                inputContainer.innerHTML = ''; 
+                for (let i = 0; i < count; i++) {
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <label for="items-input-${i}" class="block text-sm font-medium text-gray-600 mb-1">第 ${i + 1} 組轉盤項目</label>
+                        <textarea id="items-input-${i}" rows="5" class="w-full p-2 bg-white/50 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="每行一個項目">${i+1}-1\n${i+1}-2\n${i+1}-3\n${i+1}-4\n${i+1}-5</textarea>
+                    `;
+                    inputContainer.appendChild(div);
+                }
+            }
+            
+            function drawWheel(canvas, wheelData) {
+                const ctx = canvas.getContext('2d');
+                const { currentItems, startAngle } = wheelData;
+                const size = canvas.width;
+                const center = size / 2;
+                
+                const outsideRadius = center - 5;
+                const textRadius = outsideRadius * 0.75;
+                const insideRadius = 0; // 實心轉盤
+
+                ctx.clearRect(0, 0, size, size);
+                ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+                ctx.lineWidth = 3;
+                ctx.font = `bold ${size / 22}px Poppins`;
+
+                if (currentItems.length === 0) return;
+                
+                const arc = Math.PI * 2 / currentItems.length;
+
+                for (let i = 0; i < currentItems.length; i++) {
+                    const angle = startAngle + i * arc;
+                    ctx.fillStyle = colors[i % colors.length];
+
+                    ctx.beginPath();
+                    ctx.moveTo(center, center);
+                    ctx.arc(center, center, outsideRadius, angle, angle + arc, false);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+
+                    ctx.save();
+                    ctx.fillStyle = "rgba(0,0,0,0.7)";
+                    ctx.translate(center + Math.cos(angle + arc / 2) * textRadius, center + Math.sin(angle + arc / 2) * textRadius);
+                    ctx.rotate(angle + arc / 2 + Math.PI / 2);
+                    const text = currentItems[i];
+                    ctx.fillText(text, -ctx.measureText(text).width / 2, 0);
+                    ctx.restore();
+                }
+            }
+
+
+            function renderAllWheels() {
+                wheelsContainer.innerHTML = '';
+                if (wheels.length === 0) {
+                     wheelsContainer.innerHTML = '<p class="text-gray-500 text-center col-span-full">請在左側設定後，點擊 "產生/更新所有轉盤"</p>';
+                     return;
+                }
+
+                wheels.forEach((wheel, index) => {
+                    const wheelCard = document.createElement('div');
+                    wheelCard.className = 'bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg p-4 flex flex-col items-center space-y-3 fade-in hover:shadow-xl transition-shadow duration-300';
+                    wheelCard.style.animationDelay = `${index * 100}ms`;
+                    wheelCard.innerHTML = `
+                        <h2 class="text-xl font-bold text-gray-700">第 ${index + 1} 組轉盤</h2>
+                        <div id="winner-display-${index}" class="h-16 text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-pink-600 flex items-center justify-center text-center"></div>
+                        <div class="relative w-full max-w-xs aspect-square flex items-center justify-center">
+                            <div class="pointer"></div>
+                            <canvas id="canvas-${index}" width="300" height="300" data-index="${index}"></canvas>
+                        </div>
+                        <div class="w-full">
+                            <h3 class="text-md font-semibold text-gray-600 text-center mb-1">歷史紀錄</h3>
+                            <div id="history-log-${index}" class="w-full h-24 bg-gray-50/60 border border-gray-200/50 rounded-lg p-2 overflow-y-auto text-sm text-center text-gray-600">尚無紀錄</div>
+                        </div>
+                    `;
+                    wheelsContainer.appendChild(wheelCard);
+                    const canvas = document.getElementById(`canvas-${index}`);
+                    drawWheel(canvas, wheel);
+                });
+            }
+
+            function setupAllWheels() {
+                const count = parseInt(wheelCountSelect.value);
+                wheels = []; 
+                for (let i = 0; i < count; i++) {
+                    const textarea = document.getElementById(`items-input-${i}`);
+                    const inputItems = textarea.value.split('\n').map(item => item.trim()).filter(item => item);
+                    if (inputItems.length < 2) {
+                        alert(`第 ${i + 1} 組轉盤至少需要兩個項目！`);
+                        return;
+                    }
+                    wheels.push({
+                        items: [...inputItems], 
+                        currentItems: [...inputItems], 
+                        history: [],
+                        startAngle: 0,
+                        isSpinning: false,
+                        spinTimeout: null,
+                    });
+                }
+                renderAllWheels();
+            }
+            
+            function startSpin(index) {
+                 if(activeWheelIndex !== null) return;
+                 
+                 const wheel = wheels[index];
+                 if(wheel.currentItems.length < 1) {
+                     alert(`第 ${index + 1} 組轉盤已經沒有項目可抽了！`);
+                     return;
+                 }
+                 
+                 activeWheelIndex = index;
+                 wheel.isSpinning = true;
+                 
+                 modalOverlay.classList.remove('hidden');
+                 setTimeout(() => {
+                    modalOverlay.classList.remove('opacity-0');
+                    modalContent.classList.remove('scale-75');
+                 }, 10);
+
+                 wheel.spinAngleStart = Math.random() * 10 + 10;
+                 wheel.spinTime = 0;
+                 wheel.spinTimeTotal = Math.random() * 3000 + 5000;
+                 rotate();
+            }
+            
+            function rotate() {
+                const wheel = wheels[activeWheelIndex];
+                wheel.spinTime += 30;
+
+                if (wheel.spinTime >= wheel.spinTimeTotal) {
+                    stopRotateWheel();
+                    return;
+                }
+
+                const spinAngle = wheel.spinAngleStart - easeOut(wheel.spinTime, 0, wheel.spinAngleStart, wheel.spinTimeTotal);
+                wheel.startAngle += (spinAngle * Math.PI / 180);
+                drawWheel(modalCanvas, wheel);
+                wheel.spinTimeout = requestAnimationFrame(rotate);
+            }
+            
+            function stopRotateWheel() {
+                const wheel = wheels[activeWheelIndex];
+                cancelAnimationFrame(wheel.spinTimeout);
+                
+                const arc = Math.PI * 2 / wheel.currentItems.length;
+                const degrees = wheel.startAngle * 180 / Math.PI + 90;
+                const arcd = arc * 180 / Math.PI;
+                const winnerIndex = Math.floor((360 - degrees % 360) / arcd);
+                const winner = wheel.currentItems[winnerIndex];
+                
+                modalWinner.textContent = winner;
+                modalWinner.classList.remove('opacity-0');
+
+                const smallWinnerDisplay = document.getElementById(`winner-display-${activeWheelIndex}`);
+                smallWinnerDisplay.textContent = winner;
+                smallWinnerDisplay.classList.add('winner-animate');
+                smallWinnerDisplay.onanimationend = () => smallWinnerDisplay.classList.remove('winner-animate');
+
+                wheel.history.unshift(winner);
+                updateHistory(activeWheelIndex);
+                
+                if (!allowDuplicates) {
+                    wheel.currentItems.splice(winnerIndex, 1);
+                }
+
+                setTimeout(closeModal, 2500);
+            }
+            
+            function closeModal() {
+                modalOverlay.classList.add('opacity-0');
+                modalContent.classList.add('scale-75');
+
+                setTimeout(() => {
+                    modalOverlay.classList.add('hidden');
+                    modalWinner.classList.add('opacity-0');
+                    modalWinner.textContent = '';
+                    
+                    const wheel = wheels[activeWheelIndex];
+                    wheel.isSpinning = false;
+                    
+                    const smallCanvas = document.getElementById(`canvas-${activeWheelIndex}`);
+                    drawWheel(smallCanvas, wheel);
+
+                    activeWheelIndex = null;
+                }, 300);
+            }
+
+            function updateHistory(index) {
+                const wheel = wheels[index];
+                const historyLog = document.getElementById(`history-log-${index}`);
+                if(wheel.history.length === 0) {
+                    historyLog.innerHTML = '尚無紀錄';
+                    return;
+                }
+                historyLog.innerHTML = wheel.history.map((item, i) => 
+                    `<div class="px-2 py-1 ${i % 2 === 0 ? 'bg-white/30' : ''} rounded-md">${item}</div>`
+                ).join('');
+            }
+            
+            function easeOut(t, b, c, d) {
+                const ts = (t /= d) * t;
+                const tc = ts * t;
+                return b + c * (tc + -3 * ts + 3 * t);
+            }
+
+            // --- 事件監聽 ---
+            wheelCountSelect.addEventListener('change', generateInputFields);
+            setupBtn.addEventListener('click', setupAllWheels);
+            
+            document.querySelectorAll('input[name="draw-mode"]').forEach(radio => {
+                radio.addEventListener('change', (event) => {
+                    allowDuplicates = event.target.value === 'repeat';
+                    setupAllWheels();
+                });
+            });
+
+            wheelsContainer.addEventListener('click', (event) => {
+                if (event.target.tagName === 'CANVAS') {
+                    const index = parseInt(event.target.dataset.index);
+                    startSpin(index);
+                }
+            });
+
+            // --- 初始化 ---
+            generateInputFields();
+            renderAllWheels();
+        });
+    </script>
+</body>
+</html>
+
