@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分數除法互動練習</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0f9ff;
+        }
+        .fraction {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0 0.5em;
+            vertical-align: middle;
+        }
+        .fraction > span {
+            padding: 0 0.3em;
+        }
+        .fraction .denominator {
+            border-top: 2px solid black;
+        }
+        .whole-number {
+            font-size: 2.5rem;
+            line-height: 1;
+            font-weight: 700;
+            margin-right: 0.1em;
+        }
+        .fraction-part {
+            font-size: 1.8rem;
+            line-height: 1;
+            font-weight: 700;
+        }
+        .operator {
+            font-size: 2.5rem;
+            line-height: 1;
+            font-weight: 700;
+            margin: 0 0.5em;
+        }
+        .step-button {
+            transition: all 0.3s ease;
+        }
+        .step-button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .step-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .crossed-out {
+            position: relative;
+            display: inline-block;
+            color: #9ca3af; /* Make the crossed out number dimmer */
+        }
+        .crossed-out::after {
+            content: '';
+            position: absolute;
+            left: -5%;
+            top: 50%;
+            width: 110%;
+            height: 2px;
+            background-color: #ef4444;
+            transform: rotate(-15deg);
+        }
+        .simplified-num {
+            color: #ef4444;
+            font-weight: 700;
+            margin-left: 0.2rem;
+            vertical-align: super;
+            font-size: 0.9em;
+        }
+        .calculation-step {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 0.5rem;
+            transform: scale(0.9);
+        }
+        .equals-sign {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-right: 1rem;
+        }
+        .step-panel.skipped {
+            background-color: #f3f4f6;
+            opacity: 0.7;
+        }
+         .step-panel.skipped .step-explanation {
+            text-decoration: line-through;
+        }
+        .step-explanation.cannot-simplify {
+            color: #ef4444;
+            font-weight: 500;
+        }
+        .mode-btn {
+            padding: 0.5rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 700;
+            transition: all 0.2s ease-in-out;
+            border: 2px solid transparent;
+        }
+        .mode-btn.active {
+            background-color: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+        .mode-btn:not(.active) {
+            background-color: white;
+            color: #6b7280;
+            border-color: #d1d5db;
+        }
+        .practice-card {
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .practice-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-7xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-blue-800">分數除法練習</h1>
+            <p class="text-lg text-gray-600 mt-2">跟著步驟，一起來挑戰帶分數的除法！</p>
+        </header>
+
+        <div class="flex justify-center space-x-4 mb-6">
+            <button id="mode-btn-teaching" class="mode-btn">教學模式</button>
+            <button id="mode-btn-practice" class="mode-btn">練習模式</button>
+        </div>
+
+        <main>
+            <!-- 教學模式 -->
+            <div id="teaching-mode">
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
+                    <div id="problem-area" class="lg:col-span-3 bg-white rounded-xl shadow-lg p-6 md:p-8 flex flex-col items-center justify-center text-5xl font-bold text-gray-800 min-h-[580px] space-y-1">
+                    </div>
+                    <div id="steps-container" class="lg:col-span-2 space-y-4">
+                        <div id="step-panel-1" class="step-panel bg-white rounded-xl shadow-md p-5 transition-all duration-300">
+                            <div class="flex flex-col md:flex-row items-center">
+                                <div class="flex-grow md:pr-6 text-center md:text-left mb-4 md:mb-0">
+                                    <h2 class="text-xl font-bold text-sky-700">步驟一：帶分數 轉 假分數</h2>
+                                    <p class="step-explanation text-gray-600">先把題目中的帶分數，都變成假分數吧！</p>
+                                </div>
+                                <button id="step1-btn" class="step-button w-full md:w-auto bg-sky-500 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-sky-600 flex-shrink-0">執行步驟一</button>
+                            </div>
+                        </div>
+                        <div id="step-panel-2" class="step-panel bg-white rounded-xl shadow-md p-5 transition-all duration-300">
+                            <div class="flex flex-col md:flex-row items-center">
+                                <div class="flex-grow md:pr-6 text-center md:text-left mb-4 md:mb-0">
+                                    <h2 class="text-xl font-bold text-amber-700">步驟二：除法 變 乘法</h2>
+                                    <p class="step-explanation text-gray-600">將「除號」改成「乘號」，然後把後面那個分數的「分子和分母顛倒」。</p>
+                                </div>
+                                <button id="step2-btn" class="step-button w-full md:w-auto bg-amber-500 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-amber-600 flex-shrink-0">執行步驟二</button>
+                            </div>
+                        </div>
+                        <div id="step-panel-3" class="step-panel bg-white rounded-xl shadow-md p-5 transition-all duration-300">
+                            <div class="flex flex-col md:flex-row items-center">
+                                <div class="flex-grow md:pr-6 text-center md:text-left mb-4 md:mb-0">
+                                    <h2 class="text-xl font-bold text-emerald-700">步驟三：交叉約分</h2>
+                                    <p class="step-explanation text-gray-600">在計算前先約分，可以讓數字變小，更容易計算喔！</p>
+                                </div>
+                                <button id="step3-btn" class="step-button w-full md:w-auto bg-emerald-500 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-emerald-600 flex-shrink-0">執行步驟三</button>
+                            </div>
+                        </div>
+                        <div id="step-panel-4" class="step-panel bg-white rounded-xl shadow-md p-5 transition-all duration-300">
+                             <div class="flex flex-col md:flex-row items-center">
+                                <div class="flex-grow md:pr-6 text-center md:text-left mb-4 md:mb-0">
+                                    <h2 class="text-xl font-bold text-rose-700">步驟四：分子乘分子，分母乘分母</h2>
+                                    <p class="step-explanation text-gray-600">現在，把兩個分數的分子乘起來，分母也乘起來，得到答案！</p>
+                                </div>
+                                <button id="step4-btn" class="step-button w-full md:w-auto bg-rose-500 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-rose-600 flex-shrink-0">執行步驟四</button>
+                            </div>
+                        </div>
+                        <div id="step-panel-5" class="step-panel bg-white rounded-xl shadow-md p-5 transition-all duration-300">
+                            <div class="flex flex-col md:flex-row items-center">
+                                <div class="flex-grow md:pr-6 text-center md:text-left mb-4 md:mb-0">
+                                    <h2 class="text-xl font-bold text-indigo-700">步驟五：假分數 轉 帶分數</h2>
+                                    <p class="step-explanation text-gray-600">如果答案是假分數，記得要把它變回帶分數才算完成喔！</p>
+                                </div>
+                                <button id="step5-btn" class="step-button w-full md:w-auto bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-indigo-600 flex-shrink-0">執行步驟五</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-8">
+                    <button id="next-btn" class="bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-blue-800 transition-transform transform hover:scale-105">下一題</button>
+                </div>
+            </div>
+
+            <!-- 練習模式 -->
+            <div id="practice-mode" class="hidden">
+                <div id="practice-area" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 練習題將會顯示在這裡 -->
+                </div>
+                <div class="text-center mt-8 space-x-4">
+                    <button id="show-answers-btn" class="bg-emerald-500 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-emerald-600 transition-transform transform hover:scale-105">顯示答案</button>
+                    <button id="new-practice-btn" class="bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:bg-blue-800 transition-transform transform hover:scale-105">重新出題</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+<script>
+    // 教學模式 DOM
+    const problemArea = document.getElementById('problem-area');
+    const stepButtons = [
+        document.getElementById('step1-btn'), document.getElementById('step2-btn'), document.getElementById('step3-btn'),
+        document.getElementById('step4-btn'), document.getElementById('step5-btn')
+    ];
+    const stepPanels = [
+        document.getElementById('step-panel-1'), document.getElementById('step-panel-2'), document.getElementById('step-panel-3'),
+        document.getElementById('step-panel-4'), document.getElementById('step-panel-5')
+    ];
+    const nextButton = document.getElementById('next-btn');
+    
+    // 模式切換 DOM
+    const teachingModeDiv = document.getElementById('teaching-mode');
+    const practiceModeDiv = document.getElementById('practice-mode');
+    const teachingModeBtn = document.getElementById('mode-btn-teaching');
+    const practiceModeBtn = document.getElementById('mode-btn-practice');
+
+    // 練習模式 DOM
+    const practiceArea = document.getElementById('practice-area');
+    const showAnswersBtn = document.getElementById('show-answers-btn');
+    const newPracticeBtn = document.getElementById('new-practice-btn');
+
+    // 全域變數
+    let state;
+    let practiceProblems = [];
+    const originalStepTexts = stepPanels.map(p => p.querySelector('.step-explanation').textContent);
+
+    // --- 輔助函式 ---
+    function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+    function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+    // --- 模式切換邏輯 ---
+    function switchMode(mode) {
+        if (mode === 'teaching') {
+            teachingModeDiv.classList.remove('hidden');
+            practiceModeDiv.classList.add('hidden');
+            teachingModeBtn.classList.add('active');
+            practiceModeBtn.classList.remove('active');
+            generateProblem();
+        } else { // practice
+            teachingModeDiv.classList.add('hidden');
+            practiceModeDiv.classList.remove('hidden');
+            teachingModeBtn.classList.remove('active');
+            practiceModeBtn.classList.add('active');
+            generatePracticeProblems();
+        }
+    }
+
+    // --- 通用出題邏輯 ---
+    function createSingleProblem() {
+        let w1, num1, den1, w2, num2, den2;
+        const forceSimplifiable = Math.random() < 0.8;
+        let canBeSimplified = false;
+        let attempts = 0;
+        do {
+            den1 = getRandomInt(2, 12); num1 = getRandomInt(1, den1 - 1); w1 = getRandomInt(0, 5);
+            den2 = getRandomInt(2, 12); num2 = getRandomInt(1, den2 - 1); w2 = getRandomInt(0, 5);
+            const checkNumA = w1 * den1 + num1, checkDenA = den1;
+            const checkNumB_inverted = den2, checkDenB_inverted = w2 * den2 + num2;
+            canBeSimplified = (gcd(checkNumA, checkDenB_inverted) > 1 || gcd(checkNumB_inverted, checkDenA) > 1 || gcd(checkNumA, checkDenA) > 1 || gcd(checkNumB_inverted, checkDenB_inverted) > 1);
+            attempts++;
+        } while (forceSimplifiable && !canBeSimplified && attempts < 50);
+        return { w1, num1, den1, w2, num2, den2 };
+    }
+    
+    // --- 教學模式邏輯 ---
+    function generateProblem() {
+        const p = createSingleProblem();
+        state = { w1: p.w1, num1: p.num1, den1: p.den1, w2: p.w2, num2: p.num2, den2: p.den2, improperNum1: 0, improperDen1: 0, improperNum2: 0, improperDen2: 0, simplificationHistory: {}, finalNum: 0, finalDen: 0, executedSteps: [], activeSteps: [], currentStepIndex: -1, simplificationOccurred: false };
+        if (state.w1 > 0 || state.w2 > 0) state.activeSteps.push(1);
+        state.activeSteps.push(2, 3, 4);
+        problemArea.innerHTML = '';
+        renderStep0();
+        setupInitialUI();
+    }
+
+    function setupInitialUI() {
+        stepPanels.forEach((panel, i) => {
+            panel.classList.remove('skipped', 'opacity-50');
+            const p = panel.querySelector('.step-explanation');
+            p.textContent = originalStepTexts[i];
+            p.classList.remove('cannot-simplify');
+            stepButtons[i].disabled = true;
+        });
+        if (!state.activeSteps.includes(1)) {
+            const panel = stepPanels[0];
+            panel.classList.add('skipped');
+            panel.querySelector('.step-explanation').textContent += ' (已略過)';
+        }
+        nextButton.style.opacity = '0.5';
+        state.currentStepIndex = 0;
+        const firstStep = state.activeSteps[0];
+        stepButtons[firstStep - 1].disabled = false;
+    }
+
+    function renderFraction(w, n, d, type = '') {
+        const colorClass = { step1: 'text-sky-600', step2: 'text-amber-600', step3: 'text-emerald-600', step4: 'text-rose-600', step5: 'text-indigo-600' }[type] || '';
+        let html = '';
+        if (w > 0) html += `<span class="whole-number ${colorClass}">${w}</span>`;
+        if (n > 0 || (n === 0 && w === 0)) {
+            html += `<div class="fraction fraction-part ${colorClass}"><span class="numerator">${n}</span><span class="denominator">${d}</span></div>`;
+        }
+        return html;
+    }
+    
+    function renderStep0() {
+        let html = '<div class="calculation-step" style="transform: scale(1);">';
+        html += renderFraction(state.w1, state.num1, state.den1);
+        html += '<span class="operator">÷</span>';
+        html += renderFraction(state.w2, state.num2, state.den2);
+        html += '</div>';
+        problemArea.innerHTML += html;
+    }
+
+    function handleNextStep() {
+        const currentStepNum = state.activeSteps[state.currentStepIndex];
+        state.executedSteps.push(currentStepNum);
+        performCalculation(currentStepNum);
+        let shouldRender = true;
+        if (currentStepNum === 3 && !state.simplificationOccurred) {
+            shouldRender = false;
+            const explanationP = stepPanels[2].querySelector('.step-explanation');
+            explanationP.textContent = '分子分母互質，無法約分。';
+            explanationP.classList.add('cannot-simplify');
+        }
+        if (shouldRender) renderCalculationStep(currentStepNum);
+        stepButtons[currentStepNum - 1].disabled = true;
+        stepPanels[currentStepNum - 1].classList.add('opacity-50');
+        state.currentStepIndex++;
+        if (currentStepNum === 4) {
+            const isImproper = state.finalNum > state.finalDen && state.finalNum % state.finalDen !== 0;
+            if(isImproper) state.activeSteps.push(5);
+            else {
+                 const panel = stepPanels[4];
+                 panel.classList.add('skipped');
+                 panel.querySelector('.step-explanation').textContent += ' (已略過)';
+            }
+        }
+        if (state.currentStepIndex < state.activeSteps.length) {
+            const nextStepNum = state.activeSteps[state.currentStepIndex];
+            stepButtons[nextStepNum - 1].disabled = false;
+        } else {
+            nextButton.style.opacity = '1';
+        }
+    }
+
+    function performCalculation(stepNum) {
+        switch(stepNum) {
+            case 1:
+                state.improperNum1 = state.w1 * state.den1 + state.num1; state.improperDen1 = state.den1;
+                state.improperNum2 = state.w2 * state.den2 + state.num2; state.improperDen2 = state.den2;
+                break;
+            case 2: break;
+            case 3:
+                let numA = state.activeSteps.includes(1) ? state.improperNum1 : (state.w1 * state.den1 + state.num1);
+                let denA = state.activeSteps.includes(1) ? state.improperDen1 : state.den1;
+                let numB = state.activeSteps.includes(1) ? state.improperDen2 : state.den2;
+                let denB = state.activeSteps.includes(1) ? state.improperNum2 : (state.w2 * state.den2 + state.num2);
+                state.simplificationHistory = { numA: [numA], denA: [denA], numB: [numB], denB: [denB] };
+                let simplifiedInLoop = true;
+                while (simplifiedInLoop) {
+                    simplifiedInLoop = false;
+                    let common;
+                    common = gcd(numA, denB); if (common > 1) { numA /= common; denB /= common; state.simplificationHistory.numA.push(numA); state.simplificationHistory.denB.push(denB); simplifiedInLoop = true; }
+                    common = gcd(numB, denA); if (common > 1) { numB /= common; denA /= common; state.simplificationHistory.numB.push(numB); state.simplificationHistory.denA.push(denA); simplifiedInLoop = true; }
+                    common = gcd(numA, denA); if (common > 1) { numA /= common; denA /= common; state.simplificationHistory.numA.push(numA); state.simplificationHistory.denA.push(denA); simplifiedInLoop = true; }
+                    common = gcd(numB, denB); if (common > 1) { numB /= common; denB /= common; state.simplificationHistory.numB.push(numB); state.simplificationHistory.denB.push(denB); simplifiedInLoop = true; }
+                }
+                state.simplificationOccurred = state.simplificationHistory.numA.length > 1 || state.simplificationHistory.denA.length > 1 || state.simplificationHistory.numB.length > 1 || state.simplificationHistory.denB.length > 1;
+                break;
+            case 4:
+                const sNumA = state.simplificationHistory.numA ? state.simplificationHistory.numA.slice(-1)[0] : (state.activeSteps.includes(1) ? state.improperNum1 : (state.w1 * state.den1 + state.num1));
+                const sDenA = state.simplificationHistory.denA ? state.simplificationHistory.denA.slice(-1)[0] : (state.activeSteps.includes(1) ? state.improperDen1 : state.den1);
+                const sNumB = state.simplificationHistory.numB ? state.simplificationHistory.numB.slice(-1)[0] : (state.activeSteps.includes(1) ? state.improperDen2 : state.den2);
+                const sDenB = state.simplificationHistory.denB ? state.simplificationHistory.denB.slice(-1)[0] : (state.activeSteps.includes(1) ? state.improperNum2 : (state.w2 * state.den2 + state.num2));
+                state.finalNum = sNumA * sNumB; state.finalDen = sDenA * sDenB;
+                break;
+            case 5: break;
+        }
+    }
+
+    function renderCalculationStep(stepNum) {
+        let html = '<div class="calculation-step"><span class="equals-sign">=</span>';
+        let content = '';
+        const numA_before = state.activeSteps.includes(1) ? state.improperNum1 : (state.w1 * state.den1 + state.num1);
+        const denA_before = state.activeSteps.includes(1) ? state.improperDen1 : state.den1;
+        const numB_before = state.activeSteps.includes(1) ? state.improperNum2 : (state.w2 * state.den2 + state.num2);
+        const denB_before = state.activeSteps.includes(1) ? state.improperDen2 : state.den2;
+        switch (stepNum) {
+            case 1: content += renderFraction(0, state.improperNum1, state.improperDen1, 'step1') + '<span class="operator">÷</span>' + renderFraction(0, state.improperNum2, state.improperDen2, 'step1'); break;
+            case 2: content += renderFraction(0, numA_before, denA_before, 'step2') + '<span class="operator text-amber-600">×</span>' + renderFraction(0, denB_before, numB_before, 'step2'); break;
+            case 3:
+                function renderHistory(h) {
+                    if (h.length <= 1) return h[0];
+                    let inner = `<span class="crossed-out">${h[0]}</span><span class="simplified-num">${h[1]}</span>`;
+                    for (let i = 2; i < h.length; i++) inner = `<span class="crossed-out">${inner}</span><span class="simplified-num">${h[i]}</span>`;
+                    return inner;
+                }
+                content += `<div class="fraction fraction-part text-emerald-600"><span class="numerator">${renderHistory(state.simplificationHistory.numA)}</span><span class="denominator">${renderHistory(state.simplificationHistory.denA)}</span></div> <span class="operator text-emerald-600">×</span> <div class="fraction fraction-part text-emerald-600"><span class="numerator">${renderHistory(state.simplificationHistory.numB)}</span><span class="denominator">${renderHistory(state.simplificationHistory.denB)}</span></div>`;
+                break;
+            case 4:
+                if (state.finalNum === 0 && state.finalDen > 0) content += `<span class="whole-number text-rose-600">0</span>`;
+                else if (state.finalDen === 1) content += `<span class="whole-number text-rose-600">${state.finalNum}</span>`;
+                else content += renderFraction(0, state.finalNum, state.finalDen, 'step4');
+                break;
+            case 5:
+                const finalW = Math.floor(state.finalNum / state.finalDen), finalN = state.finalNum % state.finalDen;
+                content += renderFraction(finalW, finalN, state.finalDen, 'step5');
+                break;
+        }
+        html += content + '</div>';
+        problemArea.innerHTML += html;
+    }
+    
+    // --- 練習模式邏輯 ---
+    function generatePracticeProblems() {
+        practiceProblems = [];
+        for (let i = 0; i < 4; i++) {
+            const pData = createSingleProblem();
+            const problem = { ...pData, answer: null };
+            
+            // 計算答案
+            let numA = problem.w1 * problem.den1 + problem.num1, denA = problem.den1;
+            let numB = problem.w2 * problem.den2 + problem.num2, denB = problem.den2;
+            let finalNum = numA * denB, finalDen = denA * numB;
+            const common = gcd(finalNum, finalDen);
+            finalNum /= common; finalDen /= common;
+            problem.answer = { w: 0, n: finalNum, d: finalDen };
+            
+            if (finalDen === 1) { // 整數
+                problem.answer = { w: finalNum, n: 0, d: 1 };
+            } else if (finalNum > finalDen) { // 帶分數
+                problem.answer.w = Math.floor(finalNum / finalDen);
+                problem.answer.n = finalNum % finalDen;
+                problem.answer.d = finalDen;
+            }
+            practiceProblems.push(problem);
+        }
+        renderPracticeProblems();
+    }
+    
+    function renderPracticeProblems() {
+        let html = '';
+        practiceProblems.forEach((p, index) => {
+            html += `
+                <div class="practice-card bg-white rounded-xl shadow-md p-6 flex flex-col justify-between" onclick="toggleSingleAnswer(${index})">
+                    <div class="text-3xl flex items-center justify-center font-bold text-gray-800 min-h-[80px]">
+                        ${renderFraction(p.w1, p.num1, p.den1)}
+                        <span class="operator">÷</span>
+                        ${renderFraction(p.w2, p.num2, p.den2)}
+                        <span class="operator">=</span>
+                        <div id="answer-${index}" class="text-blue-600 opacity-0 transition-opacity duration-500">
+                             ${p.answer.d === 1 ? `<span class="whole-number">${p.answer.w}</span>` : renderFraction(p.answer.w, p.answer.n, p.answer.d)}
+                        </div>
+                    </div>
+                </div>`;
+        });
+        practiceArea.innerHTML = html;
+        showAnswersBtn.textContent = '顯示答案';
+        showAnswersBtn.dataset.state = 'hidden';
+    }
+
+    function toggleSingleAnswer(index) {
+        const answerDiv = document.getElementById(`answer-${index}`);
+        answerDiv.classList.toggle('opacity-0');
+    }
+
+    function togglePracticeAnswers() {
+        const isHidden = showAnswersBtn.dataset.state === 'hidden';
+        for (let i = 0; i < 4; i++) {
+            const answerDiv = document.getElementById(`answer-${i}`);
+            if (isHidden) {
+                answerDiv.classList.remove('opacity-0');
+            } else {
+                answerDiv.classList.add('opacity-0');
+            }
+        }
+        showAnswersBtn.textContent = isHidden ? '隱藏答案' : '顯示答案';
+        showAnswersBtn.dataset.state = isHidden ? 'shown' : 'hidden';
+    }
+
+
+    // --- 事件監聽 ---
+    stepButtons.forEach(btn => btn.addEventListener('click', handleNextStep));
+    nextButton.addEventListener('click', generateProblem);
+    teachingModeBtn.addEventListener('click', () => switchMode('teaching'));
+    practiceModeBtn.addEventListener('click', () => switchMode('practice'));
+    showAnswersBtn.addEventListener('click', togglePracticeAnswers);
+    newPracticeBtn.addEventListener('click', generatePracticeProblems);
+
+    window.onload = () => switchMode('teaching');
+</script>
+
+</body>
+</html>
+
