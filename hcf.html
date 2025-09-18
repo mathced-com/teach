@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <title>短除法練習 - 最大公因數與最小公倍數</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        /* CSS 變數，用於控制縮排大小 */
+        :root {
+            --indent-size: 1rem;
+        }
+        /* --- 通用樣式 --- */
+        .mode-btn.active {
+            background-color: #0284c7;
+            color: white;
+        }
+
+        /* --- 教學模式樣式 --- */
+        .short-division-container {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .division-step {
+            display: flex;
+            align-items: flex-end;
+            margin-left: calc(var(--indent-level, 0) * var(--indent-size));
+        }
+        .divisor {
+            font-weight: bold;
+            color: #ef4444;
+            padding-right: 1rem;
+            padding-bottom: 0.5rem;
+            width: 3rem;
+            text-align: right;
+        }
+        .numbers-wrapper.has-line {
+            border-left: 2px solid #334155;
+            border-bottom: 2px solid #334155;
+            padding-left: 1rem;
+        }
+        .numbers-row {
+            display: flex;
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            margin-left: calc(var(--indent-level, 0) * var(--indent-size) * -1);
+        }
+        .numbers-wrapper:not(.has-line) .numbers-row {
+             padding-left: calc(1rem + 2px);
+        }
+         .number {
+            min-width: 4rem;
+            text-align: center;
+        }
+
+        /* --- 練習模式樣式 --- */
+        .practice-card {
+            transition: all 0.3s ease;
+        }
+        .practice-answer {
+            transition: max-height 0.5s ease-in-out, opacity 0.5s ease;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .practice-answer.show {
+            max-height: 200px; /* 設一個足夠大的高度 */
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-2xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8 text-slate-800 relative">
+        
+        <!-- 模式切換按鈕 -->
+        <div class="absolute top-4 right-4 flex bg-slate-200 rounded-lg p-1">
+            <button id="mode-teaching-btn" class="mode-btn active text-sm font-bold py-1 px-3 rounded-md transition-colors">教學</button>
+            <button id="mode-practice-btn" class="mode-btn text-sm font-bold py-1 px-3 rounded-md transition-colors">練習</button>
+        </div>
+
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-slate-700">短除法學習營</h1>
+            <p id="header-subtitle" class="text-slate-500 mt-2">練習找出兩個數字的最大公因數與最小公倍數</p>
+        </header>
+
+        <!-- 教學模式容器 -->
+        <main id="teaching-mode">
+            <div class="bg-sky-100 border-l-4 border-sky-500 text-sky-800 p-4 rounded-lg mb-6">
+                <h2 class="font-bold text-lg">今日題目</h2>
+                <div id="question" class="text-4xl font-bold text-center py-4 tracking-widest"></div>
+            </div>
+
+            <div class="flex justify-center space-x-4 mb-6">
+                <button id="new-question-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105 shadow">出新題目</button>
+                <button id="solve-step-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105 shadow disabled:bg-slate-300 disabled:cursor-not-allowed disabled:transform-none">逐步計算</button>
+            </div>
+
+            <div id="solution-container" class="my-6 min-h-[150px] flex justify-center items-start pt-4"></div>
+            <div id="result" class="text-center mt-4 p-4 rounded-lg bg-slate-50 opacity-0 transition-opacity duration-500"></div>
+        </main>
+
+        <!-- 練習模式容器 -->
+        <main id="practice-mode" class="hidden">
+            <div id="practice-questions-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- 練習題目會顯示在這裡 -->
+            </div>
+            <div class="flex justify-center space-x-4">
+                 <button id="practice-new-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105 shadow">重新出題</button>
+                 <button id="practice-show-all-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105 shadow">顯示所有答案</button>
+            </div>
+        </main>
+
+    </div>
+
+    <script>
+        // --- 全域 DOM 元素 ---
+        const modeTeachingBtn = document.getElementById('mode-teaching-btn');
+        const modePracticeBtn = document.getElementById('mode-practice-btn');
+        const teachingModeEl = document.getElementById('teaching-mode');
+        const practiceModeEl = document.getElementById('practice-mode');
+        const headerSubtitle = document.getElementById('header-subtitle');
+
+        // --- 教學模式 DOM 元素 ---
+        const questionEl = document.getElementById('question');
+        const newQuestionBtn = document.getElementById('new-question-btn');
+        const solveStepBtn = document.getElementById('solve-step-btn');
+        const solutionContainer = document.getElementById('solution-container');
+        const resultEl = document.getElementById('result');
+
+        // --- 練習模式 DOM 元素 ---
+        const practiceQuestionsGridEl = document.getElementById('practice-questions-grid');
+        const practiceNewBtn = document.getElementById('practice-new-btn');
+        const practiceShowAllBtn = document.getElementById('practice-show-all-btn');
+
+        // --- 狀態變數 ---
+        let teachingNum1, teachingNum2;
+        let steps = [];
+        let divisors = [];
+        let clickCount = 0;
+        let stepRows = [];
+        
+        // --- 核心計算函式 ---
+        function gcd(a, b) {
+            while (b) { [a, b] = [b, a % b]; }
+            return a;
+        }
+
+        // --- 通用題目生成函式 ---
+        function generateNumberPair() {
+            let num1, num2;
+            let found = false;
+            while (!found) {
+                num1 = Math.floor(Math.random() * 90) + 10;
+                num2 = Math.floor(Math.random() * 90) + 10;
+                if (num1 === num2) continue;
+                const commonDivisor = gcd(num1, num2);
+                const leastCommonMultiple = (num1 * num2) / commonDivisor;
+                const isCoprime = commonDivisor === 1;
+                const chance = Math.random();
+                if (leastCommonMultiple <= 300) {
+                    if ((isCoprime && chance < 0.1) || !isCoprime) {
+                        found = true;
+                    }
+                }
+            }
+            return { num1, num2 };
+        }
+
+        // --- 模式切換邏輯 ---
+        function switchToTeachingMode() {
+            teachingModeEl.classList.remove('hidden');
+            practiceModeEl.classList.add('hidden');
+            modeTeachingBtn.classList.add('active');
+            modePracticeBtn.classList.remove('active');
+            headerSubtitle.textContent = '練習找出兩個數字的最大公因數與最小公倍數';
+            generateTeachingQuestion();
+        }
+
+        function switchToPracticeMode() {
+            teachingModeEl.classList.add('hidden');
+            practiceModeEl.classList.remove('hidden');
+            modeTeachingBtn.classList.remove('active');
+            modePracticeBtn.classList.add('active');
+            headerSubtitle.textContent = '點擊題目卡片可以顯示或隱藏單題答案';
+            generatePracticeQuestions();
+        }
+
+        // --- 教學模式邏輯 ---
+        function resetTeachingState() {
+            steps = [];
+            divisors = [];
+            clickCount = 0;
+            stepRows = [];
+            solutionContainer.innerHTML = '';
+            resultEl.innerHTML = '';
+            resultEl.classList.add('opacity-0');
+            solveStepBtn.disabled = false;
+        }
+
+        function generateTeachingQuestion() {
+            resetTeachingState();
+            const { num1, num2 } = generateNumberPair();
+            teachingNum1 = num1;
+            teachingNum2 = num2;
+            questionEl.textContent = `${teachingNum1} , ${teachingNum2}`;
+        }
+
+        function prepareShortDivision() {
+            let tempNum1 = teachingNum1;
+            let tempNum2 = teachingNum2;
+            steps = [{ n1: tempNum1, n2: tempNum2 }];
+            divisors = [];
+            for (let i = 2; i <= Math.min(tempNum1, tempNum2); ) {
+                if (tempNum1 % i === 0 && tempNum2 % i === 0) {
+                    divisors.push(i);
+                    tempNum1 /= i;
+                    tempNum2 /= i;
+                    steps.push({ n1: tempNum1, n2: tempNum2 });
+                } else { i++; }
+            }
+        }
+        
+        function handleStepByStep() {
+            if (clickCount === 0) {
+                prepareShortDivision();
+                solutionContainer.innerHTML = '';
+                const container = document.createElement('div');
+                container.className = 'short-division-container';
+                solutionContainer.appendChild(container);
+
+                // 步驟一: 顯示題目和第一層的 L 型分隔線
+                const stepData = steps[0];
+                const stepEl = createStepElement(0, stepData, true);
+                container.appendChild(stepEl);
+                stepRows.push(stepEl);
+
+                if (divisors.length === 0) {
+                    solveStepBtn.disabled = true;
+                    setTimeout(showFinalResult, 500);
+                }
+            } else {
+                const divisorIndex = Math.floor((clickCount - 1) / 2);
+                const isShowingDivisor = (clickCount - 1) % 2 === 0;
+
+                if (divisorIndex < divisors.length) {
+                    if (isShowingDivisor) {
+                        // 填上除數
+                        stepRows[divisorIndex].querySelector('.divisor').textContent = divisors[divisorIndex];
+                    } else {
+                        // 顯示下一層的商
+                        const nextStepIndex = divisorIndex + 1;
+                        const stepData = steps[nextStepIndex];
+                        const hasLine = nextStepIndex < divisors.length;
+                        const stepEl = createStepElement(nextStepIndex, stepData, hasLine);
+                        solutionContainer.querySelector('.short-division-container').appendChild(stepEl);
+                        stepRows.push(stepEl);
+                        if (!hasLine) {
+                            solveStepBtn.disabled = true;
+                            setTimeout(showFinalResult, 500);
+                        }
+                    }
+                }
+            }
+            clickCount++;
+        }
+
+        function createStepElement(level, data, hasLine) {
+            const stepEl = document.createElement('div');
+            stepEl.className = 'division-step';
+            stepEl.style.setProperty('--indent-level', level);
+            stepEl.innerHTML = `
+                <div class="divisor text-2xl"></div>
+                <div class="numbers-wrapper ${hasLine ? 'has-line' : ''}">
+                    <div class="numbers-row" style="--indent-level: ${level};">
+                        <div class="number text-2xl font-bold">${data.n1}</div>
+                        <div class="number text-2xl font-bold">${data.n2}</div>
+                    </div>
+                </div>`;
+            return stepEl;
+        }
+
+        function showFinalResult() {
+            const finalGcd = divisors.reduce((acc, val) => acc * val, 1);
+            const finalStep = steps[steps.length - 1];
+            const finalLcm = finalGcd * finalStep.n1 * finalStep.n2;
+            let gcdString = divisors.join(' × ') || '1';
+            let lcmString = divisors.length > 0 ? divisors.join(' × ') + ` × ${finalStep.n1} × ${finalStep.n2}` : `${finalStep.n1} × ${finalStep.n2}`;
+            resultEl.innerHTML = `<p class="text-lg"><span class="font-bold text-rose-600">最大公因數 ＝</span> ${gcdString} = <span class="font-bold text-xl">${finalGcd}</span></p><p class="text-lg mt-2"><span class="font-bold text-cyan-600">最小公倍數＝</span> ${lcmString} = <span class="font-bold text-xl">${finalLcm}</span></p>`;
+            resultEl.classList.remove('opacity-0');
+        }
+
+        // --- 練習模式邏輯 ---
+        function generatePracticeQuestions() {
+            practiceQuestionsGridEl.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                const { num1, num2 } = generateNumberPair();
+                const commonDivisor = gcd(num1, num2);
+                const leastCommonMultiple = (num1 * num2) / commonDivisor;
+
+                const card = document.createElement('div');
+                card.className = 'practice-card bg-slate-50 rounded-lg p-4 shadow cursor-pointer hover:shadow-md hover:bg-slate-100';
+                card.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <p class="text-2xl font-bold text-slate-700">${num1}, ${num2}</p>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                    </div>
+                    <div class="practice-answer mt-4 pt-4 border-t border-slate-200 text-left">
+                        <p><span class="font-bold text-rose-500">最大公因數:</span> ${commonDivisor}</p>
+                        <p class="mt-1"><span class="font-bold text-cyan-500">最小公倍數:</span> ${leastCommonMultiple}</p>
+                    </div>
+                `;
+                practiceQuestionsGridEl.appendChild(card);
+            }
+        }
+
+        // --- 事件監聽 ---
+        modeTeachingBtn.addEventListener('click', switchToTeachingMode);
+        modePracticeBtn.addEventListener('click', switchToPracticeMode);
+        
+        // 教學模式
+        newQuestionBtn.addEventListener('click', generateTeachingQuestion);
+        solveStepBtn.addEventListener('click', handleStepByStep);
+        
+        // 練習模式
+        practiceNewBtn.addEventListener('click', generatePracticeQuestions);
+        practiceShowAllBtn.addEventListener('click', () => {
+            document.querySelectorAll('.practice-answer').forEach(el => el.classList.add('show'));
+        });
+        practiceQuestionsGridEl.addEventListener('click', (e) => {
+            const card = e.target.closest('.practice-card');
+            if (card) {
+                card.querySelector('.practice-answer').classList.toggle('show');
+            }
+        });
+
+        // --- 初始載入 ---
+        window.addEventListener('load', switchToTeachingMode);
+    </script>
+</body>
+</html>
+
