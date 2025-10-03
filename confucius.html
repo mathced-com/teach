@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>《論語》主題互動挑戰</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap');
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background-color: #f3f4f6;
+        }
+        /* ---- 通用樣式 ---- */
+        .main-tab-button.active {
+            background-color: #a78bfa;
+            color: white;
+        }
+        .game-mode-content {
+            display: none;
+        }
+        .font-size-btn {
+            background-color: #e5e7eb;
+            color: #4b5563;
+            border: 2px solid transparent;
+        }
+        .font-size-btn.active {
+            background-color: #e0e7ff;
+            color: #4338ca;
+            border-color: #6366f1;
+        }
+
+        /* ---- 填空 & 默寫 & 文意重點樣式 ---- */
+        .answer-box {
+            background-color: #e0f2fe; color: #e0f2fe; padding: 0 12px;
+            border-radius: 8px; cursor: pointer; transition: all 0.4s ease-in-out;
+            border-bottom: 2px dotted #0ea5e9; user-select: none;
+        }
+        .answer-box.revealed {
+            background-color: transparent; color: #dc2626;
+            font-weight: bold; border-bottom: 2px dotted transparent;
+        }
+
+        /* ---- 配對題樣式 ---- */
+        .match-board { display: grid; grid-template-columns: 1fr 1.5fr; gap: 1rem; align-items: start; }
+        .draggable-item {
+            cursor: grab; transition: transform 0.2s;
+            touch-action: none; 
+            background-color: #f1f5f9; /* 提示統一用淺灰色 */
+            border-color: #cbd5e1;
+        }
+        .draggable-item:active { cursor: grabbing; transform: scale(1.05); }
+        .drop-zone { transition: background-color 0.2s, border-color 0.2s; min-height: 80px; }
+        .drop-zone.drag-over { background-color: #dbeafe; border-color: #60a5fa; }
+        .drop-zone.correct-match { background-color: #dcfce7 !important; border-color: #22c55e; }
+        .drop-zone.wrong-match {
+            animation: shake 0.5s;
+            background-color: #fee2e2 !important;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        /* ---- 放大文字樣式 (僅作用於 .game-board 內部) ---- */
+        .text-enlarged .game-board .text-xl { font-size: 1.75rem; line-height: 2.5rem; }
+        .text-enlarged .game-board .font-bold { font-size: 1.5rem; line-height: 2rem; }
+        .text-enlarged .game-board .draggable-item, 
+        .text-enlarged .game-board .drop-zone { font-size: 1.25rem; line-height: 1.75rem; }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="game-container" class="bg-white p-6 md:p-10 rounded-2xl shadow-2xl max-w-5xl w-full transition-all duration-300">
+        <!-- 標題 -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">《論語》主題互動挑戰</h1>
+            <p class="text-gray-500 mt-2">請選擇挑戰模式！</p>
+        </header>
+
+        <!-- 主要模式切換 -->
+        <div class="flex justify-center bg-gray-200 rounded-lg p-1 mb-8">
+            <button class="main-tab-button active w-1/4 p-2 rounded-md font-bold transition" onclick="openGameMode(event, 'fill-in-blank')">句子填空</button>
+            <button class="main-tab-button w-1/4 p-2 rounded-md font-bold transition" onclick="openGameMode(event, 'matching-game')">配對題</button>
+            <button class="main-tab-button w-1/4 p-2 rounded-md font-bold transition" onclick="openGameMode(event, 'hint-recall')">原文默背</button>
+            <button class="main-tab-button w-1/4 p-2 rounded-md font-bold transition" onclick="openGameMode(event, 'meaning-focus')">文意重點</button>
+        </div>
+
+        <!-- 內容區域 -->
+        <div id="fill-in-blank" class="game-mode-content">
+             <!-- 句子填空 - 設定 -->
+            <div class="mb-8 p-4 bg-gray-50 rounded-lg">
+                <p class="font-bold text-center text-gray-700 mb-4">請選擇要挑戰的主題（可複選）：</p>
+                <div class="flex flex-wrap justify-center gap-x-6 gap-y-3">
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="fib-topic" value="filial_piety" class="h-5 w-5 rounded"><span>孝順</span></label>
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="fib-topic" value="learning" class="h-5 w-5 rounded"><span>學習</span></label>
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="fib-topic" value="reflection" class="h-5 w-5 rounded"><span>反省</span></label>
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="fib-topic" value="speech" class="h-5 w-5 rounded"><span>說話</span></label>
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="fib-topic" value="benevolence" class="h-5 w-5 rounded"><span>仁愛</span></label>
+                </div>
+                <div class="text-center mt-5">
+                    <button onclick="generateFillInBlankGame()" class="bg-sky-500 text-white px-8 py-3 rounded-lg hover:bg-sky-600 transition-transform active:scale-95 text-lg font-bold">開始挑戰！</button>
+                </div>
+                <p id="fib-error" class="text-center text-red-500 mt-2 h-4"></p>
+            </div>
+            <!-- 句子填空 - 遊戲區 -->
+            <div id="fill-in-blank-board" class="space-y-6 game-board"></div>
+        </div>
+        
+        <div id="matching-game" class="game-mode-content">
+             <!-- 配對題 - 設定 -->
+            <div class="mb-8 p-4 bg-gray-50 rounded-lg">
+                <p class="font-bold text-center text-gray-700 mb-4">請選擇要挑戰的主題（可複選）：</p>
+                <div class="flex flex-wrap justify-center gap-x-6 gap-y-3">
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="match-topic" value="filial_piety" class="h-5 w-5 rounded"><span>孝順</span></label>
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="match-topic" value="learning" class="h-5 w-5 rounded"><span>學習</span></label>
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="match-topic" value="reflection" class="h-5 w-5 rounded"><span>反省</span></label>
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="match-topic" value="speech" class="h-5 w-5 rounded"><span>說話</span></label>
+                    <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="match-topic" value="benevolence" class="h-5 w-5 rounded"><span>仁愛</span></label>
+                </div>
+                <div class="text-center mt-5">
+                    <button onclick="generateMatchingGame()" class="bg-violet-500 text-white px-8 py-3 rounded-lg hover:bg-violet-600 transition-transform active:scale-95 text-lg font-bold">開始挑戰！</button>
+                </div>
+                <p id="matching-error" class="text-center text-red-500 mt-2 h-4"></p>
+            </div>
+            <!-- 配對題 - 遊戲區 -->
+            <div id="matching-board" class="mt-4 game-board"></div>
+        </div>
+        
+        <div id="hint-recall" class="game-mode-content">
+            <!-- 原文默背 - 設定 -->
+            <div class="mb-8 p-4 bg-gray-50 rounded-lg">
+                <p class="font-bold text-center text-gray-700 mb-4">請選擇要挑戰的主題（可複選）：</p>
+                <div class="flex flex-wrap justify-center gap-x-6 gap-y-3">
+                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="hr-topic" value="filial_piety" class="h-5 w-5 rounded"><span>孝順</span></label>
+                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="hr-topic" value="learning" class="h-5 w-5 rounded"><span>學習</span></label>
+                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="hr-topic" value="reflection" class="h-5 w-5 rounded"><span>反省</span></label>
+                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="hr-topic" value="speech" class="h-5 w-5 rounded"><span>說話</span></label>
+                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="hr-topic" value="benevolence" class="h-5 w-5 rounded"><span>仁愛</span></label>
+                </div>
+                <div class="text-center mt-5">
+                    <button onclick="generateHintRecallGame()" class="bg-emerald-500 text-white px-8 py-3 rounded-lg hover:bg-emerald-600 transition-transform active:scale-95 text-lg font-bold">開始挑戰！</button>
+                </div>
+                 <p id="hr-error" class="text-center text-red-500 mt-2 h-4"></p>
+            </div>
+            <!-- 原文默背 - 遊戲區 -->
+            <div id="hint-recall-board" class="space-y-6 game-board"></div>
+        </div>
+
+        <div id="meaning-focus" class="game-mode-content">
+            <!-- 文意重點 - 設定 -->
+            <div class="mb-8 p-4 bg-gray-50 rounded-lg">
+                <p class="font-bold text-center text-gray-700 mb-4">請選擇要挑戰的主題（可複選）：</p>
+                <div class="flex flex-wrap justify-center gap-x-6 gap-y-3">
+                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="mf-topic" value="filial_piety" class="h-5 w-5 rounded"><span>孝順</span></label>
+                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="mf-topic" value="learning" class="h-5 w-5 rounded"><span>學習</span></label>
+                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="mf-topic" value="reflection" class="h-5 w-5 rounded"><span>反省</span></label>
+                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="mf-topic" value="speech" class="h-5 w-5 rounded"><span>說話</span></label>
+                     <label class="flex items-center space-x-2 cursor-pointer"><input type="checkbox" name="mf-topic" value="benevolence" class="h-5 w-5 rounded"><span>仁愛</span></label>
+                </div>
+                <div class="text-center mt-5">
+                    <button onclick="generateMeaningFocusGame()" class="bg-orange-500 text-white px-8 py-3 rounded-lg hover:bg-orange-600 transition-transform active:scale-95 text-lg font-bold">開始挑戰！</button>
+                </div>
+                 <p id="mf-error" class="text-center text-red-500 mt-2 h-4"></p>
+            </div>
+            <!-- 文意重點 - 遊戲區 -->
+            <div id="meaning-focus-board" class="space-y-6 game-board"></div>
+        </div>
+
+        <!-- 頁腳 -->
+        <footer class="text-center mt-10">
+            <button onclick="resetAll()" class="bg-gray-700 text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors">全部重置</button>
+        </footer>
+    </div>
+    
+    <!-- Floating Font Size Changer -->
+    <div id="font-fab-container" class="fixed bottom-6 right-6 z-50 hidden">
+        <button id="font-toggle-btn" class="font-size-btn flex items-center gap-2 px-4 py-2 rounded-lg shadow-lg font-semibold" onclick="toggleFontSize()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="icon-enlarge"><path d="M14.5 10.5 21 4m-3.5 0h3.5v3.5M10 4H4v6m16 10v-6m-6 6h-6"/><path d="m3 21 6.5-6.5"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="icon-shrink hidden"><path d="m15.5 8.5-7 7M8.5 8.5h7v7M4 14v6m6 0h6m6-16v6m-6 0h-6"/></svg>
+            <span id="font-toggle-text">文字放大</span>
+        </button>
+    </div>
+
+<script>
+    let currentMode = 'fill-in-blank';
+
+    // 存放所有題庫資料
+    const allData = {
+        filial_piety: {
+            color: 'amber',
+            pairs: [
+                { id: 'f1', hint: '對父母除了奉養，更重要的是尊敬。', quote: '子游問孝，子曰：「今之孝者，是謂能養。至於犬馬，皆能有養；不敬，何以別乎？」', fib: '子游問孝，子曰：「今之孝者，<span class="answer-box">是謂能養</span>。至於犬馬，<span class="answer-box">皆能有養</span>；<span class="answer-box">不敬</span>，何以別乎？」' },
+                { id: 'f2', hint: '照顧好自己，讓父母只擔心你的健康。', quote: '孟武伯問孝，子曰：「父母唯其疾之憂。」', fib: '孟武伯問孝，子曰：「父母<span class="answer-box">唯其疾之憂</span>。」' },
+                { id: 'f3', hint: '出門要告知去向，讓父母安心。', quote: '子曰：「父母在，不遠遊，遊必有方。」', fib: '子曰：「父母在，<span class="answer-box">不遠遊</span>，<span class="answer-box">遊必有方</span>。」' }
+            ]
+        },
+        learning: {
+            color: 'sky',
+            pairs: [
+                { id: 'l1', hint: '誠實面對自己不懂的地方才是真智慧。', quote: '子曰：「知之為知之，不知為不知，是知也。」', fib: '子曰：「知之為知之，<span class="answer-box">不知為不知</span>，<span class="answer-box">是知也</span>。」' },
+                { id: 'l2', hint: '學習與思考必須並行，缺一不可。', quote: '子曰：「學而不思則罔，思而不學則殆。」', fib: '子曰：「學而不思則罔，<span class="answer-box">思而不學則殆</span>。」' },
+                { id: 'l3', hint: '隨時隨地都能向身邊的人學習。', quote: '子曰：「三人行，必有我師焉。擇其善者而從之，其不善者而改之。」', fib: '子曰：「三人行，<span class="answer-box">必有我師焉</span>。擇其善者而從之，<span class="answer-box">其不善者而改之</span>。」' }
+            ]
+        },
+        reflection: {
+            color: 'emerald',
+            pairs: [
+                { id: 'r1', hint: '每天都要多次反省自己的言行。', quote: '曾子曰：「吾日三省吾身：為人謀而不忠乎？與朋友交而不信乎？傳不習乎？」', fib: '曾子曰：「吾日三省吾身：為人謀而<span class="answer-box">不忠</span>乎？與朋友交而<span class="answer-box">不信</span>乎？傳<span class="answer-box">不習</span>乎？」' },
+                { id: 'r2', hint: '戒除四種毛病：主觀、絕對、固執、自私。', quote: '子絕四：「毋意，毋必，毋固，毋我。」', fib: '子絕四：「毋意，<span class="answer-box">毋必</span>，毋固，<span class="answer-box">毋我</span>。」' },
+                { id: 'r3', hint: '看到優秀的人要看齊，看到不好的要反省。', quote: '子曰：「見賢思齊焉，見不賢而內自省也。」', fib: '子曰：「見賢思齊焉，<span class="answer-box">見不賢而內自省也</span>。」' }
+            ]
+        },
+        speech: {
+            color: 'rose',
+            pairs: [
+                { id: 's1', hint: '隨便散播謠言是品德的損失。', quote: '子曰：「道聽而塗說，德之棄也。」', fib: '子曰：「道聽而塗說，<span class="answer-box">德之棄也</span>。」' },
+                { id: 's2', hint: '花言巧語的人，很少有仁德。', quote: '子曰：「巧言令色，鮮矣仁。」', fib: '子曰：「巧言令色，<span class="answer-box">鮮矣仁</span>。」' },
+                { id: 's3', hint: '君子認為說得多、做得少是可恥的。', quote: '子曰：「君子恥其言而過其行。」', fib: '子曰：「君子恥其言而<span class="answer-box">過其行</span>。」' }
+            ]
+        },
+        benevolence: {
+            color: 'violet',
+            pairs: [
+                { id: 'b1', hint: '仁的核心就是關愛他人。', quote: '樊遲問仁。子曰：「愛人。」', fib: '樊遲問仁。子曰：「<span class="answer-box">愛人</span>。」' },
+                { id: 'b2', hint: '只要下定決心追求仁，仁就會到來。', quote: '子曰：「仁遠乎哉？我欲仁，斯仁至矣。」', fib: '子曰：「仁遠乎哉？<span class="answer-box">我欲仁</span>，<span class="answer-box">斯仁至矣</span>。」' },
+                { id: 'b3', hint: '約束自己、遵守禮節就是實踐仁的方法。', quote: '顏淵問仁。子曰：「克己復禮為仁。一日克己復禮，天下歸仁焉。為仁由己，而由人乎哉？」', fib: '顏淵問仁。子曰：「克己復禮<span class="answer-box">為仁</span>。一日克己復禮，<span class="answer-box">天下歸仁</span>焉。為仁由己，而由人乎哉？」' }
+            ]
+        }
+    };
+
+    // 頁面載入後預設狀態
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('fill-in-blank').style.display = 'block';
+
+        // 使用事件委派來處理動態生成的 answer-box
+        const gameContainer = document.getElementById('game-container');
+        gameContainer.addEventListener('click', (e) => {
+            if (e.target && e.target.matches('.answer-box')) {
+                toggleAnswer(e.target);
+            }
+        });
+    });
+
+    // 切換主要模式
+    function openGameMode(evt, modeName) {
+        currentMode = modeName;
+        document.querySelectorAll(".game-mode-content").forEach(el => el.style.display = "none");
+        document.querySelectorAll(".main-tab-button").forEach(el => el.classList.remove("active"));
+        document.getElementById(modeName).style.display = "block";
+        evt.currentTarget.classList.add("active");
+    }
+    
+    // 切換文字大小
+    function toggleFontSize() {
+        const container = document.getElementById('game-container');
+        const btn = document.getElementById('font-toggle-btn');
+        const btnText = document.getElementById('font-toggle-text');
+        const iconEnlarge = btn.querySelector('.icon-enlarge');
+        const iconShrink = btn.querySelector('.icon-shrink');
+
+        container.classList.toggle('text-enlarged');
+
+        if (container.classList.contains('text-enlarged')) {
+            btnText.textContent = '正常文字';
+            btn.classList.add('active');
+            iconEnlarge.classList.add('hidden');
+            iconShrink.classList.remove('hidden');
+        } else {
+            btnText.textContent = '文字放大';
+            btn.classList.remove('active');
+            iconEnlarge.classList.remove('hidden');
+            iconShrink.classList.add('hidden');
+        }
+    }
+
+    // [通用] 重置按鈕
+    function resetAll() {
+        const fabContainer = document.getElementById('font-fab-container');
+        
+        if (currentMode === 'fill-in-blank') {
+            document.getElementById('fill-in-blank-board').innerHTML = '';
+            document.querySelectorAll('input[name="fib-topic"]').forEach(cb => cb.checked = false);
+        } else if (currentMode === 'hint-recall') {
+            document.getElementById('hint-recall-board').innerHTML = '';
+            document.querySelectorAll('input[name="hr-topic"]').forEach(cb => cb.checked = false);
+        } else if (currentMode === 'matching-game') {
+            document.getElementById('matching-board').innerHTML = '';
+            document.querySelectorAll('input[name="match-topic"]').forEach(cb => cb.checked = false);
+        } else if (currentMode === 'meaning-focus') {
+            document.getElementById('meaning-focus-board').innerHTML = '';
+            document.querySelectorAll('input[name="mf-topic"]').forEach(cb => cb.checked = false);
+        }
+        
+        // 隱藏浮動按鈕並重置狀態
+        fabContainer.classList.add('hidden');
+        const container = document.getElementById('game-container');
+        if (container.classList.contains('text-enlarged')) {
+            toggleFontSize(); // Toggle back to normal
+        }
+    }
+
+    // 隨機排序演算法
+    function shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+        return array;
+    }
+
+    // 取得選中主題的問題
+    function getSelectedQuestions(topicSelector) {
+        const selectedTopics = Array.from(document.querySelectorAll(topicSelector)).map(cb => cb.value);
+        if (selectedTopics.length === 0) return null;
+
+        let questions = [];
+        selectedTopics.forEach(topic => {
+            const data = allData[topic];
+            const pairsWithColor = data.pairs.map(p => ({...p, color: data.color}));
+            questions.push(...pairsWithColor);
+        });
+        return shuffle(questions);
+    }
+    
+    function showHideFab(shouldShow) {
+        const fabContainer = document.getElementById('font-fab-container');
+        if (shouldShow) {
+            fabContainer.classList.remove('hidden');
+        } else {
+            fabContainer.classList.add('hidden');
+        }
+    }
+
+    // [句子填空] 生成遊戲
+    function generateFillInBlankGame() {
+        const questions = getSelectedQuestions('input[name="fib-topic"]:checked');
+        const board = document.getElementById('fill-in-blank-board');
+        const errorEl = document.getElementById('fib-error');
+        
+        if (!questions) {
+            errorEl.textContent = '請至少選擇一個主題！';
+            board.innerHTML = '';
+            showHideFab(false);
+            return;
+        }
+        errorEl.textContent = '';
+        board.innerHTML = '';
+        showHideFab(true);
+
+        questions.forEach(q => {
+            const el = document.createElement('div');
+            el.className = `p-5 bg-${q.color}-50 rounded-lg`;
+            el.innerHTML = `<p class="text-xl leading-loose">${q.fib}</p>`;
+            board.appendChild(el);
+        });
+    }
+
+    // [原文默背] 生成遊戲
+    function generateHintRecallGame() {
+        const questions = getSelectedQuestions('input[name="hr-topic"]:checked');
+        const board = document.getElementById('hint-recall-board');
+        const errorEl = document.getElementById('hr-error');
+
+        if (!questions) {
+            errorEl.textContent = '請至少選擇一個主題！';
+            board.innerHTML = '';
+            showHideFab(false);
+            return;
+        }
+        errorEl.textContent = '';
+        board.innerHTML = '';
+        showHideFab(true);
+        
+        questions.forEach(q => {
+             const el = document.createElement('div');
+             el.className = `p-5 bg-${q.color}-50 rounded-lg space-y-3`;
+             el.innerHTML = `
+                <p class="text-gray-600 font-bold">提示：${q.hint}</p>
+                <div class="answer-box w-full text-xl">${q.quote}</div>
+             `;
+             board.appendChild(el);
+        });
+    }
+
+    // [文意重點] 生成遊戲
+    function generateMeaningFocusGame() {
+        const questions = getSelectedQuestions('input[name="mf-topic"]:checked');
+        const board = document.getElementById('meaning-focus-board');
+        const errorEl = document.getElementById('mf-error');
+
+        if (!questions) {
+            errorEl.textContent = '請至少選擇一個主題！';
+            board.innerHTML = '';
+            showHideFab(false);
+            return;
+        }
+        errorEl.textContent = '';
+        board.innerHTML = '';
+        showHideFab(true);
+        
+        questions.forEach(q => {
+             const el = document.createElement('div');
+             el.className = `p-5 bg-${q.color}-50 rounded-lg space-y-3`;
+             el.innerHTML = `
+                <p class="text-xl leading-loose">${q.quote}</p>
+                <div class="answer-box w-full">${q.hint}</div>
+             `;
+             board.appendChild(el);
+        });
+    }
+
+    // [配對題] 生成遊戲
+    function generateMatchingGame() {
+        const questions = getSelectedQuestions('input[name="match-topic"]:checked');
+        const board = document.getElementById('matching-board');
+        const errorEl = document.getElementById('matching-error');
+        
+        if (!questions) {
+            errorEl.textContent = '請至少選擇一個主題！';
+            board.innerHTML = '';
+            showHideFab(false);
+            return;
+        }
+        errorEl.textContent = '';
+        showHideFab(true);
+
+        const hints = shuffle([...questions]);
+        const quotes = shuffle([...questions]);
+
+        let hintsHTML = '<div class="space-y-4">';
+        hints.forEach(h => {
+            hintsHTML += `<div draggable="true" data-match-id="${h.id}" class="draggable-item p-4 rounded-lg border-2 h-full">提示：${h.hint}</div>`;
+        });
+        hintsHTML += '</div>';
+
+        let quotesHTML = '<div class="space-y-4">';
+        quotes.forEach(q => {
+            quotesHTML += `<div data-match-id="${q.id}" class="drop-zone p-4 bg-${q.color}-50 rounded-lg border-2 border-dashed">${q.quote.replace('《原文》', '')}</div>`;
+        });
+        quotesHTML += '</div>';
+
+        board.innerHTML = `<div class="match-board">${hintsHTML}${quotesHTML}</div>`;
+        setupDragAndDrop();
+    }
+    
+    // 顯示/隱藏答案的通用函式
+    function toggleAnswer(element) {
+        element.classList.toggle('revealed');
+    }
+
+    // [配對題] 拖曳功能設定
+    function setupDragAndDrop() {
+        const draggables = document.querySelectorAll('#matching-board .draggable-item');
+        const dropZones = document.querySelectorAll('#matching-board .drop-zone');
+
+        draggables.forEach(draggable => {
+            draggable.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', draggable.dataset.matchId);
+                setTimeout(() => draggable.classList.add('opacity-50'), 0);
+            });
+            draggable.addEventListener('dragend', () => draggable.classList.remove('opacity-50'));
+        });
+
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                if (!zone.classList.contains('correct-match')) zone.classList.add('drag-over');
+            });
+            zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('drag-over');
+                if (zone.classList.contains('correct-match')) return;
+
+                const draggedId = e.dataTransfer.getData('text/plain');
+                const droppedId = zone.dataset.matchId;
+                const draggedElement = document.querySelector(`.draggable-item[data-match-id="${draggedId}"]`);
+
+                if (draggedId === droppedId) {
+                    zone.classList.add('correct-match');
+                    zone.innerHTML = `<strong>配對成功！</strong><br>${draggedElement.textContent.replace('提示：', '')}`;
+                    draggedElement.style.visibility = 'hidden';
+                } else {
+                    zone.classList.add('wrong-match');
+                    setTimeout(() => zone.classList.remove('wrong-match'), 500);
+                }
+            });
+        });
+    }
+</script>
+
+</body>
+</html>
+
+
+
