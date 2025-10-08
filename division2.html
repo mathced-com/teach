@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小數除法互動練習</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 自訂樣式 */
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        /* 一般按鈕樣式 */
+        .btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        /* 卡片點擊時的樣式 */
+        .practice-card:active {
+            transform: scale(0.98);
+        }
+        /* 隱藏元素 */
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8 min-h-screen flex flex-col">
+        <!-- 標題區 -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold text-blue-800">小數除法練習</h1>
+            <p class="text-lg text-slate-600 mt-2">一起來挑戰小數的除法！</p>
+        </header>
+
+        <main class="flex-grow">
+            <!-- 模式切換按鈕 -->
+            <div id="mode-selection" class="flex justify-center gap-4 mb-8">
+                <button id="btn-mode-exact" class="btn mode-btn bg-blue-600 text-white font-bold py-3 px-8 rounded-lg">整除練習</button>
+                <button id="btn-mode-approximate" class="btn mode-btn bg-white text-blue-600 border border-blue-600 font-bold py-3 px-8 rounded-lg">概數練習</button>
+            </div>
+
+            <!-- 整除練習模式內容 -->
+            <div id="exact-division-mode">
+                <div id="practice-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- JS 會在此處生成整除練習題卡片 -->
+                </div>
+                <div class="flex justify-center gap-4">
+                    <button id="btn-toggle-answers" class="btn bg-blue-600 text-white font-bold py-3 px-8 rounded-lg">顯示答案</button>
+                    <button id="btn-new-practice" class="btn bg-amber-500 text-white font-bold py-3 px-8 rounded-lg">重新出題</button>
+                </div>
+            </div>
+
+            <!-- 概數練習模式內容 -->
+            <div id="approximate-division-mode" class="hidden">
+                <!-- 設定區 -->
+                <div class="flex justify-center items-center gap-4 mb-6 bg-white p-4 rounded-lg shadow-sm border">
+                    <label for="rounding-places" class="text-lg text-slate-700">將商四捨五入到小數點後第</label>
+                    <select id="rounding-places" class="text-lg p-2 border border-slate-300 rounded-md">
+                        <option value="1">1</option>
+                        <option value="2" selected>2</option>
+                        <option value="3">3</option>
+                    </select>
+                    <label for="rounding-places" class="text-lg text-slate-700">位</label>
+                </div>
+                <div id="approximate-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <!-- JS 會在此處生成概數練習題卡片 -->
+                </div>
+                <div class="flex justify-center gap-4">
+                    <button id="btn-toggle-approximate-answers" class="btn bg-blue-600 text-white font-bold py-3 px-8 rounded-lg">顯示答案</button>
+                    <button id="btn-new-approximate" class="btn bg-amber-500 text-white font-bold py-3 px-8 rounded-lg">重新出題</button>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="text-center text-slate-500 mt-8 py-4">
+            <p>互動練習工具 &copy; 2024</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM 元素 ---
+            const practiceGrid = document.getElementById('practice-grid');
+            const btnToggleAnswers = document.getElementById('btn-toggle-answers');
+            const btnNewPractice = document.getElementById('btn-new-practice');
+
+            const btnModeExact = document.getElementById('btn-mode-exact');
+            const btnModeApproximate = document.getElementById('btn-mode-approximate');
+            const exactDivisionMode = document.getElementById('exact-division-mode');
+            const approximateDivisionMode = document.getElementById('approximate-division-mode');
+            const roundingPlacesSelect = document.getElementById('rounding-places');
+            const approximateGrid = document.getElementById('approximate-grid');
+            const btnToggleApproximateAnswers = document.getElementById('btn-toggle-approximate-answers');
+            const btnNewApproximate = document.getElementById('btn-new-approximate');
+
+            // --- 應用程式狀態 ---
+            let state = {
+                currentMode: 'exact',
+                exact: { problems: [], answersVisible: false },
+                approximate: { problems: [], answersVisible: false }
+            };
+
+            // --- 核心邏輯 ---
+            const getRandomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+            const countDecimalPlaces = (num) => {
+                const numStr = String(num);
+                return numStr.includes('.') ? numStr.split('.')[1].length : 0;
+            };
+
+            // --- 整除練習模式 ---
+            const generateExactProblem = (forcedDivisorPlaces = null) => {
+                let quotient, divisor, dividend;
+                const rand = Math.random();
+                if (rand < 0.1) { quotient = getRandomInt(1, 99); } 
+                else if (rand < 0.5) { quotient = getRandomInt(10, 999) / 10; } 
+                else { quotient = getRandomInt(1, 9999) / 100; }
+                if (quotient === 0) quotient = 0.01;
+
+                let attempts = 0;
+                do {
+                    do {
+                        const divisorDecimalPlaces = forcedDivisorPlaces !== null ? forcedDivisorPlaces : getRandomInt(1, 2);
+                        divisor = getRandomInt(2, 999) / Math.pow(10, divisorDecimalPlaces);
+                    } while (divisor % 1 === 0);
+                    dividend = quotient * divisor;
+                    attempts++;
+                    if (attempts > 200) return generateExactProblem(forcedDivisorPlaces);
+                } while (countDecimalPlaces(dividend) > 2 || dividend >= 100 || dividend < 0.01);
+
+                return {
+                    dividend: parseFloat(dividend.toFixed(4)),
+                    divisor: parseFloat(divisor.toFixed(4)),
+                    quotient: parseFloat(quotient.toFixed(4))
+                };
+            };
+            
+            const setupExactMode = () => {
+                let divisorPlacesConfig = [1, 1, 2, 2];
+                divisorPlacesConfig = divisorPlacesConfig.sort(() => Math.random() - 0.5);
+                state.exact.problems = divisorPlacesConfig.map(places => generateExactProblem(places));
+                state.exact.answersVisible = false;
+                btnToggleAnswers.textContent = '顯示答案';
+                renderExactProblems();
+            };
+
+            const renderExactProblems = () => {
+                practiceGrid.innerHTML = '';
+                state.exact.problems.forEach((p, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'practice-card bg-white p-6 rounded-2xl shadow-md border border-slate-200 cursor-pointer transition-transform duration-200';
+                    card.dataset.index = index;
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start">
+                             <span class="text-sm font-bold bg-slate-100 text-slate-500 rounded-full px-3 py-1">第 ${index + 1} 題</span>
+                        </div>
+                        <div class="text-3xl md:text-4xl my-4 text-center font-semibold">${p.dividend} ÷ ${p.divisor} = ?</div>
+                        <div class="answer text-center text-2xl font-bold text-green-600 mt-4 h-8"></div>`;
+                    practiceGrid.appendChild(card);
+                });
+            };
+
+            const handleExactCardClick = (e) => {
+                const card = e.target.closest('.practice-card');
+                if (!card) return;
+                const index = card.dataset.index;
+                const problem = state.exact.problems[index];
+                const answerDiv = card.querySelector('.answer');
+                answerDiv.textContent = answerDiv.textContent === '' ? `答：${problem.quotient}` : '';
+            };
+            
+            const handleToggleAllExactAnswers = () => {
+                state.exact.answersVisible = !state.exact.answersVisible;
+                const allAnswerDivs = practiceGrid.querySelectorAll('.answer');
+                allAnswerDivs.forEach((div, index) => {
+                    const problem = state.exact.problems[index];
+                    div.textContent = state.exact.answersVisible ? `答：${problem.quotient}` : '';
+                });
+                btnToggleAnswers.textContent = state.exact.answersVisible ? '隱藏答案' : '顯示答案';
+            };
+
+            // --- 概數練習模式 ---
+            const getRandomNumber = (max, decimalPlaces) => parseFloat((Math.random() * max).toFixed(decimalPlaces));
+
+            const generateApproximateProblem = (forceIntegerDivisor = false) => {
+                let dividend, divisor;
+                let attempts = 0;
+                do {
+                    dividend = getRandomNumber(99.99, getRandomInt(0, 2));
+                    if (forceIntegerDivisor) {
+                        divisor = getRandomInt(1, 29);
+                    } else {
+                        divisor = getRandomNumber(29.99, getRandomInt(1, 2));
+                        if (divisor < 0.1) divisor = 0.1;
+                    }
+                    attempts++;
+                    if (attempts > 200) return generateApproximateProblem(forceIntegerDivisor);
+                } while ((dividend * 1000) % (divisor * 1000) === 0 || divisor === 0);
+                return { dividend, divisor, quotient: dividend / divisor };
+            };
+            
+            const setupApproximateMode = () => {
+                let divisorTypes = ['decimal', 'decimal', 'decimal'];
+                divisorTypes.push(Math.random() < 0.5 ? 'integer' : 'decimal'); // 最多一個整數
+                divisorTypes = divisorTypes.sort(() => Math.random() - 0.5);
+                state.approximate.problems = divisorTypes.map(type => generateApproximateProblem(type === 'integer'));
+                state.approximate.answersVisible = false;
+                btnToggleApproximateAnswers.textContent = '顯示答案';
+                renderApproximateProblems();
+            };
+
+            const renderApproximateProblems = () => {
+                approximateGrid.innerHTML = '';
+                state.approximate.problems.forEach((p, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'practice-card bg-white p-6 rounded-2xl shadow-md border border-slate-200 cursor-pointer transition-transform duration-200';
+                    card.dataset.index = index;
+                    card.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <span class="text-sm font-bold bg-slate-100 text-slate-500 rounded-full px-3 py-1">第 ${index + 1} 題</span>
+                        </div>
+                        <div class="text-3xl md:text-4xl my-4 text-center font-semibold">${p.dividend} ÷ ${p.divisor} = ?</div>
+                        <div class="answer text-center text-green-600 mt-2 h-16 flex flex-col justify-center"></div>`;
+                    approximateGrid.appendChild(card);
+                });
+            };
+
+            const showApproximateAnswer = (card, problem) => {
+                const answerDiv = card.querySelector('.answer');
+                const roundingPlaces = parseInt(roundingPlacesSelect.value, 10);
+                const displayQuotient = problem.quotient.toFixed(roundingPlaces + 1);
+                const roundedQuotient = problem.quotient.toFixed(roundingPlaces); // 維持字串格式以保留小數點後的 0
+                answerDiv.innerHTML = `<p class="text-xl">= ${displayQuotient}...</p><p class="text-2xl font-bold">≒ ${roundedQuotient}</p>`;
+            };
+
+            const hideAnswer = (card) => { card.querySelector('.answer').innerHTML = ''; };
+
+            const handleApproximateCardClick = (e) => {
+                const card = e.target.closest('.practice-card');
+                if (!card) return;
+                const index = card.dataset.index;
+                const problem = state.approximate.problems[index];
+                if (card.querySelector('.answer').innerHTML === '') {
+                    showApproximateAnswer(card, problem);
+                } else {
+                    hideAnswer(card);
+                }
+            };
+
+            const handleToggleAllApproximateAnswers = () => {
+                state.approximate.answersVisible = !state.approximate.answersVisible;
+                approximateGrid.querySelectorAll('.practice-card').forEach((card, index) => {
+                    if (state.approximate.answersVisible) {
+                        showApproximateAnswer(card, state.approximate.problems[index]);
+                    } else {
+                        hideAnswer(card);
+                    }
+                });
+                btnToggleApproximateAnswers.textContent = state.approximate.answersVisible ? '隱藏答案' : '顯示答案';
+            };
+
+            // --- 模式切換邏輯 ---
+            const switchMode = (mode) => {
+                state.currentMode = mode;
+                const isExact = mode === 'exact';
+                exactDivisionMode.classList.toggle('hidden', !isExact);
+                approximateDivisionMode.classList.toggle('hidden', isExact);
+                
+                btnModeExact.classList.toggle('bg-blue-600', isExact);
+                btnModeExact.classList.toggle('text-white', isExact);
+                btnModeExact.classList.toggle('bg-white', !isExact);
+                btnModeExact.classList.toggle('text-blue-600', !isExact);
+                btnModeExact.classList.toggle('border', !isExact);
+
+                btnModeApproximate.classList.toggle('bg-blue-600', !isExact);
+                btnModeApproximate.classList.toggle('text-white', !isExact);
+                btnModeApproximate.classList.toggle('bg-white', isExact);
+                btnModeApproximate.classList.toggle('text-blue-600', isExact);
+                btnModeApproximate.classList.toggle('border', isExact);
+
+                if (isExact) setupExactMode(); else setupApproximateMode();
+            };
+
+            // --- 事件監聽器 ---
+            btnModeExact.addEventListener('click', () => switchMode('exact'));
+            btnModeApproximate.addEventListener('click', () => switchMode('approximate'));
+
+            practiceGrid.addEventListener('click', handleExactCardClick);
+            btnToggleAnswers.addEventListener('click', handleToggleAllExactAnswers);
+            btnNewPractice.addEventListener('click', setupExactMode);
+            
+            approximateGrid.addEventListener('click', handleApproximateCardClick);
+            btnToggleApproximateAnswers.addEventListener('click', handleToggleAllApproximateAnswers);
+            btnNewApproximate.addEventListener('click', setupApproximateMode);
+            roundingPlacesSelect.addEventListener('change', () => {
+                if (state.approximate.answersVisible) {
+                    handleToggleAllApproximateAnswers(); // 隱藏
+                    handleToggleAllApproximateAnswers(); // 以新的設定重新顯示
+                }
+            });
+
+            // --- 初始化 ---
+            setupExactMode();
+        });
+    </script>
+</body>
+</html>
+
