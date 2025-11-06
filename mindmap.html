@@ -1,11 +1,9 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <title>心智圖製作工具</title>
   
-  <!-- [可選] 直接在此處貼上您的 GAS 網路應用程式 URL -->
   <script>
     var hardcodedGasUrl = 'https://script.google.com/macros/s/AKfycbwjNS6wSKWfApbu2ctVTX61tQ9Idhsxbd3wj9zliGvPg_JJwu2SMmvcGAc2xpdg4pg/exec';
   </script>
@@ -37,6 +35,31 @@
     #btn_save_cloud { background-image: linear-gradient(45deg,#fdd835,#fbc02d); color: #333;}
     #btn_settings { background-image: linear-gradient(45deg,#90a4ae,#607d8b); }
     #btn_help { background-image: linear-gradient(45deg, #7986cb, #3f51b5); }
+
+    /* NEW: Menu item container for labels/selects */
+    .menu-item-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #ecf0f1;
+      font-size: 14px;
+      padding: 6px 10px;
+      background-color: rgba(0,0,0,0.1);
+      border-radius: 20px;
+    }
+    .menu-select {
+      background-color: #546e7a;
+      color: white;
+      border: 1px solid #78909c;
+      border-radius: 15px;
+      padding: 4px 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .menu-select:focus {
+      outline: none;
+      box-shadow: 0 0 5px #29b6f6;
+    }
 
     /* Floating Action Buttons */
     #fab_container { position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 150; }
@@ -104,8 +127,12 @@
     .presentation-btn:hover { background: rgba(255,255,255,0.3); }
     .presentation-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     .slide-counter { font-size: 14px; min-width: 60px; text-align: center; }
-    .presentation-main { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 60px; text-align: center; position: relative; }
-    .presentation-breadcrumb-corner { position: absolute; top: 30px; left: 30px; font-size: 16px; opacity: 0.5; line-height: 1.4; max-width: 300px; }
+    .presentation-main { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 60px; text-align: center; position: relative; overflow: auto; }
+    /* *** NEW: Handles overflow for outline mode *** */
+    .presentation-main.has-outline {
+        justify-content: flex-start; /* Aligns content to the top */
+    }
+    .presentation-breadcrumb-corner { position: absolute; top: 30px; left: 30px; font-size: 16px; opacity: 0.5; line-height: 1.6; max-width: 300px; text-align: left; }
     .presentation-title { font-size: 8em; font-weight: bold; line-height: 1.1; text-shadow: 3px 3px 6px rgba(0,0,0,0.4); max-width: 90%; word-wrap: break-word; transition: opacity 1.2s ease-in-out; opacity: 1; }
     .presentation-title.active { opacity: 1; }
     .presentation-title.fade-out { opacity: 0 !important; }
@@ -114,6 +141,46 @@
     .presentation-child { display: none; }
     .presentation-child:hover { display: none; }
     .presentation-child.selected { display: none; }
+
+    /* *** MODIFIED: Presentation Outline Style *** */
+    .presentation-title.outline-style {
+        font-size: 3.5em; /* Was 2.2em */
+        text-align: center; /* Was left */
+        padding: 0 5%;
+        max-width: 90%;
+        line-height: 1.5;
+        /* These properties make it scrollable if content overflows */
+        max-height: 100%;
+        box-sizing: border-box;
+    }
+    .presentation-title.outline-style h1 {
+        font-size: 1.2em; /* Was 1.8em */
+        font-weight: bold;
+        line-height: 1.2;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        margin-bottom: 25px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid rgba(255,255,255,0.3);
+    }
+    .presentation-title.outline-style ul {
+        font-size: 0.8em; /* Was 0.9em */
+        list-style-type: disc; /* *** RESTORED *** */
+        padding-left: 40px;    /* *** RESTORED *** */
+        line-height: 1.7;
+        text-shadow: none;
+        display: inline-block; /* *** NEW: Allows block to be centered */
+        text-align: left;      /* *** NEW: Aligns text within the block */
+    }
+    .presentation-title.outline-style ul ul {
+        list-style-type: circle; /* *** RESTORED *** */
+        font-size: 0.95em;
+        margin-top: 5px;
+        padding-left: 40px;    /* *** RESTORED *** */
+    }
+     .presentation-title.outline-style li {
+        margin-bottom: 8px;
+     }
+
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/style/jsmind.css">
   <script src="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/js/jsmind.js"></script>
@@ -125,18 +192,27 @@
   <div id="menu_toggle"><span></span></div>
 
   <div id="top_menu">
-    <!-- Cloud Group -->
     <button id="btn_save_cloud" class="btn">雲端存檔</button>
     <button id="btn_open_cloud" class="btn">開啟雲端檔案</button>
     <div class="menu-separator"></div>
-    <!-- Local File Group -->
     <button id="btn_open_md_import" class="btn" style="background-image: linear-gradient(45deg,#81c784,#388e3c);">匯入 MD</button>
     <button id="btn_download" class="btn">下載 HTML</button>
     <button id="btn_export_md" class="btn">匯出 MD</button>
     <div class="menu-separator"></div>
-    <!-- App/Meta Group -->
     <button id="btn_settings" class="btn">設定</button>
     <button id="btn_help" class="btn">說明</button>
+    
+    <div class="menu-item-container">
+      <label for="outline_depth_select">簡報大綱起始層級:</label>
+      <select id="outline_depth_select" class="menu-select">
+        <option value="99">全部單頁 (預設)</option>
+        <option value="2">從第2層 (子分支)</option>
+        <option value="3">從第3層</option>
+        <option value="4">從第4層</option>
+        <option value="5">從第5層</option>
+      </select>
+    </div>
+    
   </div>
 
   <div id="fab_container">
@@ -151,10 +227,9 @@
   </div>
 
   <div id="jsmind_container"></div>
-  <div id="attribution">Made by <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener">阿剛老師</a></div>
+  <div id="attribution">修改自 <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener">阿剛老師</a></div>
   <div id="notification_layer"></div>
 
-  <!-- Presentation Mode -->
   <div id="presentation_overlay" class="presentation-overlay">
     <div class="presentation-content">
       <div class="presentation-header">
@@ -174,7 +249,6 @@
     </div>
   </div>
 
-  <!-- Modals -->
   <div id="md_import_modal_overlay" class="modal-overlay">
     <div class="modal-content">
         <h2>匯入 Markdown</h2>
@@ -241,7 +315,7 @@
               <p>您可以選擇以下兩種方式來設定您的 Google Apps Script (GAS) 網址：</p>
               <div class="pros-cons">
                   <p><strong>方法一：直接寫入 HTML (推薦)</strong></p>
-                  <p><strong>優點：</strong>最簡單、一勞永逸。只要修改 HTML 檔，所有使用者都能直接使用，無需額外設定。</p>
+                  <p><strong>優點：</strong>最簡單、一勞D逸。只要修改 HTML 檔，所有使用者都能直接使用，無需額外設定。</p>
                   <p><strong>缺點：</strong>每次更新 GAS 網址時，都需要重新修改並分發 HTML 檔案。</p>
               </div>
               <div class="pros-cons" style="border-color: #3498db; margin-top: 15px;">
@@ -512,13 +586,11 @@ function createJsonResponse(data) {
       <div class="modal-content">
           <h2>設定節點圖片</h2>
           
-          <!-- Manual URL Input -->
           <p>請貼上圖片的網址 (留空則清除圖片):</p>
           <input type="text" id="image_url_input" class="modal-input" placeholder="https://example.com/image.png">
 
           <hr style="margin: 20px 0; border-top: 1px solid #ccc;">
 
-          <!-- Google Doc Extractor -->
           <p>或從已發佈的 Google 文件網址提取圖片:</p>
           <div style="display: flex; gap: 10px; margin-bottom: 10px;">
             <input type="url" id="gdoc_url_input" class="modal-input" placeholder="https://docs.google.com/document/d/e/.../pub" style="flex-grow: 1;">
@@ -526,8 +598,7 @@ function createJsonResponse(data) {
           </div>
           <div id="gdoc_status" style="text-align: center; margin: 10px 0;"></div>
           <div id="gdoc_image_results" style="max-height: 200px; overflow-y: auto; border: 1px solid #ddd; padding: 5px; display: flex; flex-wrap: wrap; gap: 5px;">
-            <!-- Fetched images will appear here -->
-          </div>
+            </div>
 
           <div class="modal-buttons">
               <button id="btn_cancel_image_url" class="btn">取消</button>
