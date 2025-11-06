@@ -177,6 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const mdImportModalOverlay = document.getElementById('md_import_modal_overlay'), mdFileInput = document.getElementById('md_file_input'), mdTextInput = document.getElementById('md_text_input'), btnProcessMdImport = document.getElementById('btn_process_md_import');
   const imageDisplayModalOverlay = document.getElementById('image_display_modal_overlay'), modalImage = document.getElementById('modal_image');
   const notificationLayer = document.getElementById('notification_layer');
+  const outlineDepthSelect = document.getElementById('outline_depth_select'); // *** NEW ***
   let notificationTimer;
   let linkEditingNodeId = null;
   let imageEditingNodeId = null;
@@ -268,25 +269,66 @@ document.addEventListener('DOMContentLoaded', () => {
   btnFetchGdoc.addEventListener('click', extractGDocImages);
 
   // --- Presentation Mode Functions ---
+
+  // *** NEW: Helper function to build HTML outline ***
+  function buildOutlineHtmlRecursive(node) {
+      const cleanText = getCleanTopic(node.topic);
+      
+      let html = `<li>${cleanText}</li>`;
+      
+      if (node.children && node.children.length > 0) {
+          html += '<ul>';
+          node.children.forEach(child => {
+              html += buildOutlineHtmlRecursive(child); // Recursive call
+          });
+          html += '</ul>';
+      }
+      return html;
+  }
+
+  // *** MODIFIED: generatePresentationSlides ***
   const generatePresentationSlides = (mindData) => {
     const slides = [];
     const rootNode = mindData.data;
     
+    // Get the selected depth from the dropdown
+    const START_OUTLINE_DEPTH = parseInt(outlineDepthSelect.value, 10);
+    
     const traverseNode = (node, breadcrumb = [], parentNode = null) => {
       const cleanTopic = getCleanTopic(node.topic);
-      
-      slides.push({
-        title: cleanTopic,
-        parentNode: parentNode,
-        breadcrumb: [...breadcrumb],
-        node: node
-      });
-      
-      if (node.children && node.children.length > 0) {
-        const currentBreadcrumb = [...breadcrumb, cleanTopic];
-        node.children.forEach(child => {
-          traverseNode(child, currentBreadcrumb, node);
+      const currentDepth = breadcrumb.length; // 0=root, 1=main, 2=sub...
+
+      // Check if current depth is less than the trigger depth
+      if (currentDepth < START_OUTLINE_DEPTH) {
+        // --- Single Slide Mode ---
+        slides.push({
+          type: 'single', // Add type
+          title: cleanTopic,
+          parentNode: parentNode,
+          breadcrumb: [...breadcrumb],
+          node: node
         });
+        
+        // Continue recursion
+        if (node.children && node.children.length > 0) {
+          const currentBreadcrumb = [...breadcrumb, cleanTopic];
+          node.children.forEach(child => {
+            traverseNode(child, currentBreadcrumb, node);
+          });
+        }
+      } else {
+        // --- Outline Slide Mode ---
+        // Add this node and all its children as ONE slide
+        slides.push({
+          type: 'outline', // Add type
+          title: cleanTopic,
+          parentNode: parentNode,
+          breadcrumb: [...breadcrumb],
+          node: node // The whole node object (with children)
+        });
+        
+        // *** DO NOT RECURSE ***
+        // All children are handled by this single 'outline' slide
       }
     };
     
@@ -294,51 +336,103 @@ document.addEventListener('DOMContentLoaded', () => {
     return slides;
   };
 
+  // *** MODIFIED: showPresentationSlide ***
   const showPresentationSlide = (index, direction = 'none') => {
     if (index < 0 || index >= presentationSlides.length) return;
     
     const slide = presentationSlides[index];
     const overlay = document.getElementById('presentation_overlay');
+    const mainContent = overlay.querySelector('.presentation-main'); // *** Get main content area ***
     const breadcrumbCorner = overlay.querySelector('.presentation-breadcrumb-corner');
     const title = overlay.querySelector('.presentation-title');
     const counter = overlay.querySelector('.slide-counter');
     const prevBtn = document.getElementById('btn_prev_slide');
     const nextBtn = document.getElementById('btn_next_slide');
     
-    // Update corner breadcrumb (show parent title with HTML effects)
-    breadcrumbCorner.innerHTML = slide.parentNode ? slide.parentNode.topic : '';
+    // *** MODIFIED: Update corner breadcrumb to show full path with line breaks ***
+    if (slide.breadcrumb && slide.breadcrumb.length > 0) {
+        // Start with the first item (no arrow)
+        let pathHtml = slide.breadcrumb[0];
+        // Loop from the second item onwards
+        for (let i = 1; i < slide.breadcrumb.length; i++) {
+            pathHtml += '<br>→ ' + slide.breadcrumb[i];
+        }
+        breadcrumbCorner.innerHTML = pathHtml; // Use innerHTML
+    } else {
+        breadcrumbCorner.innerHTML = ''; // Use innerHTML for consistency
+    }
     
-    // Prepare new content
-    let titleText = slide.node.topic || slide.title;
-    // Remove HTML tags for text processing
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = titleText;
-    const cleanText = tempDiv.textContent || tempDiv.innerText || '';
-    
-    // Add line breaks after punctuation marks (。、，；：！？)
-    const formattedText = cleanText.replace(/([。、，；：！？])/g, '$1<br>');
+    let newHtmlContent = '';
+    let newClassName = '';
+    let needsOutlineAlign = false; // *** NEW: Flag for alignment ***
+
+    // Check slide type
+    if (slide.type === 'outline') {
+      // --- Render Outline Slide ---
+      needsOutlineAlign = true; // *** Flag for top alignment ***
+      const rootTopic = getCleanTopic(slide.node.topic);
+      let childrenHtml = '';
+      if (slide.node.children && slide.node.children.length > 0) {
+        childrenHtml = '<ul>';
+        slide.node.children.forEach(child => {
+           childrenHtml += buildOutlineHtmlRecursive(child);
+        });
+        childrenHtml += '</ul>';
+      }
+      // Combine outline page
+      newHtmlContent = `<h1>${rootTopic}</h1>${childrenHtml}`;
+      newClassName = 'presentation-title outline-style'; // Add 'outline-style' for CSS
+
+    } else {
+      // --- Render Single Slide (Original Behavior) ---
+      needsOutlineAlign = false; // *** Flag for center alignment ***
+      let titleText = slide.node.topic || slide.title;
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = titleText;
+      const cleanText = tempDiv.textContent || tempDiv.innerText || '';
+      
+      // Add line breaks after punctuation marks
+      const formattedText = cleanText.replace(/([。、，；：！？])/g, '$1<br>');
+      
+      newHtmlContent = formattedText;
+      newClassName = 'presentation-title';
+    }
     
     // Apply fade transition
     if (direction !== 'none') {
       // Start fade out
-      title.className = 'presentation-title fade-out';
+      title.className = title.className.replace('active', 'fade-out');
       
-      // Wait for complete fade out, then update content
+      // Wait for complete fade out
       setTimeout(() => {
-        title.innerHTML = formattedText;
+        // *** MODIFICATION: Update alignment *while content is invisible* ***
+        if (needsOutlineAlign) {
+            mainContent.classList.add('has-outline');
+        } else {
+            mainContent.classList.remove('has-outline');
+        }
+
+        // Update content
+        title.innerHTML = newHtmlContent;
         
-        // Ensure it starts completely invisible
-        title.className = 'presentation-title fade-in';
+        // Set up for fade-in
+        title.className = newClassName + ' fade-in';
         
-        // Start fade in after a brief moment
+        // Start fade-in
         setTimeout(() => {
-          title.className = 'presentation-title active';
+          title.className = newClassName + ' active';
         }, 50);
-      }, 1200); // Wait for complete 1.2s fade out
+      }, 1200); // Wait for 1.2s fade out
     } else {
       // No transition for initial load
-      title.innerHTML = formattedText;
-      title.className = 'presentation-title active';
+      // *** MODIFICATION: Set alignment for initial load ***
+      if (needsOutlineAlign) {
+            mainContent.classList.add('has-outline');
+        } else {
+            mainContent.classList.remove('has-outline');
+        }
+      title.innerHTML = newHtmlContent;
+      title.className = newClassName + ' active';
     }
     
     // Update counter
@@ -358,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
-    presentationSlides = generatePresentationSlides(mindData);
+    presentationSlides = generatePresentationSlides(mindData); // This will now use the dropdown value
     if (presentationSlides.length === 0) {
       showNotification('心智圖沒有內容可以播放', true);
       return;
@@ -370,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const overlay = document.getElementById('presentation_overlay');
     overlay.style.display = 'block';
     
-    showPresentationSlide(0);
+    showPresentationSlide(0); // This will call the 'else' block (no transition)
     showNotification('簡報模式已啟動，使用方向鍵或按鈕導航');
   };
 
@@ -509,6 +603,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   document.getElementById('btn_download').onclick = () => { 
     const data = jm.get_data(), title = (data.data.topic || 'mindmap').replace(/<[^>]+>/g, ''), panAndZoomFnString = enablePanAndZoom.toString(); 
+    
+    // NOTE: The embedded presentation JS does NOT support the new outline feature
+    // This is complex to add, so it retains the original "all single slides" behavior
+    // *** MODIFIED: Updated breadcrumb logic in exported file ***
     const presentationJS = `
 let presentationSlides=[];
 let currentSlideIndex=0;
@@ -545,7 +643,18 @@ const showPresentationSlide=(index,direction='none')=>{
   const counter=overlay.querySelector('.slide-counter');
   const prevBtn=document.getElementById('btn_prev_slide');
   const nextBtn=document.getElementById('btn_next_slide');
-  breadcrumbCorner.innerHTML=slide.parentNode?slide.parentNode.topic:'';
+  
+  // *** MODIFIED: This exported version uses the breadcrumb path with line breaks ***
+  if (slide.breadcrumb && slide.breadcrumb.length > 0) {
+      let pathHtml = slide.breadcrumb[0];
+      for (let i = 1; i < slide.breadcrumb.length; i++) {
+          pathHtml += '<br>→ ' + slide.breadcrumb[i];
+      }
+      breadcrumbCorner.innerHTML = pathHtml;
+  } else {
+      breadcrumbCorner.innerHTML = '';
+  }
+  
   let titleText=slide.node.topic||slide.title;
   const tempDiv=document.createElement('div');
   tempDiv.innerHTML=titleText;
@@ -621,7 +730,8 @@ document.addEventListener('keydown',(e)=>{
   }
 });`;
     
-    const html = `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>html,body{height:100%;margin:0;overflow:hidden;}#jsmind_container{width:100%;height:100vh;background:#ecf0f1;cursor:grab;overflow:hidden;}.jsmind-inner{overflow:visible!important;transform-origin:0 0;}#jsmind_container.grabbing{cursor:grabbing;}#attribution{position:absolute;bottom:10px;right:10px;padding:4px 8px;background:rgba(0,0,0,0.5);color:#fff;border-radius:4px;font-size:12px;z-index:10;}#attribution a{color:#ffd54f;text-decoration:none;}#toggle_btn{position:fixed;top:20px;right:20px;width:48px;height:48px;border-radius:50%;border:none;color:white;font-size:20px;cursor:pointer;background:linear-gradient(45deg,#ab47bc,#8e24aa);box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all 0.2s;z-index:100;}#toggle_btn:hover{transform:scale(1.1);box-shadow:0 6px 16px rgba(0,0,0,0.4);}#presentation_btn{position:fixed;top:80px;right:20px;width:48px;height:48px;border-radius:50%;border:none;color:white;font-size:20px;cursor:pointer;background:linear-gradient(45deg,#5c6bc0,#3f51b5);box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all 0.2s;z-index:100;}#presentation_btn:hover{transform:scale(1.1);box-shadow:0 6px 16px rgba(0,0,0,0.4);}#btn_reorder{position:fixed;top:140px;right:20px;width:48px;height:48px;border-radius:50%;border:none;color:white;font-size:20px;cursor:pointer;background:linear-gradient(45deg,#546e7a,#37474f);box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all 0.2s;z-index:100;}.presentation-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#1e3c72,#2a5298);display:none;z-index:2000;}.presentation-content{width:100%;height:100%;display:flex;flex-direction:column;color:white;}.presentation-header{display:flex;justify-content:space-between;align-items:center;padding:20px 40px;background:rgba(0,0,0,0.2);}.presentation-breadcrumb{font-size:14px;opacity:0.7;}.presentation-controls{display:flex;align-items:center;gap:15px;}.presentation-btn{background:rgba(255,255,255,0.2);border:none;color:white;padding:8px 12px;border-radius:5px;cursor:pointer;font-size:16px;transition:background 0.2s;}.presentation-btn:hover{background:rgba(255,255,255,0.3);}.presentation-btn:disabled{opacity:0.5;cursor:not-allowed;}.slide-counter{font-size:14px;min-width:60px;text-align:center;}.presentation-main{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px;text-align:center;position:relative;}.presentation-breadcrumb-corner{position:absolute;top:30px;left:30px;font-size:16px;opacity:0.5;line-height:1.4;max-width:300px;}.presentation-title{font-size:8em;font-weight:bold;line-height:1.1;text-shadow:3px 3px 6px rgba(0,0,0,0.4);max-width:90%;word-wrap:break-word;transition:opacity 1.2s ease-in-out;opacity:1;}.presentation-title.active{opacity:1;}.presentation-title.fade-out{opacity:0!important;}.presentation-title.fade-in{opacity:0!important;}.presentation-children{display:none;}.presentation-child{display:none;}</style><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/style/jsmind.css"></head><body><div id="jsmind_container"></div><button id="toggle_btn" title="展開/收合所有節點">⚡</button><button id="presentation_btn">📺</button><button id="btn_reorder">↔</button><div id="presentation_overlay" class="presentation-overlay"><div class="presentation-content"><div class="presentation-header"><div class="presentation-breadcrumb"></div><div class="presentation-controls"><button class="presentation-btn" id="btn_prev_slide">◀</button><span class="slide-counter"></span><button class="presentation-btn" id="btn_next_slide">▶</button><button class="presentation-btn" id="btn_exit_presentation">✕</button></div></div><div class="presentation-main"><div class="presentation-breadcrumb-corner"></div><div class="presentation-title"></div><div class="presentation-children"></div></div></div></div><div id="attribution">Made by <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener">阿剛老師</a></div><script src="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/js/jsmind.js"></script><script src="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/js/jsmind.draggable-node.js"></script><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><script>const jm2=new jsMind({container:'jsmind_container',theme:'greensea',editable:false,support_html:true,view:{engine:'canvas',draggable:true}});jm2.show(${JSON.stringify(data)});let allExpanded=true;document.getElementById('toggle_btn').onclick=()=>{const rootNode=jm2.get_root();if(allExpanded){const collapseNode=(node)=>{if(node&&!node.isroot&&node.children&&node.children.length>0){jm2.collapse_node(node.id);}if(node&&node.children){node.children.forEach(child=>collapseNode(child));}};collapseNode(rootNode);allExpanded=false;}else{const expandNode=(node)=>{if(node&&!node.isroot){jm2.expand_node(node.id);}if(node&&node.children){node.children.forEach(child=>expandNode(child));}};expandNode(rootNode);allExpanded=true;}};${presentationJS}${panAndZoomFnString};enablePanAndZoom(document.getElementById('jsmind_container'));;
+    // I also updated the exported HTML's presentation-main style to allow scrolling
+    const html = `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>html,body{height:100%;margin:0;overflow:hidden;}#jsmind_container{width:100%;height:100vh;background:#ecf0f1;cursor:grab;overflow:hidden;}.jsmind-inner{overflow:visible!important;transform-origin:0 0;}#jsmind_container.grabbing{cursor:grabbing;}#attribution{position:absolute;bottom:10px;right:10px;padding:4px 8px;background:rgba(0,0,0,0.5);color:#fff;border-radius:4px;font-size:12px;z-index:10;}#attribution a{color:#ffd54f;text-decoration:none;}#toggle_btn{position:fixed;top:20px;right:20px;width:48px;height:48px;border-radius:50%;border:none;color:white;font-size:20px;cursor:pointer;background:linear-gradient(45deg,#ab47bc,#8e24aa);box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all 0.2s;z-index:100;}#toggle_btn:hover{transform:scale(1.1);box-shadow:0 6px 16px rgba(0,0,0,0.4);}#presentation_btn{position:fixed;top:80px;right:20px;width:48px;height:48px;border-radius:50%;border:none;color:white;font-size:20px;cursor:pointer;background:linear-gradient(45deg,#5c6bc0,#3f51b5);box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all 0.2s;z-index:100;}#presentation_btn:hover{transform:scale(1.1);box-shadow:0 6px 16px rgba(0,0,0,0.4);}#btn_reorder{position:fixed;top:140px;right:20px;width:48px;height:48px;border-radius:50%;border:none;color:white;font-size:20px;cursor:pointer;background:linear-gradient(45deg,#546e7a,#37474f);box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all 0.2s;z-index:100;}.presentation-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#1e3c72,#2a5298);display:none;z-index:2000;}.presentation-content{width:100%;height:100%;display:flex;flex-direction:column;color:white;}.presentation-header{display:flex;justify-content:space-between;align-items:center;padding:20px 40px;background:rgba(0,0,0,0.2);}.presentation-breadcrumb{font-size:14px;opacity:0.7;}.presentation-controls{display:flex;align-items:center;gap:15px;}.presentation-btn{background:rgba(255,255,255,0.2);border:none;color:white;padding:8px 12px;border-radius:5px;cursor:pointer;font-size:16px;transition:background 0.2s;}.presentation-btn:hover{background:rgba(255,255,255,0.3);}.presentation-btn:disabled{opacity:0.5;cursor:not-allowed;}.slide-counter{font-size:14px;min-width:60px;text-align:center;}.presentation-main{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px;text-align:center;position:relative;overflow:auto;}.presentation-breadcrumb-corner{position:absolute;top:30px;left:30px;font-size:16px;opacity:0.5;line-height:1.6;max-width:300px;text-align:left;}.presentation-title{font-size:8em;font-weight:bold;line-height:1.1;text-shadow:3px 3px 6px rgba(0,0,0,0.4);max-width:90%;word-wrap:break-word;transition:opacity 1.2s ease-in-out;opacity:1;}.presentation-title.active{opacity:1;}.presentation-title.fade-out{opacity:0!important;}.presentation-title.fade-in{opacity:0!important;}.presentation-children{display:none;}.presentation-child{display:none;}</style><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/style/jsmind.css"></head><body><div id="jsmind_container"></div><button id="toggle_btn" title="展開/收合所有節點">⚡</button><button id="presentation_btn">📺</button><button id="btn_reorder">↔</button><div id="presentation_overlay" class="presentation-overlay"><div class="presentation-content"><div class="presentation-header"><div class="presentation-breadcrumb"></div><div class="presentation-controls"><button class="presentation-btn" id="btn_prev_slide">◀</button><span class="slide-counter"></span><button class="presentation-btn" id="btn_next_slide">▶</button><button class="presentation-btn" id="btn_exit_presentation">✕</button></div></div><div class="presentation-main"><div class="presentation-breadcrumb-corner"></div><div class="presentation-title"></div><div class="presentation-children"></div></div></div></div><div id="attribution">Made by <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener">阿剛老師</a></div><script src="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/js/jsmind.js"></script><script src="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/js/jsmind.draggable-node.js"></script><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><script>const jm2=new jsMind({container:'jsmind_container',theme:'greensea',editable:false,support_html:true,view:{engine:'canvas',draggable:true}});jm2.show(${JSON.stringify(data)});let allExpanded=true;document.getElementById('toggle_btn').onclick=()=>{const rootNode=jm2.get_root();if(allExpanded){const collapseNode=(node)=>{if(node&&!node.isroot&&node.children&&node.children.length>0){jm2.collapse_node(node.id);}if(node&&node.children){node.children.forEach(child=>collapseNode(child));}};collapseNode(rootNode);allExpanded=false;}else{const expandNode=(node)=>{if(node&&!node.isroot){jm2.expand_node(node.id);}if(node&&node.children){node.children.forEach(child=>expandNode(child));}};expandNode(rootNode);allExpanded=true;}};${presentationJS}${panAndZoomFnString};enablePanAndZoom(document.getElementById('jsmind_container'));;
     let isReordered = false;
     document.getElementById('btn_reorder').onclick = () => {
       const root = jm2.get_root();
