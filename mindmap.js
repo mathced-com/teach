@@ -349,22 +349,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevBtn = document.getElementById('btn_prev_slide');
     const nextBtn = document.getElementById('btn_next_slide');
     
-    // *** MODIFIED: Update corner breadcrumb to show full path with line breaks ***
-    if (slide.breadcrumb && slide.breadcrumb.length > 0) {
-        // Start with the first item (no arrow)
-        let pathHtml = slide.breadcrumb[0];
-        // Loop from the second item onwards
-        for (let i = 1; i < slide.breadcrumb.length; i++) {
-            pathHtml += '<br>→ ' + slide.breadcrumb[i];
+    // *** MODIFIED: New breadcrumb logic with indentation, persistent parents, and page numbers ***
+    let lineStack = [];
+    let processedTitles = new Set();
+    let currentSlideForPath = slide;
+
+    while (currentSlideForPath) {
+        // 1. Get all siblings of the current slide
+        const parentSlideNode = currentSlideForPath.parentNode;
+        const siblingSlides = presentationSlides.filter(s => s.parentNode === parentSlideNode);
+        const currentSiblingIndex = siblingSlides.indexOf(currentSlideForPath);
+        
+        // 2. Add *all* previous and current siblings to the stack (in reverse order)
+        for (let i = currentSiblingIndex; i >= 0; i--) {
+            const sibling = siblingSlides[i];
+            // Add to stack only if we haven't processed this title before
+            if (!processedTitles.has(sibling.title)) {
+                const indent = '&nbsp;&nbsp;'.repeat(sibling.breadcrumb.length);
+                const arrow = (sibling.breadcrumb.length > 0) ? '→ ' : '';
+                
+                // *** NEW: Get page number ***
+                const pageNum = presentationSlides.indexOf(sibling) + 1;
+                lineStack.push(`${indent}${arrow}${sibling.title} (${pageNum})`); // Add page number
+                
+                processedTitles.add(sibling.title);
+            }
         }
-        breadcrumbCorner.innerHTML = pathHtml; // Use innerHTML
-    } else {
-        breadcrumbCorner.innerHTML = ''; // Use innerHTML for consistency
+        
+        // 3. Move up to the parent *slide*
+        currentSlideForPath = presentationSlides.find(s => s.node === parentSlideNode);
     }
+    
+    // Reverse the stack and join with line breaks
+    breadcrumbCorner.innerHTML = lineStack.reverse().join('<br>');
+    
     
     let newHtmlContent = '';
     let newClassName = '';
-    let needsOutlineAlign = false; // *** NEW: Flag for alignment ***
+    let needsOutlineAlign = false; // *** Flag for alignment ***
 
     // Check slide type
     if (slide.type === 'outline') {
@@ -445,6 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentSlideIndex = index;
   };
 
+  // *** MODIFIED: startPresentationMode ***
   const startPresentationMode = () => {
     const mindData = jm.get_data('node_tree');
     if (!mindData || !mindData.data) {
@@ -463,6 +486,24 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const overlay = document.getElementById('presentation_overlay');
     overlay.style.display = 'block';
+    
+    // *** NEW: Add slide jumping function to counter ***
+    const counter = overlay.querySelector('.slide-counter');
+    counter.style.cursor = 'pointer';
+    counter.title = '點擊跳轉頁碼';
+    // Remove old listener if it exists, then add new one
+    counter.onclick = null; 
+    counter.onclick = () => {
+        const targetSlide = prompt(`請輸入要跳轉的頁碼 (1 - ${presentationSlides.length}):`, currentSlideIndex + 1);
+        if (targetSlide) {
+            const targetIndex = parseInt(targetSlide, 10) - 1;
+            if (!isNaN(targetIndex) && targetIndex >= 0 && targetIndex < presentationSlides.length) {
+                showPresentationSlide(targetIndex, 'none'); // 'none' for no animation
+            } else {
+                alert('輸入無效的頁碼');
+            }
+        }
+    };
     
     showPresentationSlide(0); // This will call the 'else' block (no transition)
     showNotification('簡報模式已啟動，使用方向鍵或按鈕導航');
@@ -601,96 +642,151 @@ document.addEventListener('DOMContentLoaded', () => {
       showNotification('請貼上文字或選擇檔案', true);
     }
   };
+  
+  // *** MODIFIED: btn_download.onclick ***
   document.getElementById('btn_download').onclick = () => { 
     const data = jm.get_data(), title = (data.data.topic || 'mindmap').replace(/<[^>]+>/g, ''), panAndZoomFnString = enablePanAndZoom.toString(); 
     
-    // NOTE: The embedded presentation JS does NOT support the new outline feature
-    // This is complex to add, so it retains the original "all single slides" behavior
-    // *** MODIFIED: Updated breadcrumb logic in exported file ***
+    // *** MODIFIED: Updated breadcrumb and jump-to-slide logic in exported file's JS ***
     const presentationJS = `
 let presentationSlides=[];
 let currentSlideIndex=0;
 let isInPresentationMode=false;
-const getCleanTopic=(topic)=>{
-  if(!topic)return '';
-  return topic.replace(/<(a|span)[^>]*>.*?<\\/\\1>\\s*/g,'');
-};
+
+${buildOutlineHtmlRecursive.toString().replace('getCleanTopic','getCleanTopic_jm2')}
+const getCleanTopic_jm2=(topic)=>{ if(!topic)return ''; return topic.replace(/<(a|span)[^>]*>.*?<\\/\\1>\\s*/g,''); };
+
 const generatePresentationSlides=(mindData)=>{
   const slides=[];
   const rootNode=mindData.data;
+  const outlineDepthSelect = document.getElementById('outline_depth_select');
+  const START_OUTLINE_DEPTH = parseInt(outlineDepthSelect.value, 10);
+  
   const traverseNode=(node,breadcrumb=[],parentNode=null)=>{
-    const cleanTopic=getCleanTopic(node.topic);
-    slides.push({
-      title:cleanTopic,
-      parentNode:parentNode,
-      breadcrumb:[...breadcrumb],
-      node:node
-    });
-    if(node.children&&node.children.length>0){
-      const currentBreadcrumb=[...breadcrumb,cleanTopic];
-      node.children.forEach(child=>{traverseNode(child,currentBreadcrumb,node);});
+    const cleanTopic=getCleanTopic_jm2(node.topic);
+    const currentDepth=breadcrumb.length;
+    if(currentDepth<START_OUTLINE_DEPTH){
+      slides.push({type:'single',title:cleanTopic,parentNode:parentNode,breadcrumb:[...breadcrumb],node:node});
+      if(node.children&&node.children.length>0){
+        const currentBreadcrumb=[...breadcrumb,cleanTopic];
+        node.children.forEach(child=>{traverseNode(child,currentBreadcrumb,node);});
+      }
+    }else{
+      slides.push({type:'outline',title:cleanTopic,parentNode:parentNode,breadcrumb:[...breadcrumb],node:node});
     }
   };
   traverseNode(rootNode);
   return slides;
 };
+
 const showPresentationSlide=(index,direction='none')=>{
   if(index<0||index>=presentationSlides.length)return;
   const slide=presentationSlides[index];
   const overlay=document.getElementById('presentation_overlay');
+  const mainContent = overlay.querySelector('.presentation-main');
   const breadcrumbCorner=overlay.querySelector('.presentation-breadcrumb-corner');
   const title=overlay.querySelector('.presentation-title');
   const counter=overlay.querySelector('.slide-counter');
   const prevBtn=document.getElementById('btn_prev_slide');
   const nextBtn=document.getElementById('btn_next_slide');
   
-  // *** MODIFIED: This exported version uses the breadcrumb path with line breaks ***
-  if (slide.breadcrumb && slide.breadcrumb.length > 0) {
-      let pathHtml = slide.breadcrumb[0];
-      for (let i = 1; i < slide.breadcrumb.length; i++) {
-          pathHtml += '<br>→ ' + slide.breadcrumb[i];
+  let lineStack = [];
+  let processedTitles = new Set();
+  let currentSlideForPath = slide;
+  while (currentSlideForPath) {
+      const parentSlideNode = currentSlideForPath.parentNode;
+      const siblingSlides = presentationSlides.filter(s => s.parentNode === parentSlideNode);
+      const currentSiblingIndex = siblingSlides.indexOf(currentSlideForPath);
+      for (let i = currentSiblingIndex; i >= 0; i--) {
+          const sibling = siblingSlides[i];
+          if (!processedTitles.has(sibling.title)) {
+              const indent = '&nbsp;&nbsp;'.repeat(sibling.breadcrumb.length);
+              const arrow = (sibling.breadcrumb.length > 0) ? '→ ' : '';
+              const pageNum = presentationSlides.indexOf(sibling) + 1;
+              lineStack.push(indent + arrow + sibling.title + ' (' + pageNum + ')');
+              processedTitles.add(sibling.title);
+          }
       }
-      breadcrumbCorner.innerHTML = pathHtml;
+      currentSlideForPath = presentationSlides.find(s => s.node === parentSlideNode);
+  }
+  breadcrumbCorner.innerHTML = lineStack.reverse().join('<br>');
+  
+  let newHtmlContent = '';
+  let newClassName = '';
+  let needsOutlineAlign = false;
+
+  if (slide.type === 'outline') {
+      needsOutlineAlign = true;
+      const rootTopic = getCleanTopic_jm2(slide.node.topic);
+      let childrenHtml = '';
+      if (slide.node.children && slide.node.children.length > 0) {
+          childrenHtml = '<ul>';
+          slide.node.children.forEach(child => {
+             childrenHtml += buildOutlineHtmlRecursive(child);
+          });
+          childrenHtml += '</ul>';
+      }
+      newHtmlContent = '<h1>' + rootTopic + '</h1>' + childrenHtml;
+      newClassName = 'presentation-title outline-style';
   } else {
-      breadcrumbCorner.innerHTML = '';
+      needsOutlineAlign = false;
+      let titleText = slide.node.topic || slide.title;
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = titleText;
+      const cleanText = tempDiv.textContent || tempDiv.innerText || '';
+      const formattedText = cleanText.replace(/([。、，；：！？])/g, '$1<br>');
+      newHtmlContent = formattedText;
+      newClassName = 'presentation-title';
   }
   
-  let titleText=slide.node.topic||slide.title;
-  const tempDiv=document.createElement('div');
-  tempDiv.innerHTML=titleText;
-  const cleanText=tempDiv.textContent||tempDiv.innerText||'';
-  const formattedText=cleanText.replace(/([。、，；：！？])/g,'$1<br>');
-  if(direction!=='none'){
-    title.className='presentation-title fade-out';
-    setTimeout(()=>{
-      title.innerHTML=formattedText;
-      title.className='presentation-title fade-in';
-      setTimeout(()=>{title.className='presentation-title active';},50);
-    },1200);
-  }else{
-    title.innerHTML=formattedText;
-    title.className='presentation-title active';
+  if (direction !== 'none') {
+      title.className = title.className.replace('active', 'fade-out');
+      setTimeout(() => {
+          if (needsOutlineAlign) { mainContent.classList.add('has-outline'); }
+          else { mainContent.classList.remove('has-outline'); }
+          title.innerHTML = newHtmlContent;
+          title.className = newClassName + ' fade-in';
+          setTimeout(() => { title.className = newClassName + ' active'; }, 50);
+      }, 1200);
+  } else {
+      if (needsOutlineAlign) { mainContent.classList.add('has-outline'); }
+      else { mainContent.classList.remove('has-outline'); }
+      title.innerHTML = newHtmlContent;
+      title.className = newClassName + ' active';
   }
-  counter.textContent=(index+1)+' / '+presentationSlides.length;
-  prevBtn.disabled=index===0;
-  nextBtn.disabled=index===presentationSlides.length-1;
-  currentSlideIndex=index;
+  
+  counter.textContent = (index + 1) + ' / ' + presentationSlides.length;
+  prevBtn.disabled = index === 0;
+  nextBtn.disabled = index === presentationSlides.length - 1;
+  currentSlideIndex = index;
 };
+
 const startPresentationMode=()=>{
   const mindData=jm2.get_data('node_tree');
-  if(!mindData||!mindData.data){
-    alert('沒有可以播放的心智圖資料');
-    return;
-  }
+  if(!mindData||!mindData.data){ alert('沒有可以播放的心智圖資料'); return; }
   presentationSlides=generatePresentationSlides(mindData);
-  if(presentationSlides.length===0){
-    alert('心智圖沒有內容可以播放');
-    return;
-  }
+  if(presentationSlides.length===0){ alert('心智圖沒有內容可以播放'); return; }
   isInPresentationMode=true;
   currentSlideIndex=0;
   const overlay=document.getElementById('presentation_overlay');
   overlay.style.display='block';
+  
+  const counter = overlay.querySelector('.slide-counter');
+  counter.style.cursor = 'pointer';
+  counter.title = '點擊跳轉頁碼';
+  counter.onclick = null; 
+  counter.onclick = () => {
+      const targetSlide = prompt('請輸入要跳轉的頁碼 (1 - ' + presentationSlides.length + '):', currentSlideIndex + 1);
+      if (targetSlide) {
+          const targetIndex = parseInt(targetSlide, 10) - 1;
+          if (!isNaN(targetIndex) && targetIndex >= 0 && targetIndex < presentationSlides.length) {
+              showPresentationSlide(targetIndex, 'none');
+          } else {
+              alert('輸入無效的頁碼');
+          }
+      }
+  };
+  
   showPresentationSlide(0);
 };
 const exitPresentationMode=()=>{
@@ -730,33 +826,123 @@ document.addEventListener('keydown',(e)=>{
   }
 });`;
     
-    // I also updated the exported HTML's presentation-main style to allow scrolling
-    const html = `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>html,body{height:100%;margin:0;overflow:hidden;}#jsmind_container{width:100%;height:100vh;background:#ecf0f1;cursor:grab;overflow:hidden;}.jsmind-inner{overflow:visible!important;transform-origin:0 0;}#jsmind_container.grabbing{cursor:grabbing;}#attribution{position:absolute;bottom:10px;right:10px;padding:4px 8px;background:rgba(0,0,0,0.5);color:#fff;border-radius:4px;font-size:12px;z-index:10;}#attribution a{color:#ffd54f;text-decoration:none;}#toggle_btn{position:fixed;top:20px;right:20px;width:48px;height:48px;border-radius:50%;border:none;color:white;font-size:20px;cursor:pointer;background:linear-gradient(45deg,#ab47bc,#8e24aa);box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all 0.2s;z-index:100;}#toggle_btn:hover{transform:scale(1.1);box-shadow:0 6px 16px rgba(0,0,0,0.4);}#presentation_btn{position:fixed;top:80px;right:20px;width:48px;height:48px;border-radius:50%;border:none;color:white;font-size:20px;cursor:pointer;background:linear-gradient(45deg,#5c6bc0,#3f51b5);box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all 0.2s;z-index:100;}#presentation_btn:hover{transform:scale(1.1);box-shadow:0 6px 16px rgba(0,0,0,0.4);}#btn_reorder{position:fixed;top:140px;right:20px;width:48px;height:48px;border-radius:50%;border:none;color:white;font-size:20px;cursor:pointer;background:linear-gradient(45deg,#546e7a,#37474f);box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all 0.2s;z-index:100;}.presentation-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#1e3c72,#2a5298);display:none;z-index:2000;}.presentation-content{width:100%;height:100%;display:flex;flex-direction:column;color:white;}.presentation-header{display:flex;justify-content:space-between;align-items:center;padding:20px 40px;background:rgba(0,0,0,0.2);}.presentation-breadcrumb{font-size:14px;opacity:0.7;}.presentation-controls{display:flex;align-items:center;gap:15px;}.presentation-btn{background:rgba(255,255,255,0.2);border:none;color:white;padding:8px 12px;border-radius:5px;cursor:pointer;font-size:16px;transition:background 0.2s;}.presentation-btn:hover{background:rgba(255,255,255,0.3);}.presentation-btn:disabled{opacity:0.5;cursor:not-allowed;}.slide-counter{font-size:14px;min-width:60px;text-align:center;}.presentation-main{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px;text-align:center;position:relative;overflow:auto;}.presentation-breadcrumb-corner{position:absolute;top:30px;left:30px;font-size:16px;opacity:0.5;line-height:1.6;max-width:300px;text-align:left;}.presentation-title{font-size:8em;font-weight:bold;line-height:1.1;text-shadow:3px 3px 6px rgba(0,0,0,0.4);max-width:90%;word-wrap:break-word;transition:opacity 1.2s ease-in-out;opacity:1;}.presentation-title.active{opacity:1;}.presentation-title.fade-out{opacity:0!important;}.presentation-title.fade-in{opacity:0!important;}.presentation-children{display:none;}.presentation-child{display:none;}</style><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/style/jsmind.css"></head><body><div id="jsmind_container"></div><button id="toggle_btn" title="展開/收合所有節點">⚡</button><button id="presentation_btn">📺</button><button id="btn_reorder">↔</button><div id="presentation_overlay" class="presentation-overlay"><div class="presentation-content"><div class="presentation-header"><div class="presentation-breadcrumb"></div><div class="presentation-controls"><button class="presentation-btn" id="btn_prev_slide">◀</button><span class="slide-counter"></span><button class="presentation-btn" id="btn_next_slide">▶</button><button class="presentation-btn" id="btn_exit_presentation">✕</button></div></div><div class="presentation-main"><div class="presentation-breadcrumb-corner"></div><div class="presentation-title"></div><div class="presentation-children"></div></div></div></div><div id="attribution">Made by <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener">阿剛老師</a></div><script src="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/js/jsmind.js"></script><script src="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/js/jsmind.draggable-node.js"></script><script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script><script>const jm2=new jsMind({container:'jsmind_container',theme:'greensea',editable:false,support_html:true,view:{engine:'canvas',draggable:true}});jm2.show(${JSON.stringify(data)});let allExpanded=true;document.getElementById('toggle_btn').onclick=()=>{const rootNode=jm2.get_root();if(allExpanded){const collapseNode=(node)=>{if(node&&!node.isroot&&node.children&&node.children.length>0){jm2.collapse_node(node.id);}if(node&&node.children){node.children.forEach(child=>collapseNode(child));}};collapseNode(rootNode);allExpanded=false;}else{const expandNode=(node)=>{if(node&&!node.isroot){jm2.expand_node(node.id);}if(node&&node.children){node.children.forEach(child=>expandNode(child));}};expandNode(rootNode);allExpanded=true;}};${presentationJS}${panAndZoomFnString};enablePanAndZoom(document.getElementById('jsmind_container'));;
-    let isReordered = false;
-    document.getElementById('btn_reorder').onclick = () => {
-      const root = jm2.get_root();
-      if (!root || !root.children || root.children.length < 2) {
-        alert('至少需要2個二階節點才能重新排列');
-        return;
-      }
-      isReordered = !isReordered;
-      const children = root.children;
-      const midpoint = Math.ceil(children.length / 2);
-      if (isReordered) {
-        for (let i = 0; i < children.length; i++) {
-          const direction = i < midpoint ? jsMind.direction.right : jsMind.direction.left;
-          children[i].direction = direction;
-        }
-        alert('已切換為左右排列');
-      } else {
-        for (const child of children) {
-          child.direction = jsMind.direction.right;
-        }
-        alert('已恢復單側排列');
-      }
-      jm2.layout.layout();
-      jm2.view.show(false);
-    };</script></body></html>`; 
+    // *** MODIFIED: Updated HTML string with new styles and elements ***
+    const html = `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>
+    html,body{height:100%;margin:0;overflow:hidden;}
+    #jsmind_container{width:100%;height:100vh;background:#ecf0f1;cursor:grab;overflow:hidden;}
+    .jsmind-inner{overflow:visible!important;transform-origin:0 0;}
+    #jsmind_container.grabbing{cursor:grabbing;}
+    #attribution{position:absolute;bottom:10px;right:10px;padding:4px 8px;background:rgba(0,0,0,0.5);color:#fff;border-radius:4px;font-size:12px;z-index:10;}
+    #attribution a{color:#ffd54f;text-decoration:none;}
+    #toggle_btn, #presentation_btn, #btn_reorder {
+      position:fixed;right:20px;width:48px;height:48px;border-radius:50%;border:none;color:white;font-size:20px;cursor:pointer;
+      box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:all 0.2s;z-index:100;
+    }
+    #toggle_btn:hover, #presentation_btn:hover, #btn_reorder:hover {transform:scale(1.1);box-shadow:0 6px 16px rgba(0,0,0,0.4);}
+    #toggle_btn{top:20px;background:linear-gradient(45deg,#ab47bc,#8e24aa);}
+    #presentation_btn{top:80px;background:linear-gradient(45deg,#5c6bc0,#3f51b5);}
+    #btn_reorder{top:140px;background:linear-gradient(45deg,#546e7a,#37474f);}
+    
+    /* *** NEW: Added Styles for Outline Select *** */
+    #outline_select_container{
+      position:fixed;top:200px;right:20px;z-index:100;background:rgba(0,0,0,0.5);padding:8px;
+      border-radius:10px;color:white;font-size:12px;display:flex;flex-direction:column;gap:5px;
+    }
+    #outline_select_container select {
+      background:#333;color:white;border:1px solid #555;border-radius:4px;padding:2px;
+    }
+
+    .presentation-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#1e3c72,#2a5298);display:none;z-index:2000;}
+    .presentation-content{width:100%;height:100%;display:flex;flex-direction:column;color:white;}
+    .presentation-header{display:flex;justify-content:space-between;align-items:center;padding:20px 40px;background:rgba(0,0,0,0.2);}
+    .presentation-breadcrumb{font-size:14px;opacity:0.7;}
+    .presentation-controls{display:flex;align-items:center;gap:15px;}
+    .presentation-btn{background:rgba(255,255,255,0.2);border:none;color:white;padding:8px 12px;border-radius:5px;cursor:pointer;font-size:16px;transition:background 0.2s;}
+    .presentation-btn:hover{background:rgba(255,255,255,0.3);}
+    .presentation-btn:disabled{opacity:0.5;cursor:not-allowed;}
+    .slide-counter{font-size:14px;min-width:60px;text-align:center;}
+    .presentation-main{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px;text-align:center;position:relative;overflow:auto;}
+    
+    /* *** NEW: Added Styles for Outline Mode (Copied from main HTML) *** */
+    .presentation-main.has-outline { justify-content: flex-start; }
+    .presentation-breadcrumb-corner{position:absolute;top:30px;left:30px;font-size:16px;opacity:0.5;line-height:1.6;max-width:300px;text-align:left;}
+    .presentation-title{font-size:8em;font-weight:bold;line-height:1.1;text-shadow:3px 3px 6px rgba(0,0,0,0.4);max-width:90%;word-wrap:break-word;transition:opacity 1.2s ease-in-out;opacity:1;}
+    .presentation-title.active{opacity:1;}
+    .presentation-title.fade-out{opacity:0!important;}
+    .presentation-title.fade-in{opacity:0!important;}
+    .presentation-title.outline-style {
+        font-size: 3.5em; text-align: center; padding: 0 5%; max-width: 90%; line-height: 1.5;
+        max-height: 100%; box-sizing: border-box;
+    }
+    .presentation-title.outline-style h1 {
+        font-size: 1.2em; font-weight: bold; line-height: 1.2; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        margin-bottom: 25px; padding-bottom: 10px; border-bottom: 2px solid rgba(255,255,255,0.3);
+    }
+    .presentation-title.outline-style ul {
+        font-size: 0.8em; list-style-type: disc; padding-left: 40px; line-height: 1.7;
+        text-shadow: none; display: inline-block; text-align: left;
+    }
+    .presentation-title.outline-style ul ul {
+        list-style-type: circle; font-size: 0.95em; margin-top: 5px; padding-left: 40px;
+    }
+    .presentation-title.outline-style li { margin-bottom: 8px; }
+    .presentation-children{display:none;}.presentation-child{display:none;}
+    </style><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/style/jsmind.css"></head>
+    <body>
+      <div id="jsmind_container"></div>
+      <button id="toggle_btn" title="展開/收合所有節點">⚡</button>
+      <button id="presentation_btn">📺</button>
+      <button id="btn_reorder">↔</button>
+      <div id="outline_select_container">
+        <label for="outline_depth_select">簡報大綱起始層級:</label>
+        <select id="outline_depth_select">
+          <option value="99">全部單頁 (預設)</option>
+          <option value="2">從第2層</option>
+          <option value="3">從第3層</option>
+          <option value="4">從第4層</option>
+          <option value="5">從第5層</option>
+        </select>
+      </div>
+      <div id="presentation_overlay" class="presentation-overlay"><div class="presentation-content"><div class="presentation-header"><div class="presentation-breadcrumb"></div><div class="presentation-controls"><button class="presentation-btn" id="btn_prev_slide">◀</button><span class="slide-counter"></span><button class="presentation-btn" id="btn_next_slide">▶</button><button class="presentation-btn" id="btn_exit_presentation">✕</button></div></div><div class="presentation-main"><div class="presentation-breadcrumb-corner"></div><div class="presentation-title"></div><div class="presentation-children"></div></div></div></div>
+      <div id="attribution">Made by <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener">阿剛老師</a></div>
+      <script src="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/js/jsmind.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/js/jsmind.draggable-node.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+      <script>
+        const jm2=new jsMind({container:'jsmind_container',theme:'greensea',editable:false,support_html:true,view:{engine:'canvas',draggable:true}});
+        jm2.show(${JSON.stringify(data)});
+        let allExpanded=true;
+        document.getElementById('toggle_btn').onclick=()=>{const rootNode=jm2.get_root();if(allExpanded){const collapseNode=(node)=>{if(node&&!node.isroot&&node.children&&node.children.length>0){jm2.collapse_node(node.id);}if(node&&node.children){node.children.forEach(child=>collapseNode(child));}};collapseNode(rootNode);allExpanded=false;}else{const expandNode=(node)=>{if(node&&!node.isroot){jm2.expand_node(node.id);}if(node&&node.children){node.children.forEach(child=>expandNode(child));}};expandNode(rootNode);allExpanded=true;}};
+        ${presentationJS}
+        ${panAndZoomFnString};
+        enablePanAndZoom(document.getElementById('jsmind_container'));
+        let isReordered = false;
+        document.getElementById('btn_reorder').onclick = () => {
+          const root = jm2.get_root();
+          if (!root || !root.children || root.children.length < 2) {
+            alert('至少需要2個二階節點才能重新排列');
+            return;
+          }
+          isReordered = !isReordered;
+          const children = root.children;
+          const midpoint = Math.ceil(children.length / 2);
+          if (isReordered) {
+            for (let i = 0; i < children.length; i++) {
+              const direction = i < midpoint ? jsMind.direction.right : jsMind.direction.left;
+              children[i].direction = direction;
+            }
+            alert('已切換為左右排列');
+          } else {
+            for (const child of children) {
+              child.direction = jsMind.direction.right;
+            }
+            alert('已恢復單側排列');
+          }
+          jm2.layout.layout();
+          jm2.view.show(false);
+        };
+      </script>
+    </body></html>`; 
     const blob = new Blob([html], { type: 'text/html' }); 
     const link = document.createElement('a'); 
     link.href = URL.createObjectURL(blob); 
