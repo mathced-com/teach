@@ -8,22 +8,29 @@
         body { font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif; padding: 20px; background-color: #f0f2f5; }
         .container { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
         
-        /* 控制列 */
-        .controls { background: #eef2f6; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border-left: 5px solid #4285f4;}
-        .controls input, .controls select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
-        label { font-weight: bold; color: #444; }
+        /* 控制列 (單一列) */
+        .controls { background: #eef2f6; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-left: 5px solid #4285f4;}
         
-        button { padding: 8px 16px; cursor: pointer; border: none; border-radius: 4px; transition: 0.2s; font-size: 16px; }
+        /* 按鈕與輸入框通用樣式 */
+        button { padding: 8px 16px; cursor: pointer; border: none; border-radius: 4px; transition: 0.2s; font-size: 15px; display: flex; align-items: center; gap: 5px; }
+        select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 15px; cursor: pointer;}
+        
+        /* 按鈕顏色 */
         .btn-primary { background-color: #4285f4; color: white; font-weight: bold; }
         .btn-primary:hover { background-color: #3367d6; }
+        
         .btn-sec { background-color: #fff; border: 1px solid #ccc; color: #555; }
         .btn-sec:hover { background-color: #f0f0f0; }
+        
         .btn-active { background-color: #333; color: white; border: 1px solid #333; }
+        
+        .btn-settings { background-color: #6c757d; color: white; } /* 日期範圍按鈕顏色 */
+        .btn-settings:hover { background-color: #5a6268; }
 
         /* 標題 */
         .header-title { text-align: center; margin: 10px 0 20px 0; color: #2c3e50; font-size: 2em; font-weight: bold; border-bottom: 2px solid #eee; padding-bottom: 15px;}
         
-        /* 表格 */
+        /* 表格樣式 */
         table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; }
         th:nth-child(1) { width: 120px; }  
         th:nth-child(2) { width: 35%; }    
@@ -46,34 +53,60 @@
         .font-normal { font-size: 16px; }
         .font-large { font-size: 20px; } 
         .font-xl { font-size: 24px; }
+
+        /* --- 浮動視窗 (Modal) 樣式 --- */
+        .modal {
+            display: none; /* 預設隱藏 */
+            position: fixed; 
+            z-index: 999; 
+            left: 0; top: 0;
+            width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.5); /* 半透明黑底 */
+            backdrop-filter: blur(3px);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; 
+            padding: 25px;
+            border: 1px solid #888;
+            width: 90%; max-width: 400px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .modal-header { font-size: 1.2em; font-weight: bold; margin-bottom: 15px; color: #333; }
+        .modal-body input { 
+            display: block; width: 80%; margin: 10px auto; 
+            padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 16px;
+        }
+        .close-btn {
+            background-color: #28a745; color: white; width: 80%; margin-top: 15px; justify-content: center;
+        }
+        .close-btn:hover { background-color: #218838; }
+
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="controls">
-        <label>日期範圍：</label>
-        <input type="date" id="fetchStart" value="2025-10-01">
-        <span>至</span>
-        <input type="date" id="fetchEnd" value="2026-01-31">
-        <button class="btn-primary" onclick="startDataUpdate()">🔄 更新資料庫</button>
-    </div>
-
-    <div class="controls" style="border-left-color: #34a853;">
         <button class="btn-sec" onclick="shiftDate(-1)">❮ 上一頁</button>
         <button class="btn-sec" onclick="shiftDate(1)">下一頁 ❯</button>
-        <button class="btn-sec" onclick="goToToday()">回到今天</button>
+        <button class="btn-sec" onclick="goToToday()">今天</button>
         
-        <label style="margin-left: 15px;">字體：</label>
-        <select id="fontSizeSelect" onchange="updateFontSize()">
-            <option value="font-normal">一般 (16px)</option>
-            <option value="font-large" selected>大 (20px)</option>
-            <option value="font-xl">特大 (24px)</option>
+        <select id="fontSizeSelect" onchange="updateFontSize()" style="margin-left: 5px;">
+            <option value="font-normal">字體：中</option>
+            <option value="font-large" selected>字體：大</option>
+            <option value="font-xl">字體：特大</option>
         </select>
 
-        <div style="margin-left: auto;">
-            <button id="btnWeek" class="btn-sec btn-active" onclick="switchView('week')">週檢視</button>
-            <button id="btnMonth" class="btn-sec" onclick="switchView('month')">月檢視</button>
+        <div style="margin-left: auto; display: flex; gap: 8px;">
+            <button class="btn-settings" onclick="openModal()">📅 日期範圍</button>
+            
+            <button class="btn-primary" onclick="startDataUpdate()">🔄 更新資料庫</button>
+            
+            <button id="btnWeek" class="btn-sec btn-active" onclick="switchView('week')">週</button>
+            <button id="btnMonth" class="btn-sec" onclick="switchView('month')">月</button>
         </div>
     </div>
 
@@ -84,49 +117,48 @@
     </div>
 </div>
 
+<div id="dateModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">設定抓取範圍</div>
+        <div class="modal-body">
+            <label>開始日期：</label>
+            <input type="date" id="fetchStart" value="2025-10-01">
+            
+            <label>結束日期：</label>
+            <input type="date" id="fetchEnd" value="2026-01-31">
+        </div>
+        <button class="close-btn" onclick="closeModal()">確認並關閉</button>
+    </div>
+</div>
+
 <script>
     // ============================================================
-    // ⚠️⚠️⚠️ 請在下方雙引號 "" 之間貼上網址 ⚠️⚠️⚠️
-    // 正確範例： const GAS_API_URL = "https://script.google.com/...";
-    // 錯誤範例： const GAS_API_URL = https://script.google.com/...;  (少了引號會當機！)
-    // ============================================================
-    
+    // ⚠️⚠️⚠️ 請在下方雙引號 "" 之間貼上 GAS 網址 ⚠️⚠️⚠️
     const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwgdGjtsqNQYywpAUp3aGKx4pp0Q0P1m4LJ3MCWJmAXwWRAP8R6vZgRjlGYPoNx0yPF/exec"; 
-
     // ============================================================
 
     let allEvents = [];
     let currentViewDate = new Date(); 
     let viewMode = 'week'; 
 
-    // 網頁載入時執行
     window.onload = function() {
-        // 1. 先檢查網址格式是否正確
         if (typeof GAS_API_URL === 'undefined' || !GAS_API_URL) {
-            showError("嚴重的語法錯誤：GAS_API_URL 變數遺失或格式錯誤。");
+            showError("嚴重錯誤：GAS_API_URL 未設定。");
             return;
         }
-        
-        // 2. 嘗試渲染介面
-        try {
-            renderView();
-            startDataUpdate(); // 自動開始抓取
-        } catch (e) {
-            console.error(e);
-            showError("程式執行錯誤：" + e.message);
-        }
+        renderView();
+        startDataUpdate(); // 預設載入
     };
 
     function startDataUpdate() {
         const box = document.getElementById('contentArea');
         
-        // 防呆檢查：網址是否還是預設文字？
         if(GAS_API_URL.includes("請在此貼上")) {
-            alert("【提醒】\n您似乎還沒貼上 GAS 網址喔！\n請開啟 HTML 檔案，找到 GAS_API_URL 並貼上網址。");
-            showError("請先設定 GAS 網址，才能讀取資料。");
+            alert("請設定 GAS 網址！");
             return;
         }
 
+        // 從 Modal 裡的輸入框取得日期
         const start = document.getElementById('fetchStart').value;
         const end = document.getElementById('fetchEnd').value;
         
@@ -138,17 +170,16 @@
                 if(json.status === 'success') {
                     allEvents = json.data;
                     renderView();
-                    // 如果抓回來是空的
                     if (allEvents.length === 0) {
-                        box.innerHTML = '<div class="status-box">連線成功，但指定範圍內沒有任何資料。</div>';
+                        box.innerHTML = '<div class="status-box">連線成功，但指定範圍內沒有資料。</div>';
                     }
                 } else {
-                    showError("後端回傳錯誤：" + json.message);
+                    showError("後端錯誤：" + json.message);
                 }
             })
             .catch(err => {
                 console.error(err);
-                showError("連線失敗！請檢查網址是否正確，或權限是否設為「所有人」。");
+                showError("連線失敗！請檢查網址或網路。");
             });
     }
 
@@ -175,13 +206,8 @@
 
         document.getElementById('displayTitle').innerText = titleStr;
 
-        // 如果沒有資料，或是剛載入
-        if (allEvents.length === 0) {
-            // 這裡不顯示內容，交給 startDataUpdate 的 loading 狀態處理
-            return;
-        }
+        if (allEvents.length === 0) return;
 
-        // 解析日期並過濾
         const filtered = allEvents.filter(evt => {
             let d = parseDate(evt.start);
             if (!d || isNaN(d.getTime())) return false; 
@@ -190,11 +216,10 @@
 
         filtered.sort((a, b) => parseDate(a.start) - parseDate(b.start));
 
-        // 取得字體大小
         let currentFontSize = document.getElementById('fontSizeSelect').value;
 
         if (filtered.length === 0) {
-            document.getElementById('contentArea').innerHTML = '<div class="status-box">本頁面無活動<br><small>請按「上一頁/下一頁」切換日期</small></div>';
+            document.getElementById('contentArea').innerHTML = '<div class="status-box">本頁面無活動<br><small>請切換頁面</small></div>';
             return;
         }
 
@@ -225,6 +250,21 @@
 
     function showError(msg) {
         document.getElementById('contentArea').innerHTML = `<div class="status-box error-msg">⚠️ ${msg}</div>`;
+    }
+
+    // --- Modal 控制函式 ---
+    function openModal() {
+        document.getElementById('dateModal').style.display = "block";
+    }
+    function closeModal() {
+        document.getElementById('dateModal').style.display = "none";
+    }
+    // 點擊視窗外部也可以關閉
+    window.onclick = function(event) {
+        let modal = document.getElementById('dateModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
     }
 
     function updateFontSize() { renderView(); }
