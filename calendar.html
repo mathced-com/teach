@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班級行事曆</title>
+    <style>
+        body { font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif; padding: 20px; background-color: #f0f2f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        
+        /* 控制列 */
+        .controls { background: #eef2f6; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; border-left: 5px solid #4285f4;}
+        .controls input, .controls select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        label { font-weight: bold; color: #444; }
+        
+        button { padding: 8px 16px; cursor: pointer; border: none; border-radius: 4px; transition: 0.2s; font-size: 16px; }
+        .btn-primary { background-color: #4285f4; color: white; font-weight: bold; }
+        .btn-primary:hover { background-color: #3367d6; }
+        .btn-sec { background-color: #fff; border: 1px solid #ccc; color: #555; }
+        .btn-sec:hover { background-color: #f0f0f0; }
+        .btn-active { background-color: #333; color: white; border: 1px solid #333; }
+
+        /* 標題 */
+        .header-title { text-align: center; margin: 10px 0 20px 0; color: #2c3e50; font-size: 2em; font-weight: bold; border-bottom: 2px solid #eee; padding-bottom: 15px;}
+        
+        /* 表格 */
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; }
+        th:nth-child(1) { width: 120px; }  
+        th:nth-child(2) { width: 35%; }    
+        th:nth-child(3) { width: auto; }   
+
+        th { background-color: #4285f4; color: white; padding: 15px; text-align: center; font-size: 1.1em; border: 1px solid #3367d6; }
+        td { padding: 15px; border: 1px solid #ccc; vertical-align: middle; word-wrap: break-word; line-height: 1.6; }
+        
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #e8f0fe; }
+
+        .col-date { font-weight: bold; color: #d32f2f; text-align: center; background-color: #fff8e1; }
+        .col-title { font-weight: bold; color: #1a237e; }
+        .col-desc { color: #444; }
+
+        .status-box { padding: 40px; text-align: center; color: #666; background: #fafafa; border: 1px dashed #ccc; font-size: 1.2em;}
+        .error-msg { color: red; background: #ffebee; border: 1px solid #ef5350; }
+
+        /* 字體大小 */
+        .font-normal { font-size: 16px; }
+        .font-large { font-size: 20px; } 
+        .font-xl { font-size: 24px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="controls">
+        <label>日期範圍：</label>
+        <input type="date" id="fetchStart" value="2025-10-01">
+        <span>至</span>
+        <input type="date" id="fetchEnd" value="2026-01-31">
+        <button class="btn-primary" onclick="startDataUpdate()">🔄 更新資料庫</button>
+    </div>
+
+    <div class="controls" style="border-left-color: #34a853;">
+        <button class="btn-sec" onclick="shiftDate(-1)">❮ 上一頁</button>
+        <button class="btn-sec" onclick="shiftDate(1)">下一頁 ❯</button>
+        <button class="btn-sec" onclick="goToToday()">回到今天</button>
+        
+        <label style="margin-left: 15px;">字體：</label>
+        <select id="fontSizeSelect" onchange="updateFontSize()">
+            <option value="font-normal">一般 (16px)</option>
+            <option value="font-large" selected>大 (20px)</option>
+            <option value="font-xl">特大 (24px)</option>
+        </select>
+
+        <div style="margin-left: auto;">
+            <button id="btnWeek" class="btn-sec btn-active" onclick="switchView('week')">週檢視</button>
+            <button id="btnMonth" class="btn-sec" onclick="switchView('month')">月檢視</button>
+        </div>
+    </div>
+
+    <div class="header-title" id="displayTitle">...</div>
+
+    <div id="contentArea">
+        <div class="status-box">系統初始化中...</div>
+    </div>
+</div>
+
+<script>
+    // ============================================================
+    // ⚠️⚠️⚠️ 請在下方雙引號 "" 之間貼上網址 ⚠️⚠️⚠️
+    // 正確範例： const GAS_API_URL = "https://script.google.com/...";
+    // 錯誤範例： const GAS_API_URL = https://script.google.com/...;  (少了引號會當機！)
+    // ============================================================
+    
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwgdGjtsqNQYywpAUp3aGKx4pp0Q0P1m4LJ3MCWJmAXwWRAP8R6vZgRjlGYPoNx0yPF/exec"; 
+
+    // ============================================================
+
+    let allEvents = [];
+    let currentViewDate = new Date(); 
+    let viewMode = 'week'; 
+
+    // 網頁載入時執行
+    window.onload = function() {
+        // 1. 先檢查網址格式是否正確
+        if (typeof GAS_API_URL === 'undefined' || !GAS_API_URL) {
+            showError("嚴重的語法錯誤：GAS_API_URL 變數遺失或格式錯誤。");
+            return;
+        }
+        
+        // 2. 嘗試渲染介面
+        try {
+            renderView();
+            startDataUpdate(); // 自動開始抓取
+        } catch (e) {
+            console.error(e);
+            showError("程式執行錯誤：" + e.message);
+        }
+    };
+
+    function startDataUpdate() {
+        const box = document.getElementById('contentArea');
+        
+        // 防呆檢查：網址是否還是預設文字？
+        if(GAS_API_URL.includes("請在此貼上")) {
+            alert("【提醒】\n您似乎還沒貼上 GAS 網址喔！\n請開啟 HTML 檔案，找到 GAS_API_URL 並貼上網址。");
+            showError("請先設定 GAS 網址，才能讀取資料。");
+            return;
+        }
+
+        const start = document.getElementById('fetchStart').value;
+        const end = document.getElementById('fetchEnd').value;
+        
+        box.innerHTML = '<div class="status-box" style="color:#4285f4;">正在連線讀取資料，請稍候...</div>';
+
+        fetch(`${GAS_API_URL}?start=${start}&end=${end}`)
+            .then(res => res.json())
+            .then(json => {
+                if(json.status === 'success') {
+                    allEvents = json.data;
+                    renderView();
+                    // 如果抓回來是空的
+                    if (allEvents.length === 0) {
+                        box.innerHTML = '<div class="status-box">連線成功，但指定範圍內沒有任何資料。</div>';
+                    }
+                } else {
+                    showError("後端回傳錯誤：" + json.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showError("連線失敗！請檢查網址是否正確，或權限是否設為「所有人」。");
+            });
+    }
+
+    function renderView() {
+        updateBtnStyle();
+        let rangeStart, rangeEnd, titleStr;
+
+        if (viewMode === 'week') {
+            let day = currentViewDate.getDay();
+            rangeStart = new Date(currentViewDate);
+            rangeStart.setDate(currentViewDate.getDate() - day);
+            rangeStart.setHours(0,0,0,0);
+            
+            rangeEnd = new Date(rangeStart);
+            rangeEnd.setDate(rangeStart.getDate() + 6);
+            rangeEnd.setHours(23,59,59,999);
+            
+            titleStr = `${formatDateSimple(rangeStart)} - ${formatDateSimple(rangeEnd)} (週)`;
+        } else {
+            rangeStart = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth(), 1);
+            rangeEnd = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() + 1, 0, 23, 59, 59);
+            titleStr = `${currentViewDate.getFullYear()} 年 ${currentViewDate.getMonth()+1} 月`;
+        }
+
+        document.getElementById('displayTitle').innerText = titleStr;
+
+        // 如果沒有資料，或是剛載入
+        if (allEvents.length === 0) {
+            // 這裡不顯示內容，交給 startDataUpdate 的 loading 狀態處理
+            return;
+        }
+
+        // 解析日期並過濾
+        const filtered = allEvents.filter(evt => {
+            let d = parseDate(evt.start);
+            if (!d || isNaN(d.getTime())) return false; 
+            return d >= rangeStart && d <= rangeEnd;
+        });
+
+        filtered.sort((a, b) => parseDate(a.start) - parseDate(b.start));
+
+        // 取得字體大小
+        let currentFontSize = document.getElementById('fontSizeSelect').value;
+
+        if (filtered.length === 0) {
+            document.getElementById('contentArea').innerHTML = '<div class="status-box">本頁面無活動<br><small>請按「上一頁/下一頁」切換日期</small></div>';
+            return;
+        }
+
+        let html = `<table class="${currentFontSize}"><thead><tr><th>日期</th><th>活動標題</th><th>說明</th></tr></thead><tbody>`;
+        
+        filtered.forEach(evt => {
+            let dateObj = parseDate(evt.start);
+            let month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+            let day = dateObj.getDate().toString().padStart(2, '0');
+            
+            html += `
+                <tr>
+                    <td class="col-date">${month}/${day}</td>
+                    <td class="col-title">${evt.title}</td>
+                    <td class="col-desc">${evt.desc || ''}</td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table>';
+        document.getElementById('contentArea').innerHTML = html;
+    }
+
+    function parseDate(dateStr) {
+        if (!dateStr) return null;
+        if (dateStr.indexOf('T') !== -1) return new Date(dateStr);
+        return new Date(dateStr.replace(/-/g, '/'));
+    }
+
+    function showError(msg) {
+        document.getElementById('contentArea').innerHTML = `<div class="status-box error-msg">⚠️ ${msg}</div>`;
+    }
+
+    function updateFontSize() { renderView(); }
+    function shiftDate(n) {
+        if (viewMode === 'week') {
+            currentViewDate.setDate(currentViewDate.getDate() + (n * 7));
+        } else {
+            currentViewDate.setMonth(currentViewDate.getMonth() + n);
+        }
+        renderView();
+    }
+    function goToToday() { currentViewDate = new Date(); renderView(); }
+    function switchView(mode) { viewMode = mode; renderView(); }
+    function updateBtnStyle() {
+        document.getElementById('btnWeek').className = viewMode === 'week' ? 'btn-sec btn-active' : 'btn-sec';
+        document.getElementById('btnMonth').className = viewMode === 'month' ? 'btn-sec btn-active' : 'btn-sec';
+    }
+    function formatDateSimple(d) { return `${d.getMonth()+1}/${d.getDate()}`; }
+</script>
+
+</body>
+</html>
