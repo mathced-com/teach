@@ -8,14 +8,12 @@
         body { font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif; padding: 20px; background-color: #f0f2f5; }
         .container { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
         
-        /* 控制列 (單一列) */
+        /* 控制列 */
         .controls { background: #eef2f6; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-left: 5px solid #4285f4;}
         
-        /* 按鈕與輸入框通用樣式 */
         button { padding: 8px 16px; cursor: pointer; border: none; border-radius: 4px; transition: 0.2s; font-size: 15px; display: flex; align-items: center; gap: 5px; }
         select { padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 15px; cursor: pointer;}
         
-        /* 按鈕顏色 */
         .btn-primary { background-color: #4285f4; color: white; font-weight: bold; }
         .btn-primary:hover { background-color: #3367d6; }
         
@@ -24,15 +22,16 @@
         
         .btn-active { background-color: #333; color: white; border: 1px solid #333; }
         
-        .btn-settings { background-color: #6c757d; color: white; } /* 日期範圍按鈕顏色 */
+        .btn-settings { background-color: #6c757d; color: white; }
         .btn-settings:hover { background-color: #5a6268; }
 
-        /* 標題 */
         .header-title { text-align: center; margin: 10px 0 20px 0; color: #2c3e50; font-size: 2em; font-weight: bold; border-bottom: 2px solid #eee; padding-bottom: 15px;}
         
         /* 表格樣式 */
         table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; }
-        th:nth-child(1) { width: 120px; }  
+        
+        /* --- 修改處：加寬第一欄寬度以容納星期幾 --- */
+        th:nth-child(1) { width: 160px; }  
         th:nth-child(2) { width: 35%; }    
         th:nth-child(3) { width: auto; }   
 
@@ -49,30 +48,19 @@
         .status-box { padding: 40px; text-align: center; color: #666; background: #fafafa; border: 1px dashed #ccc; font-size: 1.2em;}
         .error-msg { color: red; background: #ffebee; border: 1px solid #ef5350; }
 
-        /* 字體大小 */
         .font-normal { font-size: 16px; }
         .font-large { font-size: 20px; } 
         .font-xl { font-size: 24px; }
 
-        /* --- 浮動視窗 (Modal) 樣式 --- */
+        /* Modal */
         .modal {
-            display: none; /* 預設隱藏 */
-            position: fixed; 
-            z-index: 999; 
-            left: 0; top: 0;
-            width: 100%; height: 100%; 
-            background-color: rgba(0,0,0,0.5); /* 半透明黑底 */
-            backdrop-filter: blur(3px);
+            display: none; position: fixed; z-index: 999; left: 0; top: 0;
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); backdrop-filter: blur(3px);
         }
         .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto; 
-            padding: 25px;
-            border: 1px solid #888;
-            width: 90%; max-width: 400px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            text-align: center;
+            background-color: #fefefe; margin: 15% auto; padding: 25px;
+            border: 1px solid #888; width: 90%; max-width: 400px;
+            border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: center;
         }
         .modal-header { font-size: 1.2em; font-weight: bold; margin-bottom: 15px; color: #333; }
         .modal-body input { 
@@ -83,7 +71,6 @@
             background-color: #28a745; color: white; width: 80%; margin-top: 15px; justify-content: center;
         }
         .close-btn:hover { background-color: #218838; }
-
     </style>
 </head>
 <body>
@@ -102,9 +89,7 @@
 
         <div style="margin-left: auto; display: flex; gap: 8px;">
             <button class="btn-settings" onclick="openModal()">📅 日期範圍</button>
-            
             <button class="btn-primary" onclick="startDataUpdate()">🔄 更新資料庫</button>
-            
             <button id="btnWeek" class="btn-sec btn-active" onclick="switchView('week')">週</button>
             <button id="btnMonth" class="btn-sec" onclick="switchView('month')">月</button>
         </div>
@@ -123,7 +108,6 @@
         <div class="modal-body">
             <label>開始日期：</label>
             <input type="date" id="fetchStart" value="2025-10-01">
-            
             <label>結束日期：</label>
             <input type="date" id="fetchEnd" value="2026-01-31">
         </div>
@@ -140,6 +124,9 @@
     let allEvents = [];
     let currentViewDate = new Date(); 
     let viewMode = 'week'; 
+    
+    // 星期對照表
+    const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
 
     window.onload = function() {
         if (typeof GAS_API_URL === 'undefined' || !GAS_API_URL) {
@@ -147,18 +134,13 @@
             return;
         }
         renderView();
-        startDataUpdate(); // 預設載入
+        startDataUpdate(); 
     };
 
     function startDataUpdate() {
         const box = document.getElementById('contentArea');
-        
-        if(GAS_API_URL.includes("請在此貼上")) {
-            alert("請設定 GAS 網址！");
-            return;
-        }
+        if(GAS_API_URL.includes("請在此貼上")) { alert("請設定 GAS 網址！"); return; }
 
-        // 從 Modal 裡的輸入框取得日期
         const start = document.getElementById('fetchStart').value;
         const end = document.getElementById('fetchEnd').value;
         
@@ -192,11 +174,9 @@
             rangeStart = new Date(currentViewDate);
             rangeStart.setDate(currentViewDate.getDate() - day);
             rangeStart.setHours(0,0,0,0);
-            
             rangeEnd = new Date(rangeStart);
             rangeEnd.setDate(rangeStart.getDate() + 6);
             rangeEnd.setHours(23,59,59,999);
-            
             titleStr = `${formatDateSimple(rangeStart)} - ${formatDateSimple(rangeEnd)} (週)`;
         } else {
             rangeStart = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth(), 1);
@@ -230,9 +210,14 @@
             let month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
             let day = dateObj.getDate().toString().padStart(2, '0');
             
+            // --- 修改處：計算星期幾 ---
+            let dayChar = weekDays[dateObj.getDay()]; // 取得星期文字 (例如 "二")
+            let dateString = `${month}/${day}(${dayChar})`; // 組合字串
+            // -----------------------
+            
             html += `
                 <tr>
-                    <td class="col-date">${month}/${day}</td>
+                    <td class="col-date">${dateString}</td>
                     <td class="col-title">${evt.title}</td>
                     <td class="col-desc">${evt.desc || ''}</td>
                 </tr>
@@ -252,19 +237,11 @@
         document.getElementById('contentArea').innerHTML = `<div class="status-box error-msg">⚠️ ${msg}</div>`;
     }
 
-    // --- Modal 控制函式 ---
-    function openModal() {
-        document.getElementById('dateModal').style.display = "block";
-    }
-    function closeModal() {
-        document.getElementById('dateModal').style.display = "none";
-    }
-    // 點擊視窗外部也可以關閉
+    function openModal() { document.getElementById('dateModal').style.display = "block"; }
+    function closeModal() { document.getElementById('dateModal').style.display = "none"; }
     window.onclick = function(event) {
         let modal = document.getElementById('dateModal');
-        if (event.target == modal) {
-            modal.style.display = "none";
-        }
+        if (event.target == modal) modal.style.display = "none";
     }
 
     function updateFontSize() { renderView(); }
