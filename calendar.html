@@ -5,10 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>班級行事曆</title>
     <style>
-        body { font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif; padding: 20px; background-color: #f0f2f5; }
-        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        /* --- 修改處 1：Body 背景改為透明 --- */
+        body { 
+            font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif; 
+            padding: 20px; 
+            background-color: transparent; /* 透明背景 */
+        }
         
-        /* 控制列 */
+        /* --- 修改處 2：容器背景改為透明，並移除陰影 --- */
+        .container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            background: transparent; /* 透明背景 */
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: none; /* 移除陰影 */
+        }
+        
+        /* 控制列 (保留淺灰底色以區隔按鈕) */
         .controls { background: #eef2f6; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-left: 5px solid #4285f4;}
         
         button { padding: 8px 16px; cursor: pointer; border: none; border-radius: 4px; transition: 0.2s; font-size: 15px; display: flex; align-items: center; gap: 5px; }
@@ -35,16 +49,19 @@
         th:nth-child(3) { width: auto; }   
 
         th { background-color: #4285f4; color: white; padding: 15px; text-align: center; font-size: 1.1em; border: 1px solid #3367d6; }
-        td { padding: 15px; border: 1px solid #ccc; vertical-align: middle; word-wrap: break-word; line-height: 1.6; }
         
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        tr:hover { background-color: #e8f0fe; }
+        /* 為了在透明背景上看得清楚，表格內容保留白底 */
+        td { padding: 15px; border: 1px solid #ccc; vertical-align: middle; word-wrap: break-word; line-height: 1.6; background-color: rgba(255, 255, 255, 0.9); }
+        
+        tr:nth-child(even) td { background-color: #f9f9f9; } /* 隔行變色 */
+        tr:hover td { background-color: #e8f0fe; } /* 滑鼠懸停 */
 
-        .col-date { font-weight: bold; color: #d32f2f; text-align: center; background-color: #fff8e1; }
+        .col-date { font-weight: bold; color: #d32f2f; text-align: center; background-color: #fff8e1 !important; /* 日期欄位強制淡黃底 */ }
         .col-title { font-weight: bold; color: #1a237e; }
         .col-desc { color: #444; }
 
-        .status-box { padding: 40px; text-align: center; color: #666; background: #fafafa; border: 1px dashed #ccc; font-size: 1.2em;}
+        /* 狀態框給一點半透明白底，不然字會浮在空中看不清楚 */
+        .status-box { padding: 40px; text-align: center; color: #666; background: rgba(250, 250, 250, 0.9); border: 1px dashed #ccc; font-size: 1.2em; border-radius: 8px;}
         .error-msg { color: red; background: #ffebee; border: 1px solid #ef5350; }
 
         .font-normal { font-size: 16px; }
@@ -89,216 +106,4 @@
         <div style="margin-left: auto; display: flex; gap: 8px;">
             <button class="btn-settings" onclick="openModal()">📅 日期範圍</button>
             <button class="btn-primary" onclick="startDataUpdate()">🔄 更新資料庫</button>
-            
-            <button id="btnTenDays" class="btn-sec btn-active" onclick="switchView('tenDays')">10天</button>
-            <button id="btnWeek" class="btn-sec" onclick="switchView('week')">週</button>
-            <button id="btnMonth" class="btn-sec" onclick="switchView('month')">月</button>
-        </div>
-    </div>
-
-    <div class="header-title" id="displayTitle">...</div>
-
-    <div id="contentArea">
-        <div class="status-box">系統初始化中...</div>
-    </div>
-</div>
-
-<div id="dateModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">設定抓取範圍</div>
-        <div class="modal-body">
-            <label>開始日期：</label>
-            <input type="date" id="fetchStart" value="2025-10-01">
-            <label>結束日期：</label>
-            <input type="date" id="fetchEnd" value="2026-01-31">
-        </div>
-        <button class="close-btn" onclick="closeModal()">確認並關閉</button>
-    </div>
-</div>
-
-<script>
-    // ============================================================
-    // ⚠️⚠️⚠️ 請在下方雙引號 "" 之間貼上 GAS 網址 ⚠️⚠️⚠️
-    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwgdGjtsqNQYywpAUp3aGKx4pp0Q0P1m4LJ3MCWJmAXwWRAP8R6vZgRjlGYPoNx0yPF/exec"; 
-    // ============================================================
-
-    let allEvents = [];
-    let currentViewDate = new Date(); 
-    let viewMode = 'tenDays'; // 修改預設模式為 10 天
-    
-    const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
-
-    window.onload = function() {
-        if (typeof GAS_API_URL === 'undefined' || !GAS_API_URL) {
-            showError("嚴重錯誤：GAS_API_URL 未設定。");
-            return;
-        }
-        renderView();
-        startDataUpdate(); 
-    };
-
-    function startDataUpdate() {
-        const box = document.getElementById('contentArea');
-        if(GAS_API_URL.includes("請在此貼上")) { alert("請設定 GAS 網址！"); return; }
-
-        const start = document.getElementById('fetchStart').value;
-        const end = document.getElementById('fetchEnd').value;
-        
-        box.innerHTML = '<div class="status-box" style="color:#4285f4;">正在連線讀取資料，請稍候...</div>';
-
-        fetch(`${GAS_API_URL}?start=${start}&end=${end}`)
-            .then(res => res.json())
-            .then(json => {
-                if(json.status === 'success') {
-                    allEvents = json.data;
-                    renderView();
-                    if (allEvents.length === 0) {
-                        box.innerHTML = '<div class="status-box">連線成功，但指定範圍內沒有資料。</div>';
-                    }
-                } else {
-                    showError("後端錯誤：" + json.message);
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                showError("連線失敗！請檢查網址或網路。");
-            });
-    }
-
-    function renderView() {
-        updateBtnStyle();
-        let rangeStart, rangeEnd, titleStr;
-
-        if (viewMode === 'tenDays') {
-            // --- 10天模式邏輯 ---
-            // 從 currentViewDate 開始，往後抓 10 天 (包含今天，所以是 +9)
-            rangeStart = new Date(currentViewDate);
-            rangeStart.setHours(0,0,0,0);
-            
-            rangeEnd = new Date(rangeStart);
-            rangeEnd.setDate(rangeStart.getDate() + 9); 
-            rangeEnd.setHours(23,59,59,999);
-            
-            titleStr = `${formatDateSimple(rangeStart)} - ${formatDateSimple(rangeEnd)} (未來10天)`;
-        } else if (viewMode === 'week') {
-            // --- 週模式邏輯 ---
-            let day = currentViewDate.getDay();
-            rangeStart = new Date(currentViewDate);
-            rangeStart.setDate(currentViewDate.getDate() - day);
-            rangeStart.setHours(0,0,0,0);
-            
-            rangeEnd = new Date(rangeStart);
-            rangeEnd.setDate(rangeStart.getDate() + 6);
-            rangeEnd.setHours(23,59,59,999);
-            
-            titleStr = `${formatDateSimple(rangeStart)} - ${formatDateSimple(rangeEnd)} (週)`;
-        } else {
-            // --- 月模式邏輯 ---
-            rangeStart = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth(), 1);
-            rangeEnd = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() + 1, 0, 23, 59, 59);
-            titleStr = `${currentViewDate.getFullYear()} 年 ${currentViewDate.getMonth()+1} 月`;
-        }
-
-        document.getElementById('displayTitle').innerText = titleStr;
-
-        if (allEvents.length === 0) return;
-
-        const filtered = allEvents.filter(evt => {
-            let d = parseDate(evt.start);
-            if (!d || isNaN(d.getTime())) return false; 
-            return d >= rangeStart && d <= rangeEnd;
-        });
-
-        filtered.sort((a, b) => parseDate(a.start) - parseDate(b.start));
-
-        let currentFontSize = document.getElementById('fontSizeSelect').value;
-
-        if (filtered.length === 0) {
-            document.getElementById('contentArea').innerHTML = '<div class="status-box">本期間無活動<br><small>請切換上一頁/下一頁</small></div>';
-            return;
-        }
-
-        let html = `<table class="${currentFontSize}"><thead><tr><th>日期</th><th>活動標題</th><th>說明</th></tr></thead><tbody>`;
-        
-        filtered.forEach(evt => {
-            let dateObj = parseDate(evt.start);
-            let month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-            let day = dateObj.getDate().toString().padStart(2, '0');
-            
-            let dayChar = weekDays[dateObj.getDay()]; 
-            let dateString = `${month}/${day}(${dayChar})`; 
-            
-            html += `
-                <tr>
-                    <td class="col-date">${dateString}</td>
-                    <td class="col-title">${evt.title}</td>
-                    <td class="col-desc">${evt.desc || ''}</td>
-                </tr>
-            `;
-        });
-        html += '</tbody></table>';
-        document.getElementById('contentArea').innerHTML = html;
-    }
-
-    function parseDate(dateStr) {
-        if (!dateStr) return null;
-        if (dateStr.indexOf('T') !== -1) return new Date(dateStr);
-        return new Date(dateStr.replace(/-/g, '/'));
-    }
-
-    function showError(msg) {
-        document.getElementById('contentArea').innerHTML = `<div class="status-box error-msg">⚠️ ${msg}</div>`;
-    }
-
-    function openModal() { document.getElementById('dateModal').style.display = "block"; }
-    function closeModal() { document.getElementById('dateModal').style.display = "none"; }
-    window.onclick = function(event) {
-        let modal = document.getElementById('dateModal');
-        if (event.target == modal) modal.style.display = "none";
-    }
-
-    function updateFontSize() { renderView(); }
-
-    function shiftDate(n) {
-        if (viewMode === 'tenDays') {
-            // 10天模式：一次跳10天
-            currentViewDate.setDate(currentViewDate.getDate() + (n * 10));
-        } else if (viewMode === 'week') {
-            currentViewDate.setDate(currentViewDate.getDate() + (n * 7));
-        } else {
-            currentViewDate.setMonth(currentViewDate.getMonth() + n);
-        }
-        renderView();
-    }
-
-    function goToToday() { 
-        currentViewDate = new Date(); 
-        renderView(); 
-    }
-
-    function switchView(mode) { 
-        viewMode = mode; 
-        renderView(); 
-    }
-
-    function updateBtnStyle() {
-        // 重置所有按鈕
-        document.getElementById('btnTenDays').className = 'btn-sec';
-        document.getElementById('btnWeek').className = 'btn-sec';
-        document.getElementById('btnMonth').className = 'btn-sec';
-
-        // 依據目前模式點亮按鈕
-        if (viewMode === 'tenDays') {
-            document.getElementById('btnTenDays').className = 'btn-sec btn-active';
-        } else if (viewMode === 'week') {
-            document.getElementById('btnWeek').className = 'btn-sec btn-active';
-        } else {
-            document.getElementById('btnMonth').className = 'btn-sec btn-active';
-        }
-    }
-    
-    function formatDateSimple(d) { return `${d.getMonth()+1}/${d.getDate()}`; }
-</script>
-
-</body>
-</html>
+            <button id="btnTenDays" class="btn-sec btn-active" onclick="
