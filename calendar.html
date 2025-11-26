@@ -106,4 +106,203 @@
         <div style="margin-left: auto; display: flex; gap: 8px;">
             <button class="btn-settings" onclick="openModal()">📅 日期範圍</button>
             <button class="btn-primary" onclick="startDataUpdate()">🔄 更新資料庫</button>
-            <button id="btnTenDays" class="btn-sec btn-active" onclick="
+            <button id="btnTenDays" class="btn-sec btn-active" onclick="switchView('tenDays')">10天</button>
+            <button id="btnWeek" class="btn-sec" onclick="switchView('week')">週</button>
+            <button id="btnMonth" class="btn-sec" onclick="switchView('month')">月</button>
+        </div>
+    </div>
+
+    <div class="header-title" id="displayTitle">...</div>
+
+    <div id="contentArea">
+        <div class="status-box">系統初始化中...</div>
+    </div>
+</div>
+
+<div id="dateModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">設定抓取範圍</div>
+        <div class="modal-body">
+            <label>開始日期：</label>
+            <input type="date" id="fetchStart" value="2025-10-01">
+            <label>結束日期：</label>
+            <input type="date" id="fetchEnd" value="2026-01-31">
+        </div>
+        <button class="close-btn" onclick="closeModal()">確認並關閉</button>
+    </div>
+</div>
+
+<script>
+    // ============================================================
+    // ⚠️⚠️⚠️ 請在下方雙引號 "" 之間貼上 GAS 網址 ⚠️⚠️⚠️
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbwgdGjtsqNQYywpAUp3aGKx4pp0Q0P1m4LJ3MCWJmAXwWRAP8R6vZgRjlGYPoNx0yPF/exec"; 
+    // ============================================================
+
+    let allEvents = [];
+    let currentViewDate = new Date(); 
+    let viewMode = 'tenDays'; 
+    
+    const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
+
+    window.onload = function() {
+        if (typeof GAS_API_URL === 'undefined' || !GAS_API_URL) {
+            showError("嚴重錯誤：GAS_API_URL 未設定。");
+            return;
+        }
+        renderView();
+        startDataUpdate(); 
+    };
+
+    function startDataUpdate() {
+        const box = document.getElementById('contentArea');
+        if(GAS_API_URL.includes("請在此貼上")) { alert("請設定 GAS 網址！"); return; }
+
+        const start = document.getElementById('fetchStart').value;
+        const end = document.getElementById('fetchEnd').value;
+        
+        box.innerHTML = '<div class="status-box" style="color:#4285f4;">正在連線讀取資料，請稍候...</div>';
+
+        fetch(`${GAS_API_URL}?start=${start}&end=${end}`)
+            .then(res => res.json())
+            .then(json => {
+                if(json.status === 'success') {
+                    allEvents = json.data;
+                    renderView();
+                    if (allEvents.length === 0) {
+                        box.innerHTML = '<div class="status-box">連線成功，但指定範圍內沒有資料。</div>';
+                    }
+                } else {
+                    showError("後端錯誤：" + json.message);
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showError("連線失敗！請檢查網址或網路。");
+            });
+    }
+
+    function renderView() {
+        updateBtnStyle();
+        let rangeStart, rangeEnd, titleStr;
+
+        if (viewMode === 'tenDays') {
+            rangeStart = new Date(currentViewDate);
+            rangeStart.setHours(0,0,0,0);
+            rangeEnd = new Date(rangeStart);
+            rangeEnd.setDate(rangeStart.getDate() + 9); 
+            rangeEnd.setHours(23,59,59,999);
+            titleStr = `${formatDateSimple(rangeStart)} - ${formatDateSimple(rangeEnd)} (未來10天)`;
+        } else if (viewMode === 'week') {
+            let day = currentViewDate.getDay();
+            rangeStart = new Date(currentViewDate);
+            rangeStart.setDate(currentViewDate.getDate() - day);
+            rangeStart.setHours(0,0,0,0);
+            rangeEnd = new Date(rangeStart);
+            rangeEnd.setDate(rangeStart.getDate() + 6);
+            rangeEnd.setHours(23,59,59,999);
+            titleStr = `${formatDateSimple(rangeStart)} - ${formatDateSimple(rangeEnd)} (週)`;
+        } else {
+            rangeStart = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth(), 1);
+            rangeEnd = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() + 1, 0, 23, 59, 59);
+            titleStr = `${currentViewDate.getFullYear()} 年 ${currentViewDate.getMonth()+1} 月`;
+        }
+
+        document.getElementById('displayTitle').innerText = titleStr;
+
+        if (allEvents.length === 0) return;
+
+        const filtered = allEvents.filter(evt => {
+            let d = parseDate(evt.start);
+            if (!d || isNaN(d.getTime())) return false; 
+            return d >= rangeStart && d <= rangeEnd;
+        });
+
+        filtered.sort((a, b) => parseDate(a.start) - parseDate(b.start));
+
+        let currentFontSize = document.getElementById('fontSizeSelect').value;
+
+        if (filtered.length === 0) {
+            document.getElementById('contentArea').innerHTML = '<div class="status-box">本期間無活動<br><small>請切換上一頁/下一頁</small></div>';
+            return;
+        }
+
+        let html = `<table class="${currentFontSize}"><thead><tr><th>日期</th><th>活動標題</th><th>說明</th></tr></thead><tbody>`;
+        
+        filtered.forEach(evt => {
+            let dateObj = parseDate(evt.start);
+            let month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+            let day = dateObj.getDate().toString().padStart(2, '0');
+            
+            let dayChar = weekDays[dateObj.getDay()]; 
+            let dateString = `${month}/${day}(${dayChar})`; 
+            
+            html += `
+                <tr>
+                    <td class="col-date">${dateString}</td>
+                    <td class="col-title">${evt.title}</td>
+                    <td class="col-desc">${evt.desc || ''}</td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table>';
+        document.getElementById('contentArea').innerHTML = html;
+    }
+
+    function parseDate(dateStr) {
+        if (!dateStr) return null;
+        if (dateStr.indexOf('T') !== -1) return new Date(dateStr);
+        return new Date(dateStr.replace(/-/g, '/'));
+    }
+
+    function showError(msg) {
+        document.getElementById('contentArea').innerHTML = `<div class="status-box error-msg">⚠️ ${msg}</div>`;
+    }
+
+    function openModal() { document.getElementById('dateModal').style.display = "block"; }
+    function closeModal() { document.getElementById('dateModal').style.display = "none"; }
+    window.onclick = function(event) {
+        let modal = document.getElementById('dateModal');
+        if (event.target == modal) modal.style.display = "none";
+    }
+
+    function updateFontSize() { renderView(); }
+
+    function shiftDate(n) {
+        if (viewMode === 'tenDays') {
+            currentViewDate.setDate(currentViewDate.getDate() + (n * 10));
+        } else if (viewMode === 'week') {
+            currentViewDate.setDate(currentViewDate.getDate() + (n * 7));
+        } else {
+            currentViewDate.setMonth(currentViewDate.getMonth() + n);
+        }
+        renderView();
+    }
+
+    function goToToday() { 
+        currentViewDate = new Date(); 
+        renderView(); 
+    }
+
+    function switchView(mode) { 
+        viewMode = mode; 
+        renderView(); 
+    }
+
+    function updateBtnStyle() {
+        document.getElementById('btnTenDays').className = 'btn-sec';
+        document.getElementById('btnWeek').className = 'btn-sec';
+        document.getElementById('btnMonth').className = 'btn-sec';
+        if (viewMode === 'tenDays') {
+            document.getElementById('btnTenDays').className = 'btn-sec btn-active';
+        } else if (viewMode === 'week') {
+            document.getElementById('btnWeek').className = 'btn-sec btn-active';
+        } else {
+            document.getElementById('btnMonth').className = 'btn-sec btn-active';
+        }
+    }
+    
+    function formatDateSimple(d) { return `${d.getMonth()+1}/${d.getDate()}`; }
+</script>
+
+</body>
+</html>
