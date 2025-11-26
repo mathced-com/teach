@@ -30,7 +30,6 @@
         /* 表格樣式 */
         table { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 10px; }
         
-        /* --- 修改處：加寬第一欄寬度以容納星期幾 --- */
         th:nth-child(1) { width: 160px; }  
         th:nth-child(2) { width: 35%; }    
         th:nth-child(3) { width: auto; }   
@@ -90,7 +89,9 @@
         <div style="margin-left: auto; display: flex; gap: 8px;">
             <button class="btn-settings" onclick="openModal()">📅 日期範圍</button>
             <button class="btn-primary" onclick="startDataUpdate()">🔄 更新資料庫</button>
-            <button id="btnWeek" class="btn-sec btn-active" onclick="switchView('week')">週</button>
+            
+            <button id="btnTenDays" class="btn-sec btn-active" onclick="switchView('tenDays')">10天</button>
+            <button id="btnWeek" class="btn-sec" onclick="switchView('week')">週</button>
             <button id="btnMonth" class="btn-sec" onclick="switchView('month')">月</button>
         </div>
     </div>
@@ -123,9 +124,8 @@
 
     let allEvents = [];
     let currentViewDate = new Date(); 
-    let viewMode = 'week'; 
+    let viewMode = 'tenDays'; // 修改預設模式為 10 天
     
-    // 星期對照表
     const weekDays = ["日", "一", "二", "三", "四", "五", "六"];
 
     window.onload = function() {
@@ -169,16 +169,31 @@
         updateBtnStyle();
         let rangeStart, rangeEnd, titleStr;
 
-        if (viewMode === 'week') {
+        if (viewMode === 'tenDays') {
+            // --- 10天模式邏輯 ---
+            // 從 currentViewDate 開始，往後抓 10 天 (包含今天，所以是 +9)
+            rangeStart = new Date(currentViewDate);
+            rangeStart.setHours(0,0,0,0);
+            
+            rangeEnd = new Date(rangeStart);
+            rangeEnd.setDate(rangeStart.getDate() + 9); 
+            rangeEnd.setHours(23,59,59,999);
+            
+            titleStr = `${formatDateSimple(rangeStart)} - ${formatDateSimple(rangeEnd)} (未來10天)`;
+        } else if (viewMode === 'week') {
+            // --- 週模式邏輯 ---
             let day = currentViewDate.getDay();
             rangeStart = new Date(currentViewDate);
             rangeStart.setDate(currentViewDate.getDate() - day);
             rangeStart.setHours(0,0,0,0);
+            
             rangeEnd = new Date(rangeStart);
             rangeEnd.setDate(rangeStart.getDate() + 6);
             rangeEnd.setHours(23,59,59,999);
+            
             titleStr = `${formatDateSimple(rangeStart)} - ${formatDateSimple(rangeEnd)} (週)`;
         } else {
+            // --- 月模式邏輯 ---
             rangeStart = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth(), 1);
             rangeEnd = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() + 1, 0, 23, 59, 59);
             titleStr = `${currentViewDate.getFullYear()} 年 ${currentViewDate.getMonth()+1} 月`;
@@ -199,7 +214,7 @@
         let currentFontSize = document.getElementById('fontSizeSelect').value;
 
         if (filtered.length === 0) {
-            document.getElementById('contentArea').innerHTML = '<div class="status-box">本頁面無活動<br><small>請切換頁面</small></div>';
+            document.getElementById('contentArea').innerHTML = '<div class="status-box">本期間無活動<br><small>請切換上一頁/下一頁</small></div>';
             return;
         }
 
@@ -210,10 +225,8 @@
             let month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
             let day = dateObj.getDate().toString().padStart(2, '0');
             
-            // --- 修改處：計算星期幾 ---
-            let dayChar = weekDays[dateObj.getDay()]; // 取得星期文字 (例如 "二")
-            let dateString = `${month}/${day}(${dayChar})`; // 組合字串
-            // -----------------------
+            let dayChar = weekDays[dateObj.getDay()]; 
+            let dateString = `${month}/${day}(${dayChar})`; 
             
             html += `
                 <tr>
@@ -245,20 +258,45 @@
     }
 
     function updateFontSize() { renderView(); }
+
     function shiftDate(n) {
-        if (viewMode === 'week') {
+        if (viewMode === 'tenDays') {
+            // 10天模式：一次跳10天
+            currentViewDate.setDate(currentViewDate.getDate() + (n * 10));
+        } else if (viewMode === 'week') {
             currentViewDate.setDate(currentViewDate.getDate() + (n * 7));
         } else {
             currentViewDate.setMonth(currentViewDate.getMonth() + n);
         }
         renderView();
     }
-    function goToToday() { currentViewDate = new Date(); renderView(); }
-    function switchView(mode) { viewMode = mode; renderView(); }
-    function updateBtnStyle() {
-        document.getElementById('btnWeek').className = viewMode === 'week' ? 'btn-sec btn-active' : 'btn-sec';
-        document.getElementById('btnMonth').className = viewMode === 'month' ? 'btn-sec btn-active' : 'btn-sec';
+
+    function goToToday() { 
+        currentViewDate = new Date(); 
+        renderView(); 
     }
+
+    function switchView(mode) { 
+        viewMode = mode; 
+        renderView(); 
+    }
+
+    function updateBtnStyle() {
+        // 重置所有按鈕
+        document.getElementById('btnTenDays').className = 'btn-sec';
+        document.getElementById('btnWeek').className = 'btn-sec';
+        document.getElementById('btnMonth').className = 'btn-sec';
+
+        // 依據目前模式點亮按鈕
+        if (viewMode === 'tenDays') {
+            document.getElementById('btnTenDays').className = 'btn-sec btn-active';
+        } else if (viewMode === 'week') {
+            document.getElementById('btnWeek').className = 'btn-sec btn-active';
+        } else {
+            document.getElementById('btnMonth').className = 'btn-sec btn-active';
+        }
+    }
+    
     function formatDateSimple(d) { return `${d.getMonth()+1}/${d.getDate()}`; }
 </script>
 
