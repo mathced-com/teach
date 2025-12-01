@@ -5,176 +5,103 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>極簡備忘錄</title>
   <style>
-    /* --- 基礎設定 --- */
+    /* 保持透明背景與原本版面 */
     html, body {
-      background: transparent; /* 背景透明 */
+      background: transparent;
       margin: 0;
-      padding: 10px; /* 保留一點邊距 */
+      padding: 10px;
       font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif;
-      /* 為了不讓列表最下方被浮動按鈕擋住，底部留白 */
       padding-bottom: 80px;
     }
+    .container { max-width: 600px; margin: 0 auto; }
+    ul { list-style: none; padding: 0; margin: 0; }
 
-    /* --- 列表容器 --- */
-    .container {
-      max-width: 600px;
-      margin: 0 auto; /* 置中 */
-    }
-
-    ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    /* --- 列表項目 (卡片) --- */
+    /* 列表項目 */
     li {
-      /* 卡片背景設為稍微半透明的白色，更有質感 */
       background: rgba(255, 255, 255, 0.95); 
       margin-bottom: 10px;
       padding: 15px 20px;
-      border-radius: 12px; /* 圓角 */
-      /* 輕微的陰影讓文字在任何背景上都能看清 */
+      border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
       display: flex;
       justify-content: space-between;
       align-items: center;
-      animation: fadeIn 0.3s ease;
       font-size: 18px;
       color: #333;
-      line-height: 1.4;
       word-break: break-all;
+      transition: all 0.3s ease; /* 增加過渡動畫 */
     }
 
-    /* --- 刪除(完成)按鈕 --- */
+    /* ★ 完成後的樣式：變灰、刪除線、變透明一點 */
+    li.completed {
+      text-decoration: line-through;
+      color: #999;
+      background: rgba(255, 255, 255, 0.6);
+      box-shadow: none;
+    }
+
+    /* 按鈕樣式 */
     .check-btn { 
-      width: 28px;
-      height: 28px;
+      width: 28px; height: 28px;
       border-radius: 50%;
       border: 2px solid #ccc; 
       background: transparent;
       cursor: pointer;
       flex-shrink: 0; 
       margin-left: 15px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: flex; align-items: center; justify-content: center;
       color: transparent;
       transition: all 0.2s;
     }
-    .check-btn:hover {
-      border-color: #ea4335;
-      color: #ea4335;
-      background-color: rgba(255, 245, 245, 0.8);
-    }
-    .check-btn::after {
-      content: '✔';
-      font-size: 14px;
-    }
-
-    /* --- 浮動按鈕 (FAB) --- */
-    .fab {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      width: 56px;
-      height: 56px;
-      background-color: #1a73e8;
+    .check-btn:hover { border-color: #1a73e8; }
+    
+    /* 完成時，按鈕變成實心藍色 */
+    li.completed .check-btn {
+      background-color: #ccc;
+      border-color: #ccc;
       color: white;
+    }
+    li.completed .check-btn::after { content: '✔'; font-size: 14px; }
+    
+    /* 未完成時 hover 的效果 */
+    li:not(.completed) .check-btn:hover {
+      border-color: #1a73e8;
+      color: #1a73e8;
+    }
+    li:not(.completed) .check-btn::after { content: '✔'; font-size: 14px; }
+
+    /* 浮動按鈕與視窗 (保持不變) */
+    .fab {
+      position: fixed; bottom: 20px; right: 20px;
+      width: 56px; height: 56px;
+      background-color: #1a73e8; color: white;
       border-radius: 50%;
       box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 32px;
-      cursor: pointer;
-      transition: transform 0.2s;
-      z-index: 100;
-      user-select: none;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; cursor: pointer; z-index: 100;
     }
-    .fab:active {
-      transform: scale(0.9);
-    }
-
-    /* --- 彈出視窗 (Modal) --- */
     .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
+      display: none; position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
-      background: rgba(0,0,0,0.6); /* 背景變暗 */
-      z-index: 200;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transition: opacity 0.3s;
-      backdrop-filter: blur(2px); /* 讓背景模糊一點 */
+      background: rgba(0,0,0,0.6); z-index: 200;
+      align-items: center; justify-content: center;
+      backdrop-filter: blur(2px);
     }
-    .modal-overlay.show {
-      display: flex;
-      opacity: 1;
-    }
-    
+    .modal-overlay.show { display: flex; }
     .modal-box {
-      background: white;
-      width: 85%;
-      max-width: 380px;
-      padding: 20px;
-      border-radius: 16px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-      transform: scale(0.9);
-      transition: transform 0.3s;
+      background: white; width: 85%; max-width: 380px;
+      padding: 20px; border-radius: 16px;
     }
-    .modal-overlay.show .modal-box {
-      transform: scale(1);
-    }
-
     textarea {
-      width: 100%;
-      height: 100px;
-      padding: 12px;
-      border: 2px solid #eee;
-      border-radius: 8px;
-      font-size: 16px;
-      resize: none;
-      box-sizing: border-box;
-      outline: none;
-      margin-bottom: 15px;
+      width: 100%; height: 100px; padding: 12px;
+      border: 2px solid #eee; border-radius: 8px;
+      font-size: 16px; resize: none; box-sizing: border-box; outline: none; margin-bottom: 15px;
     }
-    textarea:focus {
-      border-color: #1a73e8;
-    }
-
-    .modal-buttons {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-
-    .btn {
-      padding: 8px 20px;
-      border-radius: 6px;
-      font-size: 15px;
-      cursor: pointer;
-      border: none;
-    }
+    .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; }
+    .btn { padding: 8px 20px; border-radius: 6px; font-size: 15px; cursor: pointer; border: none; }
     .btn-cancel { background: #f5f5f5; color: #666; }
     .btn-confirm { background: #1a73e8; color: white; }
-    
-    /* 讀取狀態 */
-    .loading { 
-      text-align: center; 
-      color: #555; /* 深灰色，在淺色背景清楚；若您背景是全黑，建議改 #fff */
-      background: rgba(255,255,255,0.8);
-      padding: 5px;
-      border-radius: 20px;
-      display: none; 
-      font-size: 14px;
-      width: fit-content;
-      margin: 0 auto 10px auto;
-    }
-
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .loading { text-align: center; color: #555; background: rgba(255,255,255,0.8); padding: 5px; border-radius: 20px; display: none; font-size: 14px; width: fit-content; margin: 0 auto 10px auto; }
   </style>
 </head>
 <body>
@@ -215,9 +142,7 @@
         })
         .catch(err => {
           console.error(err);
-          // 錯誤提示改為簡單的文字
-          const list = document.getElementById('taskList');
-          list.innerHTML = `<li style="justify-content:center; color:red; background:rgba(255,255,255,0.9);">連線失敗</li>`;
+          document.getElementById('taskList').innerHTML = `<li style="justify-content:center; color:red; background:rgba(255,255,255,0.9);">連線失敗</li>`;
         });
     }
 
@@ -226,30 +151,35 @@
       list.innerHTML = '';
       
       if (!data || data.length === 0) {
-        // 空白時顯示提示，並加上一點半透明背景確保可見
         list.innerHTML = '<div style="text-align:center; color:#888; padding:20px; background:rgba(255,255,255,0.5); border-radius:10px;">目前沒有待辦事項</div>';
         return;
       }
 
       data.forEach(item => {
         const li = document.createElement('li');
+        li.id = 'task-' + item.id;
+        
+        // ★ 關鍵：如果有 completedAt (完成時間)，就加上 class="completed"
+        if (item.completedAt) {
+          li.classList.add('completed');
+        }
+
         li.innerHTML = `
           <span>${escapeHtml(item.text)}</span>
-          <button class="check-btn" onclick="deleteItem('${item.id}', this)"></button>
+          <button class="check-btn" onclick="toggleItem('${item.id}')"></button>
         `;
         list.appendChild(li);
       });
     }
 
+    // ★ 新增功能 (維持不變)
     function confirmAdd() {
       const input = document.getElementById('modalInput');
       const val = input.value.trim();
       const btn = document.getElementById('confirmBtn');
 
       if (!val) { alert("請輸入內容"); return; }
-
-      btn.disabled = true;
-      btn.textContent = "...";
+      btn.disabled = true; btn.textContent = "...";
 
       fetch(SCRIPT_URL, {
         method: 'POST',
@@ -258,59 +188,47 @@
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success') {
-          closeModal();
-          input.value = '';
-          loadData();
-        } else {
-          alert("新增失敗");
-        }
-        btn.disabled = false;
-        btn.textContent = "新增";
-      })
-      .catch(err => {
-        alert("連線錯誤");
-        btn.disabled = false;
-        btn.textContent = "新增";
+          closeModal(); input.value = ''; loadData();
+        } else { alert("新增失敗"); }
+        btn.disabled = false; btn.textContent = "新增";
       });
     }
 
-    function deleteItem(id, btnElement) {
-      if(!confirm("確定完成？")) return;
-      btnElement.parentElement.style.opacity = '0.4';
+    // ★ 修改後的切換功能 (Toggle)
+    function toggleItem(id) {
+      const li = document.getElementById('task-' + id);
+      
+      // 1. 視覺上立即切換 (不用等後端回傳，操作感覺比較快)
+      li.classList.toggle('completed');
 
+      // 2. 默默發送請求給後端
       fetch(SCRIPT_URL, {
         method: 'POST',
-        body: JSON.stringify({ action: 'delete', id: id })
+        body: JSON.stringify({ action: 'toggle', id: id })
       })
       .then(res => res.json())
       .then(data => {
-        if (data.status === 'success') {
-          loadData();
-        } else {
-          alert("刪除失敗");
-          btnElement.parentElement.style.opacity = '1';
+        if (data.status !== 'success') {
+          // 如果失敗，再把狀態改回來，並提示錯誤
+          li.classList.toggle('completed');
+          alert("操作失敗，請檢查網路");
         }
+      })
+      .catch(err => {
+        li.classList.toggle('completed');
+        console.error(err);
       });
     }
 
+    // 視窗相關 (維持不變)
     function openModal() {
       const overlay = document.getElementById('modalOverlay');
       overlay.classList.add('show');
       setTimeout(() => document.getElementById('modalInput').focus(), 100);
     }
-
-    function closeModal() {
-      document.getElementById('modalOverlay').classList.remove('show');
-    }
-
-    document.getElementById('modalOverlay').addEventListener('click', function(e) {
-      if (e.target === this) closeModal();
-    });
-
-    function escapeHtml(text) {
-      if (!text) return text;
-      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    }
+    function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+    document.getElementById('modalOverlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+    function escapeHtml(text) { if (!text) return text; return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
   </script>
 </body>
 </html>
