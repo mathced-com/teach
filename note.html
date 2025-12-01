@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>極簡備忘錄</title>
   <style>
-    /* 保持透明背景與原本版面 */
+    /* --- 樣式區 (維持不變) --- */
     html, body {
       background: transparent;
       margin: 0;
@@ -29,10 +29,10 @@
       font-size: 18px;
       color: #333;
       word-break: break-all;
-      transition: all 0.3s ease; /* 增加過渡動畫 */
+      transition: all 0.3s ease;
     }
 
-    /* ★ 完成後的樣式：變灰、刪除線、變透明一點 */
+    /* 完成後的樣式 */
     li.completed {
       text-decoration: line-through;
       color: #999;
@@ -55,7 +55,6 @@
     }
     .check-btn:hover { border-color: #1a73e8; }
     
-    /* 完成時，按鈕變成實心藍色 */
     li.completed .check-btn {
       background-color: #ccc;
       border-color: #ccc;
@@ -63,14 +62,13 @@
     }
     li.completed .check-btn::after { content: '✔'; font-size: 14px; }
     
-    /* 未完成時 hover 的效果 */
     li:not(.completed) .check-btn:hover {
       border-color: #1a73e8;
       color: #1a73e8;
     }
     li:not(.completed) .check-btn::after { content: '✔'; font-size: 14px; }
 
-    /* 浮動按鈕與視窗 (保持不變) */
+    /* 浮動按鈕與視窗 */
     .fab {
       position: fixed; bottom: 20px; right: 20px;
       width: 56px; height: 56px;
@@ -150,17 +148,34 @@
       const list = document.getElementById('taskList');
       list.innerHTML = '';
       
-      if (!data || data.length === 0) {
-        list.innerHTML = '<div style="text-align:center; color:#888; padding:20px; background:rgba(255,255,255,0.5); border-radius:10px;">目前沒有待辦事項</div>';
-        return;
-      }
+      const now = new Date().getTime(); // 取得現在時間 (毫秒)
+      const oneHour = 60 * 60 * 1000;   // 1小時的毫秒數
+
+      // 過濾後的資料計數
+      let visibleCount = 0;
 
       data.forEach(item => {
+        let isCompleted = false;
+
+        // ★ 核心邏輯修改區 ★
+        if (item.completedAt) {
+          const completedTime = new Date(item.completedAt).getTime();
+          
+          // 如果 (現在時間 - 完成時間) 大於 1小時
+          if (now - completedTime > oneHour) {
+            return; // 直接跳過，不渲染這個 <li> (隱藏)
+          }
+          
+          // 如果還沒超過 1小時，標記為已完成
+          isCompleted = true;
+        }
+
+        visibleCount++;
+
         const li = document.createElement('li');
         li.id = 'task-' + item.id;
         
-        // ★ 關鍵：如果有 completedAt (完成時間)，就加上 class="completed"
-        if (item.completedAt) {
+        if (isCompleted) {
           li.classList.add('completed');
         }
 
@@ -170,9 +185,34 @@
         `;
         list.appendChild(li);
       });
+
+      // 如果全部都隱藏了，顯示空狀態
+      if (visibleCount === 0) {
+        list.innerHTML = '<div style="text-align:center; color:#888; padding:20px; background:rgba(255,255,255,0.5); border-radius:10px;">目前沒有待辦事項</div>';
+      }
     }
 
-    // ★ 新增功能 (維持不變)
+    function toggleItem(id) {
+      const li = document.getElementById('task-' + id);
+      li.classList.toggle('completed');
+
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'toggle', id: id })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status !== 'success') {
+          li.classList.toggle('completed');
+          alert("操作失敗，請檢查網路");
+        } else {
+          // 這裡可以選擇是否要立刻重新 loadData()
+          // 但為了體驗流暢，通常不重新讀取，
+          // 下次使用者重新整理網頁時，超過1小時的項目就會自動消失。
+        }
+      });
+    }
+
     function confirmAdd() {
       const input = document.getElementById('modalInput');
       const val = input.value.trim();
@@ -194,33 +234,6 @@
       });
     }
 
-    // ★ 修改後的切換功能 (Toggle)
-    function toggleItem(id) {
-      const li = document.getElementById('task-' + id);
-      
-      // 1. 視覺上立即切換 (不用等後端回傳，操作感覺比較快)
-      li.classList.toggle('completed');
-
-      // 2. 默默發送請求給後端
-      fetch(SCRIPT_URL, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'toggle', id: id })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status !== 'success') {
-          // 如果失敗，再把狀態改回來，並提示錯誤
-          li.classList.toggle('completed');
-          alert("操作失敗，請檢查網路");
-        }
-      })
-      .catch(err => {
-        li.classList.toggle('completed');
-        console.error(err);
-      });
-    }
-
-    // 視窗相關 (維持不變)
     function openModal() {
       const overlay = document.getElementById('modalOverlay');
       overlay.classList.add('show');
