@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>極簡備忘錄</title>
+  <style>
+    /* 基礎設定 */
+    body {
+      font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+      /* 為了不讓內容被浮動按鈕擋住，底部留白 */
+      padding-bottom: 80px; 
+    }
+    
+    h2 {
+      text-align: center;
+      color: #333;
+      font-weight: normal;
+      margin-bottom: 30px;
+    }
+
+    /* 列表容器 */
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    /* 列表項目樣式 */
+    li {
+      background: #fff;
+      margin-bottom: 12px;
+      padding: 18px 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      animation: fadeIn 0.3s ease;
+      font-size: 18px;
+      color: #333;
+      line-height: 1.5;
+    }
+    
+    /* 刪除(完成)按鈕 */
+    .check-btn { 
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid #ddd; 
+      background: white;
+      cursor: pointer;
+      flex-shrink: 0; 
+      margin-left: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: transparent;
+      transition: all 0.2s;
+    }
+    .check-btn:hover {
+      border-color: #ea4335;
+      color: #ea4335;
+      background-color: #fff5f5;
+    }
+    .check-btn::after {
+      content: '✔';
+      font-size: 14px;
+    }
+
+    /* --- 浮動按鈕 (FAB) --- */
+    .fab {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 60px;
+      height: 60px;
+      background-color: #1a73e8;
+      color: white;
+      border-radius: 50%;
+      box-shadow: 0 4px 10px rgba(26, 115, 232, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      cursor: pointer;
+      transition: transform 0.2s, background-color 0.2s;
+      z-index: 100;
+      user-select: none; /* 防止被選取 */
+    }
+    .fab:active {
+      transform: scale(0.9);
+      background-color: #1557b0;
+    }
+
+    /* --- 彈出視窗 (Modal) --- */
+    .modal-overlay {
+      display: none; /* 預設隱藏 */
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5); /* 半透明黑底 */
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .modal-overlay.show {
+      display: flex;
+      opacity: 1;
+    }
+    
+    .modal-box {
+      background: white;
+      width: 85%;
+      max-width: 400px;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      transform: scale(0.9);
+      transition: transform 0.3s;
+    }
+    .modal-overlay.show .modal-box {
+      transform: scale(1);
+    }
+
+    .modal-title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100px;
+      padding: 10px;
+      border: 2px solid #eee;
+      border-radius: 8px;
+      font-size: 16px;
+      resize: none; /* 禁止拉大 */
+      box-sizing: border-box; /* 包含 padding */
+      outline: none;
+      font-family: inherit;
+    }
+    textarea:focus {
+      border-color: #1a73e8;
+    }
+
+    .modal-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    .btn {
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-cancel { background: #f1f1f1; color: #666; }
+    .btn-confirm { background: #1a73e8; color: white; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    /* 讀取狀態與動畫 */
+    .loading { text-align: center; color: #999; margin-top: 20px; display: none; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+
+  <h2>📝 我的備忘錄</h2>
+
+  <div class="container">
+    <div id="loading" class="loading">資料同步中...</div>
+    <ul id="taskList"></ul>
+  </div>
+
+  <div class="fab" onclick="openModal()">+</div>
+
+  <div id="modalOverlay" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">新增事項</div>
+      <textarea id="modalInput" placeholder="寫下要做的事情..."></textarea>
+      <div class="modal-buttons">
+        <button class="btn btn-cancel" onclick="closeModal()">取消</button>
+        <button id="confirmBtn" class="btn btn-confirm" onclick="confirmAdd()">新增</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =================================================================
+    // ★ 請將下方網址換成您的 GAS 網址 ★
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2U2uZ3tjixsBKGfSVVCq6Kt1vZ0MWKTnoOYN64ob4u0AAlR8BzLQybXVWYkkwbF1i/exec"; 
+    // =================================================================
+
+    window.onload = loadData;
+
+    // --- 資料讀取 ---
+    function loadData() {
+      document.getElementById('loading').style.display = 'block';
+      fetch(SCRIPT_URL)
+        .then(res => res.json())
+        .then(data => {
+          renderList(data);
+          document.getElementById('loading').style.display = 'none';
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById('taskList').innerHTML = '<li style="justify-content:center; color:red;">連線失敗</li>';
+        });
+    }
+
+    // --- 畫面渲染 (只顯示文字，不顯示日期) ---
+    function renderList(data) {
+      const list = document.getElementById('taskList');
+      list.innerHTML = '';
+      
+      if (!data || data.length === 0) {
+        list.innerHTML = '<li style="justify-content:center; color:#999; background:transparent; box-shadow:none;">目前沒有待辦事項 🎉</li>';
+        return;
+      }
+
+      data.forEach(item => {
+        // 後端還是有回傳時間 (item.time)，但我們這裡選擇不顯示它
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span>${escapeHtml(item.text)}</span>
+          <button class="check-btn" onclick="deleteItem('${item.id}', this)"></button>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    // --- 新增功能 (透過 Modal) ---
+    function confirmAdd() {
+      const input = document.getElementById('modalInput');
+      const val = input.value.trim();
+      const btn = document.getElementById('confirmBtn');
+
+      if (!val) {
+        alert("請輸入內容");
+        return;
+      }
+
+      // 鎖定按鈕避免重複按
+      btn.disabled = true;
+      btn.textContent = "處理中...";
+
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'add', text: val })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          closeModal(); // 關閉視窗
+          input.value = ''; // 清空輸入
+          loadData(); // 重新讀取
+        } else {
+          alert("新增失敗");
+        }
+        btn.disabled = false;
+        btn.textContent = "新增";
+      })
+      .catch(err => {
+        alert("連線錯誤");
+        btn.disabled = false;
+        btn.textContent = "新增";
+      });
+    }
+
+    // --- 刪除功能 ---
+    function deleteItem(id, btnElement) {
+      if(!confirm("確定要完成並刪除嗎？")) return;
+      
+      // 視覺上先變淡
+      btnElement.parentElement.style.opacity = '0.5';
+
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete', id: id })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          loadData();
+        } else {
+          alert("刪除失敗");
+          btnElement.parentElement.style.opacity = '1';
+        }
+      });
+    }
+
+    // --- 視窗控制 ---
+    function openModal() {
+      const overlay = document.getElementById('modalOverlay');
+      overlay.classList.add('show');
+      // 延遲一點點再聚焦，避免手機鍵盤彈出問題
+      setTimeout(() => document.getElementById('modalInput').focus(), 100);
+    }
+
+    function closeModal() {
+      document.getElementById('modalOverlay').classList.remove('show');
+    }
+    
+    // 點擊背景空白處也可以關閉視窗
+    document.getElementById('modalOverlay').addEventListener('click', function(e) {
+      if (e.target === this) closeModal();
+    });
+
+    function escapeHtml(text) {
+      if (!text) return text;
+      return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  </script>
+</body>
+</html>
