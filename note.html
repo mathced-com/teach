@@ -5,27 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>極簡備忘錄</title>
   <style>
-    /* 基礎設定 */
-    body {
-      font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif;
-      background-color: #f0f2f5;
+    /* --- 基礎設定 --- */
+    html, body {
+      background: transparent; /* 背景透明 */
       margin: 0;
-      padding: 20px;
-      /* 為了不讓內容被浮動按鈕擋住，底部留白 */
-      padding-bottom: 80px; 
-    }
-    
-    h2 {
-      text-align: center;
-      color: #333;
-      font-weight: normal;
-      margin-bottom: 30px;
+      padding: 10px; /* 保留一點邊距 */
+      font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif;
+      /* 為了不讓列表最下方被浮動按鈕擋住，底部留白 */
+      padding-bottom: 80px;
     }
 
-    /* 列表容器 */
+    /* --- 列表容器 --- */
     .container {
       max-width: 600px;
-      margin: 0 auto;
+      margin: 0 auto; /* 置中 */
     }
 
     ul {
@@ -34,29 +27,32 @@
       margin: 0;
     }
 
-    /* 列表項目樣式 */
+    /* --- 列表項目 (卡片) --- */
     li {
-      background: #fff;
-      margin-bottom: 12px;
-      padding: 18px 20px;
-      border-radius: 12px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      /* 卡片背景設為稍微半透明的白色，更有質感 */
+      background: rgba(255, 255, 255, 0.95); 
+      margin-bottom: 10px;
+      padding: 15px 20px;
+      border-radius: 12px; /* 圓角 */
+      /* 輕微的陰影讓文字在任何背景上都能看清 */
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
       display: flex;
       justify-content: space-between;
       align-items: center;
       animation: fadeIn 0.3s ease;
       font-size: 18px;
       color: #333;
-      line-height: 1.5;
+      line-height: 1.4;
+      word-break: break-all;
     }
-    
-    /* 刪除(完成)按鈕 */
+
+    /* --- 刪除(完成)按鈕 --- */
     .check-btn { 
       width: 28px;
       height: 28px;
       border-radius: 50%;
-      border: 2px solid #ddd; 
-      background: white;
+      border: 2px solid #ccc; 
+      background: transparent;
       cursor: pointer;
       flex-shrink: 0; 
       margin-left: 15px;
@@ -69,7 +65,7 @@
     .check-btn:hover {
       border-color: #ea4335;
       color: #ea4335;
-      background-color: #fff5f5;
+      background-color: rgba(255, 245, 245, 0.8);
     }
     .check-btn::after {
       content: '✔';
@@ -79,40 +75,40 @@
     /* --- 浮動按鈕 (FAB) --- */
     .fab {
       position: fixed;
-      bottom: 30px;
-      right: 30px;
-      width: 60px;
-      height: 60px;
+      bottom: 20px;
+      right: 20px;
+      width: 56px;
+      height: 56px;
       background-color: #1a73e8;
       color: white;
       border-radius: 50%;
-      box-shadow: 0 4px 10px rgba(26, 115, 232, 0.4);
+      box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 36px;
+      font-size: 32px;
       cursor: pointer;
-      transition: transform 0.2s, background-color 0.2s;
+      transition: transform 0.2s;
       z-index: 100;
-      user-select: none; /* 防止被選取 */
+      user-select: none;
     }
     .fab:active {
       transform: scale(0.9);
-      background-color: #1557b0;
     }
 
     /* --- 彈出視窗 (Modal) --- */
     .modal-overlay {
-      display: none; /* 預設隱藏 */
+      display: none;
       position: fixed;
       top: 0; left: 0;
       width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5); /* 半透明黑底 */
+      background: rgba(0,0,0,0.6); /* 背景變暗 */
       z-index: 200;
       align-items: center;
       justify-content: center;
       opacity: 0;
       transition: opacity 0.3s;
+      backdrop-filter: blur(2px); /* 讓背景模糊一點 */
     }
     .modal-overlay.show {
       display: flex;
@@ -122,10 +118,10 @@
     .modal-box {
       background: white;
       width: 85%;
-      max-width: 400px;
-      padding: 25px;
-      border-radius: 15px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      max-width: 380px;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
       transform: scale(0.9);
       transition: transform 0.3s;
     }
@@ -133,24 +129,17 @@
       transform: scale(1);
     }
 
-    .modal-title {
-      font-size: 20px;
-      font-weight: bold;
-      margin-bottom: 15px;
-      color: #333;
-    }
-
     textarea {
       width: 100%;
       height: 100px;
-      padding: 10px;
+      padding: 12px;
       border: 2px solid #eee;
       border-radius: 8px;
       font-size: 16px;
-      resize: none; /* 禁止拉大 */
-      box-sizing: border-box; /* 包含 padding */
+      resize: none;
+      box-sizing: border-box;
       outline: none;
-      font-family: inherit;
+      margin-bottom: 15px;
     }
     textarea:focus {
       border-color: #1a73e8;
@@ -160,31 +149,38 @@
       display: flex;
       justify-content: flex-end;
       gap: 10px;
-      margin-top: 15px;
     }
 
     .btn {
       padding: 8px 20px;
       border-radius: 6px;
-      font-size: 16px;
+      font-size: 15px;
       cursor: pointer;
       border: none;
     }
-    .btn-cancel { background: #f1f1f1; color: #666; }
+    .btn-cancel { background: #f5f5f5; color: #666; }
     .btn-confirm { background: #1a73e8; color: white; }
-    .btn:disabled { background: #ccc; cursor: not-allowed; }
+    
+    /* 讀取狀態 */
+    .loading { 
+      text-align: center; 
+      color: #555; /* 深灰色，在淺色背景清楚；若您背景是全黑，建議改 #fff */
+      background: rgba(255,255,255,0.8);
+      padding: 5px;
+      border-radius: 20px;
+      display: none; 
+      font-size: 14px;
+      width: fit-content;
+      margin: 0 auto 10px auto;
+    }
 
-    /* 讀取狀態與動畫 */
-    .loading { text-align: center; color: #999; margin-top: 20px; display: none; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body>
 
-  <h2>📝 我的備忘錄</h2>
-
   <div class="container">
-    <div id="loading" class="loading">資料同步中...</div>
+    <div id="loading" class="loading">讀取中...</div>
     <ul id="taskList"></ul>
   </div>
 
@@ -192,7 +188,7 @@
 
   <div id="modalOverlay" class="modal-overlay">
     <div class="modal-box">
-      <div class="modal-title">新增事項</div>
+      <h3 style="margin-top:0; color:#333;">新增事項</h3>
       <textarea id="modalInput" placeholder="寫下要做的事情..."></textarea>
       <div class="modal-buttons">
         <button class="btn btn-cancel" onclick="closeModal()">取消</button>
@@ -209,7 +205,6 @@
 
     window.onload = loadData;
 
-    // --- 資料讀取 ---
     function loadData() {
       document.getElementById('loading').style.display = 'block';
       fetch(SCRIPT_URL)
@@ -220,22 +215,23 @@
         })
         .catch(err => {
           console.error(err);
-          document.getElementById('taskList').innerHTML = '<li style="justify-content:center; color:red;">連線失敗</li>';
+          // 錯誤提示改為簡單的文字
+          const list = document.getElementById('taskList');
+          list.innerHTML = `<li style="justify-content:center; color:red; background:rgba(255,255,255,0.9);">連線失敗</li>`;
         });
     }
 
-    // --- 畫面渲染 (只顯示文字，不顯示日期) ---
     function renderList(data) {
       const list = document.getElementById('taskList');
       list.innerHTML = '';
       
       if (!data || data.length === 0) {
-        list.innerHTML = '<li style="justify-content:center; color:#999; background:transparent; box-shadow:none;">目前沒有待辦事項 🎉</li>';
+        // 空白時顯示提示，並加上一點半透明背景確保可見
+        list.innerHTML = '<div style="text-align:center; color:#888; padding:20px; background:rgba(255,255,255,0.5); border-radius:10px;">目前沒有待辦事項</div>';
         return;
       }
 
       data.forEach(item => {
-        // 後端還是有回傳時間 (item.time)，但我們這裡選擇不顯示它
         const li = document.createElement('li');
         li.innerHTML = `
           <span>${escapeHtml(item.text)}</span>
@@ -245,20 +241,15 @@
       });
     }
 
-    // --- 新增功能 (透過 Modal) ---
     function confirmAdd() {
       const input = document.getElementById('modalInput');
       const val = input.value.trim();
       const btn = document.getElementById('confirmBtn');
 
-      if (!val) {
-        alert("請輸入內容");
-        return;
-      }
+      if (!val) { alert("請輸入內容"); return; }
 
-      // 鎖定按鈕避免重複按
       btn.disabled = true;
-      btn.textContent = "處理中...";
+      btn.textContent = "...";
 
       fetch(SCRIPT_URL, {
         method: 'POST',
@@ -267,9 +258,9 @@
       .then(res => res.json())
       .then(data => {
         if (data.status === 'success') {
-          closeModal(); // 關閉視窗
-          input.value = ''; // 清空輸入
-          loadData(); // 重新讀取
+          closeModal();
+          input.value = '';
+          loadData();
         } else {
           alert("新增失敗");
         }
@@ -283,12 +274,9 @@
       });
     }
 
-    // --- 刪除功能 ---
     function deleteItem(id, btnElement) {
-      if(!confirm("確定要完成並刪除嗎？")) return;
-      
-      // 視覺上先變淡
-      btnElement.parentElement.style.opacity = '0.5';
+      if(!confirm("確定完成？")) return;
+      btnElement.parentElement.style.opacity = '0.4';
 
       fetch(SCRIPT_URL, {
         method: 'POST',
@@ -305,19 +293,16 @@
       });
     }
 
-    // --- 視窗控制 ---
     function openModal() {
       const overlay = document.getElementById('modalOverlay');
       overlay.classList.add('show');
-      // 延遲一點點再聚焦，避免手機鍵盤彈出問題
       setTimeout(() => document.getElementById('modalInput').focus(), 100);
     }
 
     function closeModal() {
       document.getElementById('modalOverlay').classList.remove('show');
     }
-    
-    // 點擊背景空白處也可以關閉視窗
+
     document.getElementById('modalOverlay').addEventListener('click', function(e) {
       if (e.target === this) closeModal();
     });
