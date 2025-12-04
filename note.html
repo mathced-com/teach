@@ -4,14 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>極簡備忘錄</title>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  
   <style>
-    /* --- 樣式區 (維持不變) --- */
+    /* 基礎樣式 (維持不變) */
     html, body {
       background: transparent;
-      margin: 0;
-      padding: 10px;
+      margin: 0; padding: 10px; padding-bottom: 80px;
       font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif;
-      padding-bottom: 80px;
     }
     .container { max-width: 600px; margin: 0 auto; }
     ul { list-style: none; padding: 0; margin: 0; }
@@ -23,57 +23,48 @@
       padding: 15px 20px;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1); 
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 18px;
-      color: #333;
-      word-break: break-all;
-      transition: all 0.3s ease;
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 18px; color: #333; word-break: break-all;
+      transition: transform 0.2s, box-shadow 0.2s; /* 拖曳時的動畫 */
+      cursor: grab; /* 滑鼠游標變成手掌 */
+      touch-action: none; /* 防止手機上誤觸滾動 */
+    }
+    
+    /* 拖曳中的樣式 */
+    li.sortable-ghost {
+      opacity: 0.4;
+      background: #e8f0fe;
+    }
+    li.sortable-drag {
+      cursor: grabbing;
+      opacity: 1;
+      background: white;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.2);
     }
 
-    /* 完成後的樣式 */
+    /* 完成樣式 */
     li.completed {
-      text-decoration: line-through;
-      color: #999;
-      background: rgba(255, 255, 255, 0.6);
-      box-shadow: none;
+      text-decoration: line-through; color: #999;
+      background: rgba(255, 255, 255, 0.6); box-shadow: none;
     }
 
     /* 按鈕樣式 */
     .check-btn { 
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      border: 2px solid #ccc; 
-      background: transparent;
-      cursor: pointer;
-      flex-shrink: 0; 
-      margin-left: 15px;
+      width: 28px; height: 28px; border-radius: 50%; border: 2px solid #ccc; 
+      background: transparent; cursor: pointer; flex-shrink: 0; margin-left: 15px;
       display: flex; align-items: center; justify-content: center;
-      color: transparent;
-      transition: all 0.2s;
+      color: transparent; transition: all 0.2s;
     }
     .check-btn:hover { border-color: #1a73e8; }
-    
-    li.completed .check-btn {
-      background-color: #ccc;
-      border-color: #ccc;
-      color: white;
-    }
+    li.completed .check-btn { background-color: #ccc; border-color: #ccc; color: white; }
     li.completed .check-btn::after { content: '✔'; font-size: 14px; }
-    
-    li:not(.completed) .check-btn:hover {
-      border-color: #1a73e8;
-      color: #1a73e8;
-    }
+    li:not(.completed) .check-btn:hover { border-color: #1a73e8; color: #1a73e8; }
     li:not(.completed) .check-btn::after { content: '✔'; font-size: 14px; }
 
     /* 浮動按鈕與視窗 */
     .fab {
-      position: fixed; bottom: 20px; right: 20px;
-      width: 56px; height: 56px;
-      background-color: #1a73e8; color: white;
-      border-radius: 50%;
+      position: fixed; bottom: 20px; right: 20px; width: 56px; height: 56px;
+      background-color: #1a73e8; color: white; border-radius: 50%;
       box-shadow: 0 4px 12px rgba(26, 115, 232, 0.4);
       display: flex; align-items: center; justify-content: center;
       font-size: 32px; cursor: pointer; z-index: 100;
@@ -82,17 +73,12 @@
       display: none; position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
       background: rgba(0,0,0,0.6); z-index: 200;
-      align-items: center; justify-content: center;
-      backdrop-filter: blur(2px);
+      align-items: center; justify-content: center; backdrop-filter: blur(2px);
     }
     .modal-overlay.show { display: flex; }
-    .modal-box {
-      background: white; width: 85%; max-width: 380px;
-      padding: 20px; border-radius: 16px;
-    }
+    .modal-box { background: white; width: 85%; max-width: 380px; padding: 20px; border-radius: 16px; }
     textarea {
-      width: 100%; height: 100px; padding: 12px;
-      border: 2px solid #eee; border-radius: 8px;
+      width: 100%; height: 100px; padding: 12px; border: 2px solid #eee; border-radius: 8px;
       font-size: 16px; resize: none; box-sizing: border-box; outline: none; margin-bottom: 15px;
     }
     .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; }
@@ -128,6 +114,8 @@
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz2U2uZ3tjixsBKGfSVVCq6Kt1vZ0MWKTnoOYN64ob4u0AAlR8BzLQybXVWYkkwbF1i/exec"; 
     // =================================================================
 
+    let sortableInstance = null; // 存放 Sortable 實體
+
     window.onload = loadData;
 
     function loadData() {
@@ -148,68 +136,75 @@
       const list = document.getElementById('taskList');
       list.innerHTML = '';
       
-      const now = new Date().getTime(); // 取得現在時間 (毫秒)
-      const oneHour = 60 * 60 * 1000;   // 1小時的毫秒數
+      const now = new Date().getTime(); 
+      const oneHour = 60 * 60 * 1000;
 
-      // 過濾後的資料計數
       let visibleCount = 0;
 
       data.forEach(item => {
         let isCompleted = false;
-
-        // ★ 核心邏輯修改區 ★
         if (item.completedAt) {
           const completedTime = new Date(item.completedAt).getTime();
-          
-          // 如果 (現在時間 - 完成時間) 大於 1小時
-          if (now - completedTime > oneHour) {
-            return; // 直接跳過，不渲染這個 <li> (隱藏)
-          }
-          
-          // 如果還沒超過 1小時，標記為已完成
+          if (now - completedTime > oneHour) return; // 超過一小時隱藏
           isCompleted = true;
         }
 
         visibleCount++;
-
         const li = document.createElement('li');
-        li.id = 'task-' + item.id;
+        li.id = 'task-' + item.id; // 用於辨識順序
+        // 為了讓拖曳庫知道 ID，我們可以加一個 data-id 屬性
+        li.setAttribute('data-id', item.id);
         
-        if (isCompleted) {
-          li.classList.add('completed');
-        }
+        if (isCompleted) li.classList.add('completed');
 
         li.innerHTML = `
           <span>${escapeHtml(item.text)}</span>
-          <button class="check-btn" onclick="toggleItem('${item.id}')"></button>
+          <button class="check-btn" onclick="toggleItem('${item.id}', event)"></button>
         `;
         list.appendChild(li);
       });
 
-      // 如果全部都隱藏了，顯示空狀態
       if (visibleCount === 0) {
         list.innerHTML = '<div style="text-align:center; color:#888; padding:20px; background:rgba(255,255,255,0.5); border-radius:10px;">目前沒有待辦事項</div>';
       }
+
+      // ★ 啟用拖曳功能
+      if (sortableInstance) sortableInstance.destroy(); // 先銷毀舊的
+      sortableInstance = new Sortable(list, {
+        animation: 150, // 動畫速度 (ms)
+        delay: 100, // 手機上長按 100ms 才能拖曳 (避免滑動螢幕時誤觸)
+        delayOnTouchOnly: true, // 電腦上可以直接拖曳
+        onEnd: function (evt) {
+          // 當拖曳結束時，執行儲存順序
+          saveOrder();
+        }
+      });
     }
 
-    function toggleItem(id) {
+    // ★ 儲存順序到後端
+    function saveOrder() {
+      const list = document.getElementById('taskList');
+      const items = list.querySelectorAll('li');
+      // 收集目前頁面上的所有 ID 順序
+      const newOrderIds = Array.from(items).map(li => li.getAttribute('data-id'));
+      
+      // 在背景默默傳送，不干擾使用者
+      fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'reorder', ids: newOrderIds })
+      }).then(res => res.json()).then(data => {
+        console.log("排序已儲存");
+      });
+    }
+
+    function toggleItem(id, event) {
+      event.stopPropagation(); // 防止觸發拖曳
       const li = document.getElementById('task-' + id);
       li.classList.toggle('completed');
 
       fetch(SCRIPT_URL, {
         method: 'POST',
         body: JSON.stringify({ action: 'toggle', id: id })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status !== 'success') {
-          li.classList.toggle('completed');
-          alert("操作失敗，請檢查網路");
-        } else {
-          // 這裡可以選擇是否要立刻重新 loadData()
-          // 但為了體驗流暢，通常不重新讀取，
-          // 下次使用者重新整理網頁時，超過1小時的項目就會自動消失。
-        }
       });
     }
 
