@@ -16,24 +16,47 @@ function initMind() {
   return jm;
 }
 
+// *** MODIFIED: Robust Stack-Based Markdown Parser ***
 function parseMarkdown(mdText) {
-  const lines = mdText.split('\n').filter(l => l.trim());
-  const root = { id: 'root', topic: 'Root', children: [] }, stack = [root];
-  const linkRegex = /\!\[([^\]]*)\]\(([^\)]*)\)|\[([^\]]*)\]\(([^\)]*)\)/; // ![alt](src) or [text](href)
+  const lines = mdText.split('\n');
+  const root = { id: 'root', topic: 'Root', children: [] };
+  // Stack now holds objects: { node, level }
+  // Level 1 = Root's children.
+  let stack = [{ node: root, level: 0 }];
+  const linkRegex = /\!\[([^\]]*)\]\(([^\)]*)\)|\[([^\]]*)\]\(([^\)]*)\)/; 
 
   lines.forEach(line => {
-    let level = 0, text = '';
-    const m = line.match(/^(#+)\s+(.*)/);
-    if (m) { level = m[1].length; text = m[2]; } 
-    else if (/^-\s+/.test(line)) { level = 4; text = line.replace(/^-\s+/, ''); } 
-    else if (/^(\s*)\*\s+(.*)/.test(line)) {
-      const asteriskMatch = line.match(/^(\s*)\*\s+(.*)/);
-      const indentLength = asteriskMatch[1].length;
-      level = Math.floor(indentLength / 2) + 1; // Convert spaces to levels (2 spaces = 1 level)
-      text = asteriskMatch[2];
-    }
-    else return;
+    // 1. Determine level and clean text
+    if (!line.trim()) return;
+    
+    let level = 0;
+    let text = '';
+    
+    const headerMatch = line.match(/^(#+)\s+(.*)/);
+    const listMatch = line.match(/^(\s*)([-*])\s+(.*)/);
 
+    if (headerMatch) {
+      // Header style: # Level 1, ## Level 2
+      level = headerMatch[1].length;
+      text = headerMatch[2];
+    } else if (listMatch) {
+      // List style: count spaces. 2 spaces = 1 indent level.
+      // Base level for a list item is typically 1 (if at root) or relative to parent.
+      // We assume 2 spaces or 1 tab = 1 level deeper.
+      const spaces = listMatch[1];
+      const indentCount = spaces.length; // You might handle tabs here if needed
+      // Map indentation to level. E.g. 0 spaces = Level 1. 2 spaces = Level 2.
+      // But if mixed with Headers, we need to be careful. 
+      // Simplified strategy: 0 indent = level 1 (or child of previous header).
+      // Let's use: level = floor(spaces / 2) + 1.
+      level = Math.floor(indentCount / 2) + 1;
+      text = listMatch[3];
+    } else {
+      // Not a structural line, skip or treat as note (skipping for now)
+      return;
+    }
+
+    // 2. Process Links/Images
     let nodeData = {};
     let topicText = text;
     const linkMatch = text.match(linkRegex);
@@ -47,21 +70,82 @@ function parseMarkdown(mdText) {
         nodeData.hyperlink = linkMatch[4];
       }
     }
-
+    
     const html = buildTopic(nodeData, marked.parseInline(topicText));
+    const nid = jsMind.util.uuid.newid();
+    const newNode = { id: nid, topic: html, children: [], data: nodeData };
 
-    if (level === 1 && stack.length === 1) { 
-        root.topic = html; 
+    // 3. Stack Logic for Hierarchy
+    
+    // Special case: If it's the very first H1, it might be the Root replacement
+    if (level === 1 && stack.length === 1 && root.children.length === 0 && headerMatch) {
+        root.topic = html;
         root.data = nodeData;
         return; 
     }
-    while (stack.length >= level) stack.pop();
-    const nid = jsMind.util.uuid.newid();
-    const node = { id: nid, topic: html, children: [], data: nodeData };
-    stack[stack.length - 1].children.push(node);
-    stack.push(node);
+
+    // Find the correct parent in the stack
+    // We want a parent whose level is < current level
+    // e.g. If current level is 2, we want a parent at level 1.
+    // If current level is 3, parent is level 2.
+    // So we pop until stack.top.level < current level.
+    while (stack.length > 1 && stack[stack.length - 1].level >= level) {
+        stack.pop();
+    }
+    
+    const parent = stack[stack.length - 1].node;
+    parent.children.push(newNode);
+    stack.push({ node: newNode, level: level });
   });
+
   return { meta: { name: 'md_import' }, format: 'node_tree', data: root };
+}
+
+// *** NEW: XMind File Parser using JSZip ***
+async function parseXMind(file) {
+    try {
+        const zip = await JSZip.loadAsync(file);
+        // Modern XMind uses content.json
+        if (!zip.file('content.json')) {
+            throw new Error('不支援的 XMind 格式 (缺少 content.json)');
+        }
+        
+        const contentText = await zip.file('content.json').async('string');
+        const contentJson = JSON.parse(contentText);
+        
+        // Usually contentJson is an array of sheets. We take the first one.
+        const sheet = contentJson[0];
+        if (!sheet || !sheet.rootTopic) {
+             throw new Error('無法讀取 XMind 根節點');
+        }
+
+        // Recursive function to convert XMind node to jsMind node
+        const convertNode = (xNode) => {
+            const nid = xNode.id || jsMind.util.uuid.newid();
+            const topic = xNode.title || 'Untitled';
+            
+            // XMind specific: Handle images/links if needed (simplified here)
+            // XMind puts children in 'children.attached' list
+            let children = [];
+            if (xNode.children && xNode.children.attached) {
+                children = xNode.children.attached.map(convertNode);
+            }
+            
+            return {
+                id: nid,
+                topic: topic,
+                children: children,
+                data: {} // Could add image/link parsing here if XMind structure allows
+            };
+        };
+
+        const jsMindRoot = convertNode(sheet.rootTopic);
+        return { meta: { name: 'xmind_import', author: 'user' }, format: 'node_tree', data: jsMindRoot };
+
+    } catch (e) {
+        console.error(e);
+        throw e;
+    }
 }
 
 const getCleanTopic = (topic) => {
@@ -175,9 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const imageUrlModalOverlay = document.getElementById('image_url_modal_overlay'), imageUrlInput = document.getElementById('image_url_input');
   const gdocUrlInput = document.getElementById('gdoc_url_input'), btnFetchGdoc = document.getElementById('btn_fetch_gdoc'), gdocStatus = document.getElementById('gdoc_status'), gdocImageResults = document.getElementById('gdoc_image_results');
   const mdImportModalOverlay = document.getElementById('md_import_modal_overlay'), mdFileInput = document.getElementById('md_file_input'), mdTextInput = document.getElementById('md_text_input'), btnProcessMdImport = document.getElementById('btn_process_md_import');
-  const imageDisplayModalOverlay = document.getElementById('image_display_modal_overlay'), modalImage = document.getElementById('modal_image');
   const notificationLayer = document.getElementById('notification_layer');
-  const outlineDepthSelect = document.getElementById('outline_depth_select'); // *** NEW ***
+  const outlineDepthSelect = document.getElementById('outline_depth_select'); 
   let notificationTimer;
   let linkEditingNodeId = null;
   let imageEditingNodeId = null;
@@ -286,30 +369,24 @@ document.addEventListener('DOMContentLoaded', () => {
       return html;
   }
 
-  // *** MODIFIED: generatePresentationSlides ***
   const generatePresentationSlides = (mindData) => {
     const slides = [];
     const rootNode = mindData.data;
-    
-    // Get the selected depth from the dropdown
     const START_OUTLINE_DEPTH = parseInt(outlineDepthSelect.value, 10);
     
     const traverseNode = (node, breadcrumb = [], parentNode = null) => {
       const cleanTopic = getCleanTopic(node.topic);
-      const currentDepth = breadcrumb.length; // 0=root, 1=main, 2=sub...
+      const currentDepth = breadcrumb.length; 
 
-      // Check if current depth is less than the trigger depth
       if (currentDepth < START_OUTLINE_DEPTH) {
-        // --- Single Slide Mode ---
         slides.push({
-          type: 'single', // Add type
+          type: 'single', 
           title: cleanTopic,
           parentNode: parentNode,
           breadcrumb: [...breadcrumb],
           node: node
         });
         
-        // Continue recursion
         if (node.children && node.children.length > 0) {
           const currentBreadcrumb = [...breadcrumb, cleanTopic];
           node.children.forEach(child => {
@@ -317,18 +394,13 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         }
       } else {
-        // --- Outline Slide Mode ---
-        // Add this node and all its children as ONE slide
         slides.push({
-          type: 'outline', // Add type
+          type: 'outline', 
           title: cleanTopic,
           parentNode: parentNode,
           breadcrumb: [...breadcrumb],
-          node: node // The whole node object (with children)
+          node: node 
         });
-        
-        // *** DO NOT RECURSE ***
-        // All children are handled by this single 'outline' slide
       }
     };
     
@@ -336,62 +408,48 @@ document.addEventListener('DOMContentLoaded', () => {
     return slides;
   };
 
-  // *** MODIFIED: showPresentationSlide ***
   const showPresentationSlide = (index, direction = 'none') => {
     if (index < 0 || index >= presentationSlides.length) return;
     
     const slide = presentationSlides[index];
     const overlay = document.getElementById('presentation_overlay');
-    const mainContent = overlay.querySelector('.presentation-main'); // *** Get main content area ***
+    const mainContent = overlay.querySelector('.presentation-main'); 
     const breadcrumbCorner = overlay.querySelector('.presentation-breadcrumb-corner');
     const title = overlay.querySelector('.presentation-title');
     const counter = overlay.querySelector('.slide-counter');
     const prevBtn = document.getElementById('btn_prev_slide');
     const nextBtn = document.getElementById('btn_next_slide');
     
-    // *** MODIFIED: New breadcrumb logic with indentation, persistent parents, and page numbers ***
     let lineStack = [];
     let processedTitles = new Set();
     let currentSlideForPath = slide;
 
     while (currentSlideForPath) {
-        // 1. Get all siblings of the current slide
         const parentSlideNode = currentSlideForPath.parentNode;
         const siblingSlides = presentationSlides.filter(s => s.parentNode === parentSlideNode);
         const currentSiblingIndex = siblingSlides.indexOf(currentSlideForPath);
         
-        // 2. Add *all* previous and current siblings to the stack (in reverse order)
         for (let i = currentSiblingIndex; i >= 0; i--) {
             const sibling = siblingSlides[i];
-            // Add to stack only if we haven't processed this title before
             if (!processedTitles.has(sibling.title)) {
                 const indent = '&nbsp;&nbsp;'.repeat(sibling.breadcrumb.length);
                 const arrow = (sibling.breadcrumb.length > 0) ? '→ ' : '';
-                
-                // *** NEW: Get page number ***
                 const pageNum = presentationSlides.indexOf(sibling) + 1;
-                lineStack.push(`${indent}${arrow}${sibling.title} (${pageNum})`); // Add page number
-                
+                lineStack.push(`${indent}${arrow}${sibling.title} (${pageNum})`);
                 processedTitles.add(sibling.title);
             }
         }
-        
-        // 3. Move up to the parent *slide*
         currentSlideForPath = presentationSlides.find(s => s.node === parentSlideNode);
     }
     
-    // Reverse the stack and join with line breaks
     breadcrumbCorner.innerHTML = lineStack.reverse().join('<br>');
-    
     
     let newHtmlContent = '';
     let newClassName = '';
-    let needsOutlineAlign = false; // *** Flag for alignment ***
+    let needsOutlineAlign = false; 
 
-    // Check slide type
     if (slide.type === 'outline') {
-      // --- Render Outline Slide ---
-      needsOutlineAlign = true; // *** Flag for top alignment ***
+      needsOutlineAlign = true; 
       const rootTopic = getCleanTopic(slide.node.topic);
       let childrenHtml = '';
       if (slide.node.children && slide.node.children.length > 0) {
@@ -401,53 +459,40 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         childrenHtml += '</ul>';
       }
-      // Combine outline page
       newHtmlContent = `<h1>${rootTopic}</h1>${childrenHtml}`;
-      newClassName = 'presentation-title outline-style'; // Add 'outline-style' for CSS
+      newClassName = 'presentation-title outline-style'; 
 
     } else {
-      // --- Render Single Slide (Original Behavior) ---
-      needsOutlineAlign = false; // *** Flag for center alignment ***
+      needsOutlineAlign = false;
       let titleText = slide.node.topic || slide.title;
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = titleText;
       const cleanText = tempDiv.textContent || tempDiv.innerText || '';
       
-      // Add line breaks after punctuation marks
       const formattedText = cleanText.replace(/([。、，；：！？])/g, '$1<br>');
       
       newHtmlContent = formattedText;
       newClassName = 'presentation-title';
     }
     
-    // Apply fade transition
     if (direction !== 'none') {
-      // Start fade out
       title.className = title.className.replace('active', 'fade-out');
       
-      // Wait for complete fade out
       setTimeout(() => {
-        // *** MODIFICATION: Update alignment *while content is invisible* ***
         if (needsOutlineAlign) {
             mainContent.classList.add('has-outline');
         } else {
             mainContent.classList.remove('has-outline');
         }
 
-        // Update content
         title.innerHTML = newHtmlContent;
-        
-        // Set up for fade-in
         title.className = newClassName + ' fade-in';
         
-        // Start fade-in
         setTimeout(() => {
           title.className = newClassName + ' active';
         }, 50);
-      }, 1200); // Wait for 1.2s fade out
+      }, 1200); 
     } else {
-      // No transition for initial load
-      // *** MODIFICATION: Set alignment for initial load ***
       if (needsOutlineAlign) {
             mainContent.classList.add('has-outline');
         } else {
@@ -457,17 +502,12 @@ document.addEventListener('DOMContentLoaded', () => {
       title.className = newClassName + ' active';
     }
     
-    // Update counter
     counter.textContent = `${index + 1} / ${presentationSlides.length}`;
-    
-    // Update navigation buttons
     prevBtn.disabled = index === 0;
     nextBtn.disabled = index === presentationSlides.length - 1;
-    
     currentSlideIndex = index;
   };
 
-  // *** MODIFIED: startPresentationMode ***
   const startPresentationMode = () => {
     const mindData = jm.get_data('node_tree');
     if (!mindData || !mindData.data) {
@@ -475,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     
-    presentationSlides = generatePresentationSlides(mindData); // This will now use the dropdown value
+    presentationSlides = generatePresentationSlides(mindData); 
     if (presentationSlides.length === 0) {
       showNotification('心智圖沒有內容可以播放', true);
       return;
@@ -487,25 +527,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const overlay = document.getElementById('presentation_overlay');
     overlay.style.display = 'block';
     
-    // *** NEW: Add slide jumping function to counter ***
     const counter = overlay.querySelector('.slide-counter');
     counter.style.cursor = 'pointer';
     counter.title = '點擊跳轉頁碼';
-    // Remove old listener if it exists, then add new one
     counter.onclick = null; 
     counter.onclick = () => {
         const targetSlide = prompt(`請輸入要跳轉的頁碼 (1 - ${presentationSlides.length}):`, currentSlideIndex + 1);
         if (targetSlide) {
             const targetIndex = parseInt(targetSlide, 10) - 1;
             if (!isNaN(targetIndex) && targetIndex >= 0 && targetIndex < presentationSlides.length) {
-                showPresentationSlide(targetIndex, 'none'); // 'none' for no animation
+                showPresentationSlide(targetIndex, 'none'); 
             } else {
                 alert('輸入無效的頁碼');
             }
         }
     };
     
-    showPresentationSlide(0); // This will call the 'else' block (no transition)
+    showPresentationSlide(0); 
     showNotification('簡報模式已啟動，使用方向鍵或按鈕導航');
   };
 
@@ -540,7 +578,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn_toggle_all').onclick = () => {
     const rootNode = jm.get_root();
     if (allExpanded) {
-      // Collapse all nodes
       const collapseNode = (node) => {
         if (node && !node.isroot && node.children && node.children.length > 0) {
           jm.collapse_node(node.id);
@@ -553,7 +590,6 @@ document.addEventListener('DOMContentLoaded', () => {
       allExpanded = false;
       showNotification('已收合所有節點');
     } else {
-      // Expand all nodes
       const expandNode = (node) => {
         if (node && !node.isroot) {
           jm.expand_node(node.id);
@@ -603,7 +639,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // --- File Operations ---
-  // --- Markdown Import Modal ---
   document.getElementById('btn_open_md_import').onclick = () => {
     mdImportModalOverlay.style.display = 'flex';
   };
@@ -612,42 +647,58 @@ document.addEventListener('DOMContentLoaded', () => {
     mdImportModalOverlay.style.display = 'none';
   };
 
-  document.getElementById('btn_process_md_import').onclick = () => {
+  // *** MODIFIED: Handle both Markdown and XMind imports ***
+  document.getElementById('btn_process_md_import').onclick = async () => {
     const text = mdTextInput.value;
     const file = mdFileInput.files[0];
 
-    const processText = (markdownText) => {
-      if (markdownText) {
-        jm.show(parseMarkdown(markdownText));
-        applyLayerColors(jm);
-        topMenu.classList.remove('active');
-        menuToggle.classList.remove('active');
-        mdImportModalOverlay.style.display = 'none';
-        mdTextInput.value = '';
-        mdFileInput.value = '';
-      } else {
-        showNotification('沒有提供 Markdown 內容', true);
-      }
+    const finalizeImport = (mindData) => {
+        if (mindData) {
+            jm.show(mindData);
+            applyLayerColors(jm);
+            topMenu.classList.remove('active');
+            menuToggle.classList.remove('active');
+            mdImportModalOverlay.style.display = 'none';
+            mdTextInput.value = '';
+            mdFileInput.value = '';
+        }
     };
 
     if (text) {
-      processText(text);
+      // Text input is always treated as Markdown
+      const result = parseMarkdown(text);
+      if (result) finalizeImport(result);
+      else showNotification('解析失敗', true);
     } else if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        processText(e.target.result);
-      };
-      reader.readAsText(file);
+      // File Input logic
+      if (file.name.toLowerCase().endsWith('.xmind')) {
+         // XMind Import
+         try {
+             const xmindData = await parseXMind(file);
+             finalizeImport(xmindData);
+             showNotification('XMind 匯入成功');
+         } catch (e) {
+             showNotification('XMind 解析失敗: ' + e.message, true);
+         }
+      } else {
+         // Markdown/Text Import
+         const reader = new FileReader();
+         reader.onload = (e) => {
+           const result = parseMarkdown(e.target.result);
+           if (result) finalizeImport(result);
+           else showNotification('Markdown 解析失敗', true);
+         };
+         reader.readAsText(file);
+      }
     } else {
       showNotification('請貼上文字或選擇檔案', true);
     }
   };
   
-  // *** MODIFIED: btn_download.onclick ***
   document.getElementById('btn_download').onclick = () => { 
     const data = jm.get_data(), title = (data.data.topic || 'mindmap').replace(/<[^>]+>/g, ''), panAndZoomFnString = enablePanAndZoom.toString(); 
     
-    // *** MODIFIED: Updated breadcrumb and jump-to-slide logic in exported file's JS ***
+    // Breadcrumb and JS logic embedded in exported HTML
     const presentationJS = `
 let presentationSlides=[];
 let currentSlideIndex=0;
@@ -826,7 +877,6 @@ document.addEventListener('keydown',(e)=>{
   }
 });`;
     
-    // *** MODIFIED: Updated HTML string with new styles and elements ***
     const html = `<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="UTF-8"><title>${title}</title><style>
     html,body{height:100%;margin:0;overflow:hidden;}
     #jsmind_container{width:100%;height:100vh;background:#ecf0f1;cursor:grab;overflow:hidden;}
@@ -863,7 +913,6 @@ document.addEventListener('keydown',(e)=>{
     .slide-counter{font-size:14px;min-width:60px;text-align:center;}
     .presentation-main{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px;text-align:center;position:relative;overflow:auto;}
     
-    /* *** NEW: Added Styles for Outline Mode (Copied from main HTML) *** */
     .presentation-main.has-outline { justify-content: flex-start; }
     .presentation-breadcrumb-corner{position:absolute;top:30px;left:30px;font-size:16px;opacity:0.5;line-height:1.6;max-width:300px;text-align:left;}
     .presentation-title{font-size:8em;font-weight:bold;line-height:1.1;text-shadow:3px 3px 6px rgba(0,0,0,0.4);max-width:90%;word-wrap:break-word;transition:opacity 1.2s ease-in-out;opacity:1;}
@@ -952,17 +1001,6 @@ document.addEventListener('keydown',(e)=>{
   document.getElementById('btn_export_md').onclick = () => { exportToMarkdown(jm); };
 
   // --- Hyperlink & Image Logic ---
-
-  const buildTopic = (nodeData, cleanTopic) => {
-    if (nodeData && nodeData.image_url) {
-      return `<a href="${nodeData.image_url}" target="_blank" onclick="event.stopPropagation()" data-image-url="${nodeData.image_url}">🖼️</a> ${cleanTopic}`;
-    }
-    if (nodeData && nodeData.hyperlink) {
-      return `<a href="${nodeData.hyperlink}" target="_blank" onclick="event.stopPropagation()" data-hyperlink="${nodeData.hyperlink}">🔗</a> ${cleanTopic}`;
-    }
-    return cleanTopic;
-  }
-
   const updateNodeHyperlink = (nodeId, url) => {
     const node = jm.get_node(nodeId);
     if (!node) return;
@@ -1250,7 +1288,6 @@ document.addEventListener('keydown',(e)=>{
       const inp = document.querySelector('.jsmind-editor-input');
       if (!inp) return;
       
-      // Populate editor with clean text
       inp.value = getCleanTopic(node.topic);
 
       const blurHandler = () => {
@@ -1266,7 +1303,6 @@ document.addEventListener('keydown',(e)=>{
 
   enablePanAndZoom(document.getElementById('jsmind_container'));
 
-  // --- Keyboard Navigation for Presentation Mode ---
   document.addEventListener('keydown', (e) => {
     if (!isInPresentationMode) return;
     
@@ -1287,7 +1323,6 @@ document.addEventListener('keydown',(e)=>{
     }
   });
 
-  // --- Prompt Modal Logic ---
   const promptModalOverlay = document.getElementById('prompt_modal_overlay');
   document.getElementById('btn_show_prompt').onclick = () => {
     promptModalOverlay.style.display = 'flex';
