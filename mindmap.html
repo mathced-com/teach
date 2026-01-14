@@ -183,6 +183,7 @@
 
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/style/jsmind.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/js/jsmind.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsmind@0.6.1/js/jsmind.draggable-node.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -195,7 +196,7 @@
     <button id="btn_save_cloud" class="btn">雲端存檔</button>
     <button id="btn_open_cloud" class="btn">開啟雲端檔案</button>
     <div class="menu-separator"></div>
-    <button id="btn_open_md_import" class="btn" style="background-image: linear-gradient(45deg,#81c784,#388e3c);">匯入 MD</button>
+    <button id="btn_open_md_import" class="btn" style="background-image: linear-gradient(45deg,#81c784,#388e3c);">匯入</button>
     <button id="btn_download" class="btn">下載 HTML</button>
     <button id="btn_export_md" class="btn">匯出 MD</button>
     <div class="menu-separator"></div>
@@ -227,7 +228,7 @@
   </div>
 
   <div id="jsmind_container"></div>
-  <div id="attribution">Made by <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener">阿剛老師</a></div>
+  <div id="attribution">修改自 <a href="https://kentxchang.blogspot.tw" target="_blank" rel="noopener">阿剛老師</a></div>
   <div id="notification_layer"></div>
 
   <div id="presentation_overlay" class="presentation-overlay">
@@ -251,12 +252,12 @@
 
   <div id="md_import_modal_overlay" class="modal-overlay">
     <div class="modal-content">
-        <h2>匯入 Markdown</h2>
+        <h2>匯入檔案</h2>
         <div class="modal-body">
-            <p>請選擇一個 .md 或 .txt 檔案上傳：</p>
-            <input type="file" id="md_file_input" accept=".md,.txt" class="modal-input">
+            <p>請選擇一個 .md, .txt 或 .xmind 檔案上傳：</p>
+            <input type="file" id="md_file_input" accept=".md,.txt,.xmind" class="modal-input">
             <p style="text-align: center; margin: 15px 0;">或</p>
-            <p>直接貼上 Markdown 文字到下方：</p>
+            <p>直接貼上 Markdown 文字到下方 (僅限 MD/TXT)：</p>
             <textarea id="md_text_input" class="modal-input" rows="10" placeholder="# 根節點..."></textarea>
         </div>
         <div class="modal-buttons" style="display: flex; justify-content: space-between; align-items: center;">
