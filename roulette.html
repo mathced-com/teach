@@ -3,393 +3,503 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>幸運大轉盤</title>
-    <!-- 引入 Tailwind CSS -->
+    <title>進階幸運大轉盤 Pro - 3.1 排序強化版</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Google Fonts (Poppins) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* 自定義樣式 */
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        
         body {
-            font-family: 'Poppins', 'Inter', 'Helvetica Neue', 'Helvetica', 'Arial', 'sans-serif';
-            overflow-x: hidden;
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
         }
 
-        /* 指針樣式 */
-        .pointer {
-            width: 0;
-            height: 0;
-            border-left: 12px solid transparent;
-            border-right: 12px solid transparent;
-            border-top: 28px solid #ef4444; /* 紅色指針 */
-            position: absolute;
-            top: -10px; /* 調整指針位置 */
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+        /* 沉浸式轉盤容器 */
+        .wheel-container {
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: pointer;
+            transform-origin: center;
         }
 
-        /* 抽中者文字的放大動畫 */
-        .winner-animate {
-            animation: zoom-in-out 0.8s ease-in-out;
+        .wheel-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
 
-        @keyframes zoom-in-out {
+        /* 確保完全置中放大 */
+        .wheel-focus {
+            position: fixed !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) scale(1.4) !important;
+            z-index: 50;
+            width: 480px;
+            box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.6) !important;
+            cursor: crosshair;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 40;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .pointer-svg {
+            filter: drop-shadow(0 6px 10px rgba(0,0,0,0.3));
+            z-index: 20;
+        }
+
+        .result-popup {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popIn {
             0% { transform: scale(0.5); opacity: 0; }
-            50% { transform: scale(1.2); opacity: 1; }
             100% { transform: scale(1); opacity: 1; }
         }
 
-        /* 卡片淡入動畫 */
-        .fade-in {
-            animation: fade-in 0.5s ease-out forwards;
-        }
-
-        @keyframes fade-in {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* 讓 Canvas 可點擊 */
-        canvas {
-            cursor: pointer;
-            transition: transform 0.3s ease, filter 0.3s ease;
-            border-radius: 50%;
-        }
-        canvas:hover {
-            transform: scale(1.03);
-            filter: brightness(1.05);
-        }
-        
-        /* Modal Overlay 的轉場效果 */
-        #modal-overlay {
-            transition: opacity 0.3s ease-in-out;
+        /* 隱藏捲軸但保持功能 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800">
+<body class="p-4 md:p-10 no-scrollbar">
 
-    <div class="flex flex-col lg:flex-row min-h-screen">
-        
-        <!-- 左側固定控制面板 -->
-        <div class="w-full lg:w-96 bg-white/70 backdrop-blur-xl p-6 shadow-2xl flex-shrink-0 border-r border-white/50">
-            <div class="sticky top-6">
-                <h1 class="text-3xl font-bold text-center mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">轉盤設定</h1>
-                
-                <!-- 選擇轉盤數量 -->
-                <div class="mb-4">
-                    <label for="wheel-count" class="block text-sm font-medium text-gray-600 mb-2">選擇轉盤數量</label>
-                    <select id="wheel-count" class="w-full p-3 bg-white/50 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
-                        <option value="1">1 組</option>
-                        <option value="2">2 組</option>
-                        <option value="3">3 組</option>
-                        <option value="4">4 組</option>
-                        <option value="5">5 組</option>
-                        <option value="6">6 組</option>
-                    </select>
-                </div>
-                
-                <!-- 抽籤模式 -->
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-600 mb-2">抽籤模式</label>
-                    <div class="flex items-center space-x-4 bg-gray-50/50 p-3 rounded-lg border border-gray-200/50">
-                        <div class="flex items-center">
-                            <input id="mode-repeat" type="radio" name="draw-mode" value="repeat" class="h-4 w-4 text-blue-600 focus:ring-blue-500" checked>
-                            <label for="mode-repeat" class="ml-2 block text-sm text-gray-900">重複抽籤</label>
+    <div id="app" class="max-w-7xl mx-auto">
+        <!-- 頂部控制面板 -->
+        <header class="bg-white rounded-[2.5rem] shadow-2xl p-8 mb-10 border border-gray-100">
+            <div class="flex flex-col lg:flex-row justify-between gap-8">
+                <div class="flex-1 space-y-6">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-indigo-600 rounded-2xl text-white shadow-lg">
+                            <i data-lucide="layout"></i>
                         </div>
-                        <div class="flex items-center">
-                            <input id="mode-no-repeat" type="radio" name="draw-mode" value="no-repeat" class="h-4 w-4 text-blue-600 focus:ring-blue-500">
-                            <label for="mode-no-repeat" class="ml-2 block text-sm text-gray-900">不重複抽籤</label>
+                        <div>
+                            <h1 class="text-3xl font-black text-gray-800 tracking-tight">轉盤設定面板</h1>
+                            <p class="text-gray-400 font-medium tracking-wide">設定後點擊轉盤即可開始抽籤</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="space-y-2">
+                            <label class="text-xs font-black text-gray-400 ml-1 uppercase">轉盤數量</label>
+                            <select id="wheelCount" class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all font-bold text-gray-700">
+                                <option value="1">1 組轉盤</option>
+                                <option value="2">2 組轉盤</option>
+                                <option value="3">3 組轉盤</option>
+                                <option value="4">4 組轉盤</option>
+                                <option value="5">5 組轉盤</option>
+                                <option value="6">6 組轉盤</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-xs font-black text-gray-400 ml-1 uppercase">抽籤邏輯</label>
+                            <select id="drawMode" class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all font-bold text-gray-700">
+                                <option value="no-repeat">不重複抽籤 (中獎後剔除)</option>
+                                <option value="repeat">重複抽籤</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-xs font-black text-gray-400 ml-1 uppercase">名單類型</label>
+                            <select id="listType" class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all font-bold text-gray-700">
+                                <option value="numbers">預設號碼名單 (1-29)</option>
+                                <option value="custom">自定義文字名單</option>
+                            </select>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-xs font-black text-gray-400 ml-1 uppercase">排序方式</label>
+                            <select id="sortOrder" class="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 outline-none focus:border-indigo-500 transition-all font-bold text-gray-700">
+                                <option value="sequential">依序排列 (預設)</option>
+                                <option value="random">隨機打亂</option>
+                            </select>
                         </div>
                     </div>
                 </div>
-                
-                <!-- 動態輸入欄位容器 -->
-                <div id="input-container" class="space-y-4 mb-4 max-h-[calc(100vh-400px)] overflow-y-auto pr-2"></div>
-                
-                <!-- 按鈕 -->
-                <button id="setup-btn" class="w-full flex items-center justify-center bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:shadow-lg hover:shadow-indigo-500/40 hover:from-blue-600 hover:to-indigo-700 active:scale-95 transition-all duration-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.982.54 2.295 0 3.277-1.372.836-.836 2.942 2.106 2.106.948-.574 2.286-.574 3.234 0 .948.574 2.286.574 3.234 0 1.372.836 2.942-.734 2.106-2.106a1.532 1.532 0 010-3.277c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.286-.948zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
-                    </svg>
-                    產生/更新所有轉盤
-                </button>
-            </div>
-        </div>
 
-        <!-- 右側轉盤顯示區 -->
-        <main class="flex-grow p-6">
-            <div id="wheels-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-                <!-- 轉盤會動態生成於此 -->
+                <div class="flex flex-col justify-end gap-3 min-w-[240px]">
+                    <button onclick="generateWheels()" class="w-full py-5 bg-indigo-600 text-white text-xl font-black rounded-2xl hover:bg-indigo-700 active:scale-95 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-3">
+                        <i data-lucide="wand-2"></i> 生成轉盤
+                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="exportData()" class="flex-1 py-3 bg-white border-2 border-gray-100 rounded-xl text-gray-500 hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm font-bold">
+                            <i data-lucide="download" class="w-4 h-4"></i> 匯出
+                        </button>
+                        <label class="flex-1 py-3 bg-white border-2 border-gray-100 rounded-xl text-gray-500 hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm font-bold cursor-pointer">
+                            <i data-lucide="upload" class="w-4 h-4"></i> 匯入
+                            <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 配置區 -->
+            <div id="configSection" class="mt-8 pt-8 border-t-2 border-dashed border-gray-100">
+                <div id="dynamicConfigGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+            </div>
+        </header>
+
+        <!-- 轉盤展示區域 -->
+        <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 mb-20" id="wheelGrid">
+            <div class="col-span-full py-28 text-center text-gray-300 bg-white rounded-[3rem] border-4 border-dashed border-gray-100">
+                <i data-lucide="mouse-pointer-click" class="w-16 h-16 mx-auto mb-4 opacity-10"></i>
+                <p class="text-xl font-black">完成配置後點擊「生成轉盤」</p>
             </div>
         </main>
     </div>
-    
-    <!-- 全螢幕置中放大用的 Modal -->
-    <div id="modal-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden opacity-0">
-        <div id="modal-content" class="relative w-full max-w-2xl aspect-square transform scale-75 transition-transform duration-300">
-             <div class="pointer" style="border-left-width: 25px; border-right-width: 25px; border-top-width: 55px; top: -20px;"></div>
-             <canvas id="modal-canvas" width="600" height="600"></canvas>
-             <div id="modal-winner" class="absolute inset-0 flex items-center justify-center text-[10rem] leading-none font-extrabold text-white text-center p-4 opacity-0 transition-opacity duration-500 whitespace-nowrap" style="pointer-events: none; text-shadow: 3px 3px 10px rgba(0,0,0,0.8);"></div>
+
+    <!-- 遮罩與結果彈窗 -->
+    <div id="overlay" class="overlay" onclick="unfocusWheel()"></div>
+    <div id="resultModal" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 pointer-events-none">
+        <div class="result-popup bg-white rounded-[3.5rem] p-12 shadow-2xl text-center max-w-md w-full border-[16px] border-indigo-50 pointer-events-auto">
+            <div class="w-24 h-24 bg-yellow-100 text-yellow-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 rotate-6 shadow-inner">
+                <i data-lucide="award" class="w-12 h-12"></i>
+            </div>
+            <h3 class="text-2xl font-bold text-gray-400 mb-2 uppercase tracking-widest">抽中者</h3>
+            <div id="winnerName" class="text-8xl font-black text-indigo-600 mb-10 tracking-tighter"></div>
+            <button onclick="closeResult()" class="w-full py-5 bg-indigo-600 text-white text-xl font-black rounded-2xl hover:bg-indigo-700 transition shadow-2xl shadow-indigo-100">確定</button>
         </div>
     </div>
 
-
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // --- DOM 元素 ---
-            const wheelCountSelect = document.getElementById('wheel-count');
-            const inputContainer = document.getElementById('input-container');
-            const wheelsContainer = document.getElementById('wheels-container');
-            const setupBtn = document.getElementById('setup-btn');
-            const modalOverlay = document.getElementById('modal-overlay');
-            const modalContent = document.getElementById('modal-content');
-            const modalCanvas = document.getElementById('modal-canvas');
-            const modalWinner = document.getElementById('modal-winner');
+        const CHINESE_NUMS = ['一', '二', '三', '四', '五', '六'];
+        const EXCLUDED_DEFAULT = [2, 14, 15]; 
+        const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6'];
 
-            // --- 全局狀態 ---
-            let wheels = []; 
-            let activeWheelIndex = null;
-            let allowDuplicates = true;
-            const colors = ["#fdba74", "#fca5a5", "#86efac", "#93c5fd", "#a5b4fc", "#d8b4fe", "#f9a8d4", "#fde047", "#6ee7b7", "#7dd3fc"];
+        let state = {
+            wheelCount: 1,
+            listType: 'numbers',
+            sortOrder: 'sequential',
+            isFocused: false, 
+            configs: Array.from({length: 6}, () => ({
+                numbers: Array.from({length: 29}, (_, i) => !EXCLUDED_DEFAULT.includes(i + 1)),
+                customText: ""
+            })),
+            wheels: []
+        };
 
-            // --- 函數 ---
+        window.onload = () => {
+            lucide.createIcons();
+            updateConfigUI();
+            document.getElementById('wheelCount').addEventListener('change', e => {
+                state.wheelCount = parseInt(e.target.value);
+                updateConfigUI();
+            });
+            document.getElementById('listType').addEventListener('change', e => {
+                state.listType = e.target.value;
+                updateConfigUI();
+            });
+            document.getElementById('sortOrder').addEventListener('change', e => {
+                state.sortOrder = e.target.value;
+            });
+        };
 
-            function generateInputFields() {
-                const count = parseInt(wheelCountSelect.value);
-                inputContainer.innerHTML = ''; 
-                for (let i = 0; i < count; i++) {
-                    const div = document.createElement('div');
-                    div.innerHTML = `
-                        <label for="items-input-${i}" class="block text-sm font-medium text-gray-600 mb-1">第 ${i + 1} 組轉盤項目</label>
-                        <textarea id="items-input-${i}" rows="5" class="w-full p-2 bg-white/50 border border-gray-300/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="每行一個項目">${i+1}-1\n${i+1}-2\n${i+1}-3\n${i+1}-4\n${i+1}-5</textarea>
-                    `;
-                    inputContainer.appendChild(div);
+        // Fisher-Yates 洗牌演算法
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function updateConfigUI() {
+            const container = document.getElementById('dynamicConfigGrid');
+            container.innerHTML = '';
+            for (let i = 0; i < state.wheelCount; i++) {
+                const section = document.createElement('div');
+                section.className = "bg-gray-50/50 rounded-[2rem] p-6 border border-gray-100 space-y-4";
+                const title = `<h3 class="font-black text-indigo-600 flex items-center gap-2">第 ${CHINESE_NUMS[i]} 組轉盤名單</h3>`;
+                
+                if (state.listType === 'numbers') {
+                    section.innerHTML = `${title}<div class="flex gap-2 mb-2">
+                        <button onclick="configAction(${i}, 'default')" class="text-[10px] font-bold bg-white border px-2 py-1 rounded shadow-sm hover:bg-gray-50 transition">預設</button>
+                        <button onclick="configAction(${i}, 'all')" class="text-[10px] font-bold bg-white border px-2 py-1 rounded shadow-sm hover:bg-gray-50 transition">全選</button>
+                        <button onclick="configAction(${i}, 'none')" class="text-[10px] font-bold bg-white border px-2 py-1 rounded shadow-sm hover:bg-gray-50 transition">清除</button>
+                    </div><div id="num-grid-${i}" class="grid grid-cols-6 gap-1"></div>`;
+                    container.appendChild(section);
+                    renderNumGrid(i);
+                } else {
+                    section.innerHTML = `${title}<textarea id="custom-txt-${i}" oninput="state.configs[${i}].customText = this.value" 
+                        class="w-full h-48 p-4 bg-white border-2 border-gray-100 rounded-2xl outline-none focus:border-indigo-500 transition-all text-sm font-medium" 
+                        placeholder="輸入名單，一行一個...">${state.configs[i].customText}</textarea>`;
+                    container.appendChild(section);
                 }
             }
-            
-            function drawWheel(canvas, wheelData) {
-                const ctx = canvas.getContext('2d');
-                const { currentItems, startAngle } = wheelData;
-                const size = canvas.width;
-                const center = size / 2;
-                
-                const outsideRadius = center - 5;
-                const textRadius = outsideRadius * 0.75;
-                const insideRadius = 0; // 實心轉盤
+            lucide.createIcons();
+        }
 
-                ctx.clearRect(0, 0, size, size);
-                ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-                ctx.lineWidth = 3;
-                ctx.font = `bold ${size / 22}px Poppins`;
+        function renderNumGrid(wheelIdx) {
+            const grid = document.getElementById(`num-grid-${wheelIdx}`);
+            if (!grid) return; grid.innerHTML = '';
+            state.configs[wheelIdx].numbers.forEach((active, nIdx) => {
+                const btn = document.createElement('button');
+                btn.className = `text-xs font-black py-2 rounded-lg transition-all ${active ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-gray-300 border border-gray-100'}`;
+                btn.innerText = nIdx + 1;
+                btn.onclick = () => { state.configs[wheelIdx].numbers[nIdx] = !active; renderNumGrid(wheelIdx); };
+                grid.appendChild(btn);
+            });
+        }
 
-                if (currentItems.length === 0) return;
-                
-                const arc = Math.PI * 2 / currentItems.length;
+        function configAction(idx, type) {
+            if (type === 'default') state.configs[idx].numbers = Array.from({length: 29}, (_, i) => !EXCLUDED_DEFAULT.includes(i + 1));
+            else if (type === 'all') state.configs[idx].numbers.fill(true);
+            else state.configs[idx].numbers.fill(false);
+            renderNumGrid(idx);
+        }
 
-                for (let i = 0; i < currentItems.length; i++) {
-                    const angle = startAngle + i * arc;
-                    ctx.fillStyle = colors[i % colors.length];
+        function generateWheels() {
+            const grid = document.getElementById('wheelGrid');
+            grid.innerHTML = ''; state.wheels = [];
+            const drawMode = document.getElementById('drawMode').value;
+            const sortOrder = document.getElementById('sortOrder').value;
 
-                    ctx.beginPath();
-                    ctx.moveTo(center, center);
-                    ctx.arc(center, center, outsideRadius, angle, angle + arc, false);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.stroke();
+            for (let i = 0; i < state.wheelCount; i++) {
+                let items = state.listType === 'numbers' ? 
+                    state.configs[i].numbers.map((a, idx) => a ? (idx + 1).toString() : null).filter(v => v) :
+                    state.configs[i].customText.split('\n').map(s => s.trim()).filter(s => s);
 
-                    ctx.save();
-                    ctx.fillStyle = "rgba(0,0,0,0.7)";
-                    ctx.translate(center + Math.cos(angle + arc / 2) * textRadius, center + Math.sin(angle + arc / 2) * textRadius);
-                    ctx.rotate(angle + arc / 2 + Math.PI / 2);
-                    const text = currentItems[i];
-                    ctx.fillText(text, -ctx.measureText(text).width / 2, 0);
-                    ctx.restore();
-                }
-            }
+                if (items.length === 0) items = ["無資料"];
 
-
-            function renderAllWheels() {
-                wheelsContainer.innerHTML = '';
-                if (wheels.length === 0) {
-                     wheelsContainer.innerHTML = '<p class="text-gray-500 text-center col-span-full">請在左側設定後，點擊 "產生/更新所有轉盤"</p>';
-                     return;
+                // 排序邏輯
+                if (sortOrder === 'random' && items.length > 1) {
+                    items = shuffleArray([...items]);
                 }
 
-                wheels.forEach((wheel, index) => {
-                    const wheelCard = document.createElement('div');
-                    wheelCard.className = 'bg-white/60 backdrop-blur-xl rounded-2xl shadow-lg p-4 flex flex-col items-center space-y-3 fade-in hover:shadow-xl transition-shadow duration-300';
-                    wheelCard.style.animationDelay = `${index * 100}ms`;
-                    wheelCard.innerHTML = `
-                        <h2 class="text-xl font-bold text-gray-700">第 ${index + 1} 組轉盤</h2>
-                        <div id="winner-display-${index}" class="h-16 text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-pink-600 flex items-center justify-center text-center"></div>
-                        <div class="relative w-full max-w-xs aspect-square flex items-center justify-center">
-                            <div class="pointer"></div>
-                            <canvas id="canvas-${index}" width="300" height="300" data-index="${index}"></canvas>
+                state.wheels.push({ id: i, items: [...items], history: [], rotation: 0, isSpinning: false });
+
+                const container = document.createElement('div');
+                container.id = `wheel-wrapper-${i}`;
+                container.className = 'wheel-container bg-white p-10 rounded-[3rem] shadow-sm border border-gray-50 flex flex-col items-center relative';
+                container.setAttribute('onclick', `handleInteraction(${i})`);
+                
+                container.innerHTML = `
+                    <div class="absolute top-8 left-10 flex items-center gap-2">
+                        <span class="w-3 h-3 bg-indigo-600 rounded-full animate-pulse"></span>
+                        <span class="text-sm font-black text-gray-400">第 ${CHINESE_NUMS[i]} 組</span>
+                    </div>
+                    <!-- 精準指針 -->
+                    <div class="relative my-6">
+                        <div class="absolute -top-10 left-1/2 -translate-x-1/2 z-30 pointer-svg">
+                            <svg width="48" height="48" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M20 38L38 6H2L20 38Z" fill="#EF4444" stroke="white" stroke-width="3" stroke-linejoin="round"/>
+                            </svg>
                         </div>
-                        <div class="w-full">
-                            <h3 class="text-md font-semibold text-gray-600 text-center mb-1">歷史紀錄</h3>
-                            <div id="history-log-${index}" class="w-full h-24 bg-gray-50/60 border border-gray-200/50 rounded-lg p-2 overflow-y-auto text-sm text-center text-gray-600">尚無紀錄</div>
+                        <canvas id="canvas-${i}" width="400" height="400" class="relative z-10"></canvas>
+                    </div>
+                    <div class="w-full">
+                        <div class="bg-gray-50 rounded-2xl p-4 min-h-[80px]">
+                            <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">歷史紀錄</p>
+                            <div id="hist-${i}" class="flex flex-wrap gap-2 text-gray-400 italic text-xs">尚無紀錄</div>
                         </div>
-                    `;
-                    wheelsContainer.appendChild(wheelCard);
-                    const canvas = document.getElementById(`canvas-${index}`);
-                    drawWheel(canvas, wheel);
-                });
+                    </div>
+                `;
+                grid.appendChild(container);
+                drawWheel(i);
             }
+            lucide.createIcons();
+            grid.scrollIntoView({ behavior: 'smooth' });
+        }
 
-            function setupAllWheels() {
-                const count = parseInt(wheelCountSelect.value);
-                wheels = []; 
-                for (let i = 0; i < count; i++) {
-                    const textarea = document.getElementById(`items-input-${i}`);
-                    const inputItems = textarea.value.split('\n').map(item => item.trim()).filter(item => item);
-                    if (inputItems.length < 2) {
-                        alert(`第 ${i + 1} 組轉盤至少需要兩個項目！`);
-                        return;
-                    }
-                    wheels.push({
-                        items: [...inputItems], 
-                        currentItems: [...inputItems], 
-                        history: [],
-                        startAngle: 0,
-                        isSpinning: false,
-                        spinTimeout: null,
-                    });
-                }
-                renderAllWheels();
-            }
-            
-            function startSpin(index) {
-                 if(activeWheelIndex !== null) return;
-                 
-                 const wheel = wheels[index];
-                 if(wheel.currentItems.length < 1) {
-                     alert(`第 ${index + 1} 組轉盤已經沒有項目可抽了！`);
-                     return;
-                 }
-                 
-                 activeWheelIndex = index;
-                 wheel.isSpinning = true;
-                 
-                 modalOverlay.classList.remove('hidden');
-                 setTimeout(() => {
-                    modalOverlay.classList.remove('opacity-0');
-                    modalContent.classList.remove('scale-75');
-                 }, 10);
+        function drawWheel(idx) {
+            const canvas = document.getElementById(`canvas-${idx}`);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const wheel = state.wheels[idx];
+            const size = canvas.width;
+            const center = size / 2;
+            const radius = center - 15;
+            const items = wheel.items;
 
-                 wheel.spinAngleStart = Math.random() * 10 + 10;
-                 wheel.spinTime = 0;
-                 wheel.spinTimeTotal = Math.random() * 3000 + 5000;
-                 rotate();
-            }
-            
-            function rotate() {
-                const wheel = wheels[activeWheelIndex];
-                wheel.spinTime += 30;
+            ctx.clearRect(0, 0, size, size);
+            const arc = (2 * Math.PI) / items.length;
 
-                if (wheel.spinTime >= wheel.spinTimeTotal) {
-                    stopRotateWheel();
-                    return;
-                }
+            items.forEach((item, i) => {
+                const angle = wheel.rotation + i * arc;
+                ctx.fillStyle = COLORS[i % COLORS.length];
+                ctx.beginPath();
+                ctx.moveTo(center, center);
+                ctx.arc(center, center, radius, angle, angle + arc);
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
 
-                const spinAngle = wheel.spinAngleStart - easeOut(wheel.spinTime, 0, wheel.spinAngleStart, wheel.spinTimeTotal);
-                wheel.startAngle += (spinAngle * Math.PI / 180);
-                drawWheel(modalCanvas, wheel);
-                wheel.spinTimeout = requestAnimationFrame(rotate);
-            }
-            
-            function stopRotateWheel() {
-                const wheel = wheels[activeWheelIndex];
-                cancelAnimationFrame(wheel.spinTimeout);
-                
-                const arc = Math.PI * 2 / wheel.currentItems.length;
-                const degrees = wheel.startAngle * 180 / Math.PI + 90;
-                const arcd = arc * 180 / Math.PI;
-                const winnerIndex = Math.floor((360 - degrees % 360) / arcd);
-                const winner = wheel.currentItems[winnerIndex];
-                
-                modalWinner.textContent = winner;
-                modalWinner.classList.remove('opacity-0');
-
-                const smallWinnerDisplay = document.getElementById(`winner-display-${activeWheelIndex}`);
-                smallWinnerDisplay.textContent = winner;
-                smallWinnerDisplay.classList.add('winner-animate');
-                smallWinnerDisplay.onanimationend = () => smallWinnerDisplay.classList.remove('winner-animate');
-
-                wheel.history.unshift(winner);
-                updateHistory(activeWheelIndex);
-                
-                if (!allowDuplicates) {
-                    wheel.currentItems.splice(winnerIndex, 1);
-                }
-
-                setTimeout(closeModal, 2500);
-            }
-            
-            function closeModal() {
-                modalOverlay.classList.add('opacity-0');
-                modalContent.classList.add('scale-75');
-
-                setTimeout(() => {
-                    modalOverlay.classList.add('hidden');
-                    modalWinner.classList.add('opacity-0');
-                    modalWinner.textContent = '';
-                    
-                    const wheel = wheels[activeWheelIndex];
-                    wheel.isSpinning = false;
-                    
-                    const smallCanvas = document.getElementById(`canvas-${activeWheelIndex}`);
-                    drawWheel(smallCanvas, wheel);
-
-                    activeWheelIndex = null;
-                }, 300);
-            }
-
-            function updateHistory(index) {
-                const wheel = wheels[index];
-                const historyLog = document.getElementById(`history-log-${index}`);
-                if(wheel.history.length === 0) {
-                    historyLog.innerHTML = '尚無紀錄';
-                    return;
-                }
-                historyLog.innerHTML = wheel.history.map((item, i) => 
-                    `<div class="px-2 py-1 ${i % 2 === 0 ? 'bg-white/30' : ''} rounded-md">${item}</div>`
-                ).join('');
-            }
-            
-            function easeOut(t, b, c, d) {
-                const ts = (t /= d) * t;
-                const tc = ts * t;
-                return b + c * (tc + -3 * ts + 3 * t);
-            }
-
-            // --- 事件監聽 ---
-            wheelCountSelect.addEventListener('change', generateInputFields);
-            setupBtn.addEventListener('click', setupAllWheels);
-            
-            document.querySelectorAll('input[name="draw-mode"]').forEach(radio => {
-                radio.addEventListener('change', (event) => {
-                    allowDuplicates = event.target.value === 'repeat';
-                    setupAllWheels();
-                });
+                ctx.save();
+                ctx.translate(center, center);
+                ctx.rotate(angle + arc / 2);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = 'white';
+                ctx.font = items.length > 20 ? '900 12px Noto Sans TC' : '900 20px Noto Sans TC';
+                ctx.fillText(item, radius - 25, 8);
+                ctx.restore();
             });
 
-            wheelsContainer.addEventListener('click', (event) => {
-                if (event.target.tagName === 'CANVAS') {
-                    const index = parseInt(event.target.dataset.index);
-                    startSpin(index);
-                }
-            });
+            ctx.beginPath();
+            ctx.arc(center, center, 25, 0, 2 * Math.PI);
+            ctx.fillStyle = 'white';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = 'rgba(0,0,0,0.1)';
+            ctx.fill();
+        }
 
-            // --- 初始化 ---
-            generateInputFields();
-            renderAllWheels();
-        });
+        function handleInteraction(idx) {
+            const wrapper = document.getElementById(`wheel-wrapper-${idx}`);
+            const wheel = state.wheels[idx];
+
+            if (!state.isFocused) {
+                focusWheel(idx);
+            } else if (state.activeWheelIndex === idx && !wheel.isSpinning) {
+                spinWheel(idx);
+            }
+        }
+
+        function focusWheel(idx) {
+            state.activeWheelIndex = idx;
+            state.isFocused = true;
+            const wrapper = document.getElementById(`wheel-wrapper-${idx}`);
+            const overlay = document.getElementById('overlay');
+            overlay.classList.add('active');
+            wrapper.classList.add('wheel-focus');
+        }
+
+        function unfocusWheel() {
+            if (!state.isFocused) return;
+            const idx = state.activeWheelIndex;
+            const wheel = state.wheels[idx];
+            if (wheel && wheel.isSpinning) return; 
+            const wrapper = document.getElementById(`wheel-wrapper-${idx}`);
+            const overlay = document.getElementById('overlay');
+            wrapper.classList.remove('wheel-focus');
+            overlay.classList.remove('active');
+            state.isFocused = false;
+        }
+
+        async function spinWheel(idx) {
+            const wheel = state.wheels[idx];
+            if (wheel.items.length <= 1 && wheel.items[0] === "無資料") return;
+
+            wheel.isSpinning = true;
+            const spinRounds = 15 + Math.random() * 10;
+            const duration = 5000;
+            const startRot = wheel.rotation;
+            const targetRot = startRot + spinRounds * 2 * Math.PI;
+            const startTime = performance.now();
+
+            function animate(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const t = 1 - Math.pow(1 - progress, 5);
+                wheel.rotation = startRot + (targetRot - startRot) * t;
+                drawWheel(idx);
+
+                if (progress < 1) requestAnimationFrame(animate);
+                else setTimeout(() => finishSpin(idx), 400);
+            }
+            requestAnimationFrame(animate);
+        }
+
+        function finishSpin(idx) {
+            const wheel = state.wheels[idx];
+            const arc = (2 * Math.PI) / wheel.items.length;
+            const normalizedRot = wheel.rotation % (2 * Math.PI);
+            let diff = (1.5 * Math.PI - normalizedRot) % (2 * Math.PI);
+            if (diff < 0) diff += 2 * Math.PI;
+            const winnerIdx = Math.floor(diff / arc);
+            const winner = wheel.items[winnerIdx];
+
+            document.getElementById('winnerName').innerText = winner;
+            document.getElementById('resultModal').style.display = 'flex';
+
+            wheel.history.unshift(winner);
+            updateHistUI(idx);
+
+            if (document.getElementById('drawMode').value === 'no-repeat') {
+                wheel.items.splice(winnerIdx, 1);
+                if (wheel.items.length === 0) wheel.items = ["無資料"];
+            }
+        }
+
+        function updateHistUI(idx) {
+            const div = document.getElementById(`hist-${idx}`);
+            div.innerHTML = state.wheels[idx].history.map(h => `
+                <span class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-black border border-indigo-100 shadow-sm">${h}</span>
+            `).join('');
+        }
+
+        function closeResult() {
+            document.getElementById('resultModal').style.display = 'none';
+            const idx = state.activeWheelIndex;
+            state.wheels[idx].isSpinning = false;
+            drawWheel(idx);
+        }
+
+        function exportData() {
+            const exportObj = {
+                state: {
+                    wheelCount: state.wheelCount,
+                    listType: state.listType,
+                    sortOrder: state.sortOrder,
+                    configs: state.configs
+                },
+                time: new Date().toISOString()
+            };
+            const blob = new Blob([JSON.stringify(exportObj, null, 2)], {type: 'application/json'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `lucky-wheel-config-${new Date().getTime()}.json`;
+            a.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (imported.state) {
+                        state.wheelCount = imported.state.wheelCount || 1;
+                        state.listType = imported.state.listType || 'numbers';
+                        state.sortOrder = imported.state.sortOrder || 'sequential';
+                        state.configs = imported.state.configs || state.configs;
+
+                        document.getElementById('wheelCount').value = state.wheelCount;
+                        document.getElementById('listType').value = state.listType;
+                        document.getElementById('sortOrder').value = state.sortOrder;
+
+                        updateConfigUI();
+                        showToast("設定檔案匯入成功！");
+                    } else { throw new Error("格式錯誤"); }
+                } catch (err) { showToast("匯入失敗"); }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-8 py-3 rounded-2xl shadow-2xl z-[200] font-bold animate-bounce';
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        }
     </script>
 </body>
 </html>
-
