@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CYT簡易貼圖網格裁切工具</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 JSZip 用於打包壓縮檔 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-800 p-6 flex flex-col items-center">
+
+    <div class="max-w-3xl w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mt-10">
+        <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">圖片網格裁切工具</h1>
+
+        <!-- 圖片上傳區塊 -->
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2">上傳圖片</label>
+            <input type="file" id="imageInput" accept="image/*" 
+                   class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-gray-200 rounded-lg p-2">
+        </div>
+
+        <!-- 圖片資訊顯示（初始隱藏） -->
+        <div id="imageInfo" class="hidden bg-slate-50 rounded-lg p-4 mb-6 border border-slate-200">
+            <h2 class="text-sm font-semibold text-slate-700 mb-2">圖片資訊</h2>
+            <ul class="text-sm text-slate-600 space-y-1">
+                <li>尺寸：<span id="imgSize" class="font-medium text-slate-900"></span> 像素</li>
+                <li>比例：<span id="imgRatio" class="font-medium text-slate-900"></span></li>
+            </ul>
+        </div>
+
+        <!-- 分割設定區塊 -->
+        <div class="grid grid-cols-2 gap-4 mb-8">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">欄數 (行/Columns)</label>
+                <input type="number" id="colsInput" value="3" min="1" max="20" 
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">列數 (排/Rows)</label>
+                <input type="number" id="rowsInput" value="3" min="1" max="20" 
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-shadow">
+            </div>
+        </div>
+
+        <!-- 預覽區 -->
+        <div class="mb-8 flex justify-center">
+            <canvas id="previewCanvas" class="max-w-full max-h-96 rounded shadow-sm border border-gray-200 hidden"></canvas>
+        </div>
+
+        <!-- 執行按鈕 -->
+        <button id="downloadBtn" disabled 
+                class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg shadow hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 flex justify-center items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+            裁切並下載 ZIP 檔
+        </button>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const colsInput = document.getElementById('colsInput');
+        const rowsInput = document.getElementById('rowsInput');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const imageInfo = document.getElementById('imageInfo');
+        const imgSize = document.getElementById('imgSize');
+        const imgRatio = document.getElementById('imgRatio');
+        const previewCanvas = document.getElementById('previewCanvas');
+        const ctx = previewCanvas.getContext('2d');
+
+        let currentImage = null;
+
+        // GCD (最大公因數) 用於計算最簡比例
+        function gcd(a, b) {
+            return b === 0 ? a : gcd(b, a % b);
+        }
+
+        // 處理圖片上傳
+        imageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    currentImage = img;
+                    
+                    // 顯示圖片資訊
+                    const width = img.width;
+                    const height = img.height;
+                    const divisor = gcd(width, height);
+                    const ratioW = width / divisor;
+                    const ratioH = height / divisor;
+
+                    imgSize.textContent = `${width} x ${height}`;
+                    imgRatio.textContent = `${ratioW} : ${ratioH} (約 ${(width/height).toFixed(2)})`;
+                    imageInfo.classList.remove('hidden');
+
+                    // 繪製預覽圖
+                    previewCanvas.width = width;
+                    previewCanvas.height = height;
+                    ctx.drawImage(img, 0, 0);
+                    previewCanvas.classList.remove('hidden');
+
+                    // 啟用下載按鈕
+                    downloadBtn.disabled = false;
+                    drawGridOverlay();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        // 監聽網格變化以重繪預覽格線
+        [colsInput, rowsInput].forEach(input => {
+            input.addEventListener('input', drawGridOverlay);
+        });
+
+        // 在畫布上繪製預覽格線
+        function drawGridOverlay() {
+            if (!currentImage) return;
+            
+            const cols = parseInt(colsInput.value) || 3;
+            const rows = parseInt(rowsInput.value) || 3;
+            const width = currentImage.width;
+            const height = currentImage.height;
+            const cellWidth = width / cols;
+            const cellHeight = height / rows;
+
+            // 重繪原圖以清除舊格線
+            ctx.drawImage(currentImage, 0, 0);
+
+            // 設定格線樣式
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // 半透明白線
+            ctx.lineWidth = Math.max(2, width / 400); // 依據圖片大小動態調整線條粗細
+
+            ctx.beginPath();
+            // 畫垂直線
+            for (let i = 1; i < cols; i++) {
+                const x = i * cellWidth;
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, height);
+            }
+            // 畫水平線
+            for (let i = 1; i < rows; i++) {
+                const y = i * cellHeight;
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+            }
+            ctx.stroke();
+        }
+
+        // 將 Canvas 轉換為 Blob 的 Promise 封裝
+        function getCanvasBlob(canvas) {
+            return new Promise(resolve => {
+                canvas.toBlob(blob => {
+                    resolve(blob);
+                }, 'image/png');
+            });
+        }
+
+        // 裁切並產生 ZIP 下載
+        downloadBtn.addEventListener('click', async function() {
+            if (!currentImage) return;
+
+            // UI 狀態更新
+            const originalText = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = '處理中...';
+            downloadBtn.disabled = true;
+
+            const zip = new JSZip();
+            const cols = parseInt(colsInput.value) || 3;
+            const rows = parseInt(rowsInput.value) || 3;
+            const cellWidth = currentImage.width / cols;
+            const cellHeight = currentImage.height / rows;
+
+            // 建立一個暫時的 Canvas 用於擷取每個區塊
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = cellWidth;
+            tempCanvas.height = cellHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            let index = 1;
+            const promises = [];
+
+            // 迴圈裁切：由上至下(y)，由左至右(x)
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    // 清除畫布
+                    tempCtx.clearRect(0, 0, cellWidth, cellHeight);
+                    
+                    // 從原圖對應位置擷取並畫到暫存 Canvas
+                    tempCtx.drawImage(
+                        currentImage,
+                        x * cellWidth, y * cellHeight, cellWidth, cellHeight, // 來源座標與尺寸
+                        0, 0, cellWidth, cellHeight // 目標座標與尺寸
+                    );
+
+                    // 記錄當前的 index 以防非同步發生覆蓋
+                    const currentIndex = index;
+                    
+                    // 將擷取的區塊轉為 Blob 並加入 ZIP Promise 陣列
+                    const blobPromise = getCanvasBlob(tempCanvas).then(blob => {
+                        zip.file(`${currentIndex}.png`, blob);
+                    });
+                    
+                    promises.push(blobPromise);
+                    index++;
+                }
+            }
+
+            // 等待所有裁切完成
+            await Promise.all(promises);
+
+            // 產生 ZIP 檔並下載
+            zip.generateAsync({ type: 'blob' }).then(function(content) {
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(content);
+                link.download = `cropped_grid_${cols}x${rows}.zip`;
+                link.click();
+                
+                // 恢復按鈕狀態
+                downloadBtn.innerHTML = originalText;
+                downloadBtn.disabled = false;
+                
+                // 清理記憶體
+                URL.revokeObjectURL(link.href);
+            });
+        });
+    </script>
+</body>
+</html>
