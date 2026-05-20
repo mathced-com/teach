@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎨 個人化貼圖提示詞產生器</title>
+  <!-- 載入 Tailwind CSS 用於現代化響應式排版 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入 Google Fonts "Inter" 與 "Noto Sans TC" 提升文字質感 -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <!-- 載入 Font Awesome 提供豐富圖示 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans TC', sans-serif;
+    }
+    /* 漸層背景 */
+    .grad-bg {
+      background: linear-gradient(135deg, #f5f7ff 0%, #eef2ff 50%, #e0e7ff 100%);
+    }
+    /* 捲軸自訂樣式 */
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+    /* 魔法棒微幅漂浮動畫 */
+    @keyframes float {
+      0% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-8px) rotate(5deg); }
+      100% { transform: translateY(0px) rotate(0deg); }
+    }
+    .floating-icon {
+      animation: float 3.5s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="grad-bg min-h-screen text-slate-800 flex flex-col justify-between">
+
+  <!-- 網頁頂部導航欄 (已完全移除教師設定按鈕) -->
+  <header class="bg-white/70 backdrop-blur-md shadow-sm sticky top-0 z-50 transition-all border-b border-indigo-100">
+    <div class="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <div class="bg-gradient-to-tr from-indigo-600 to-violet-600 text-white p-2.5 rounded-2xl shadow-md floating-icon">
+          <i class="fa-solid fa-wand-magic-sparkles text-2xl"></i>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-black text-indigo-950 tracking-tight flex items-center gap-2">
+            個人化貼圖提示詞產生器
+            <span class="text-[10px] sm:text-xs bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full font-bold">AI 協作工作流</span>
+          </h1>
+          <p class="text-xs text-slate-500">一鍵生成 3x3 個人專屬貼圖提示詞，支援參考照雲端上傳！</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 flex-grow w-full">
+    
+    <!-- 教學指南引導區 -->
+    <div class="bg-gradient-to-r from-indigo-700 via-indigo-600 to-violet-600 rounded-3xl p-5 sm:p-6 text-white mb-6 shadow-lg relative overflow-hidden">
+      <div class="absolute right-0 bottom-0 opacity-10 transform translate-x-10 translate-y-10">
+        <i class="fa-solid fa-wand-magic-sparkles text-[150px]"></i>
+      </div>
+      <h2 class="text-lg sm:text-xl font-bold mb-3 flex items-center gap-2">
+        <i class="fa-solid fa-circle-question"></i> 三步驟玩轉個人貼圖：
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
+        
+        <!-- 步驟一：優化給 Gemini 的指令（規範第三人稱，並提供一鍵複製） -->
+        <div class="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/10 flex flex-col justify-between h-full">
+          <div>
+            <span class="inline-block bg-white text-indigo-950 font-black rounded-lg px-2 py-0.5 mb-2 shadow-sm text-xs">步驟一：Gemini 特徵分析</span>
+            <p class="leading-relaxed text-slate-100 mb-3">
+              打開個人 Gemini 對話框，<b>上傳個人照或穿搭照</b>，並點擊下方黑框按鈕，將複製好的提示詞貼給 AI 進行分析：
+            </p>
+          </div>
+          <!-- 獨立優雅的黑色圓角提示詞複製區 -->
+          <div class="bg-indigo-950/80 rounded-2xl p-3 border border-indigo-800 flex flex-col gap-2.5 shadow-inner">
+            <div id="geminiPromptText" class="text-[11px] font-mono text-indigo-200 select-all leading-relaxed bg-indigo-900/40 p-2.5 rounded-xl border border-indigo-950/50">
+              「請分析這張照片人物的外貌，並用『一個[男孩/女孩]，留著...，身穿...』的『第三人稱』格式，以簡短的繁體中文描述其髮型、髮色、有無眼鏡、衣服款式與顏色（例如：一個女孩，留著棕色雙馬尾，身穿紅色的連帽上衣）。請不要出現『你』或『您』。」
+            </div>
+            <button type="button" id="copyGeminiPromptBtn" class="w-full py-2 bg-gradient-to-r from-indigo-500 to-violet-500 hover:brightness-110 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md">
+              <i class="fa-solid fa-copy animate-pulse"></i> 一鍵複製分析提示詞
+            </button>
+          </div>
+        </div>
+
+        <!-- 步驟二 -->
+        <div class="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/10 flex flex-col h-full justify-between">
+          <div>
+            <span class="inline-block bg-white text-indigo-950 font-black rounded-lg px-2 py-0.5 mb-2 shadow-sm text-xs">步驟二：填寫本產生器</span>
+            <p class="leading-relaxed text-slate-100">將 Gemini 分析出的<b>外貌特徵描述</b>貼到本頁「自訂特徵欄」中，並上傳預備照片。接著自由選擇貼圖風格、繁中或英文文字與貼圖主題情境。</p>
+          </div>
+          <div class="mt-4 border-t border-white/10 pt-3 text-[11px] text-indigo-200 flex items-center gap-1">
+            <i class="fa-solid fa-circle-info"></i> 自訂特徵能讓沒有照片時的效果更好！
+          </div>
+        </div>
+
+        <!-- 步驟三 -->
+        <div class="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/10 flex flex-col h-full justify-between">
+          <div>
+            <span class="inline-block bg-white text-indigo-950 font-black rounded-lg px-2 py-0.5 mb-2 shadow-sm text-xs">步驟三：上傳雲端代製</span>
+            <p class="leading-relaxed text-slate-100">預覽無誤後輸入<b>座號與姓名</b>點選送出！系統會將你的貼圖提示詞寫入試算表，並<b>把參考照自動存到老師的 Google 雲端硬碟</b>方便快速製圖！</p>
+          </div>
+          <div class="mt-4 border-t border-white/10 pt-3 text-[11px] text-indigo-200 flex items-center gap-1">
+            <i class="fa-solid fa-lock"></i> 雲端照片預設維持 100% 機密隱私
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 雙欄式版面配置 -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- 左側：參數選擇區 (7 cols) -->
+      <section class="lg:col-span-7 space-y-5">
+        
+        <!-- 功能 1: 角色設定 (上傳與手動切換) -->
+        <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 transition duration-300 hover:shadow-md">
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <span class="bg-indigo-100 text-indigo-600 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold">1</span>
+            角色特徵與照片上傳
+          </h3>
+
+          <!-- 說明提示框 -->
+          <div class="mb-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 text-amber-900">
+            <i class="fa-solid fa-lightbulb text-amber-500 text-lg mt-0.5"></i>
+            <div class="text-xs leading-relaxed font-semibold">
+              <span class="text-amber-800 font-bold">重要提示說明：</span><br>
+              若你選擇「有提供照片」，製圖時會以你上傳的照片人物特徵（如髮型、衣服顏色等）為主；若你選擇「沒有，我用純文字設定」，則會完全依照你在下方輸入的文字描述來做貼圖角色特徵喔！
+            </div>
+          </div>
+          
+          <div class="mb-4">
+            <label class="block text-sm font-bold text-slate-700 mb-2">你有提供個人照片給老師嗎？</label>
+            <div class="grid grid-cols-2 gap-3">
+              <label class="flex items-center gap-2 p-3 bg-indigo-50/50 border-2 border-indigo-600 rounded-2xl cursor-pointer transition hover:bg-indigo-50" id="hasPhotoLabel">
+                <input type="radio" name="photoOption" value="hasPhoto" checked class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+                <span class="text-xs sm:text-sm font-bold text-indigo-950">有，上傳並提供參考照片</span>
+              </label>
+              <label class="flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-2xl cursor-pointer transition hover:bg-slate-50" id="noPhotoLabel">
+                <input type="radio" name="photoOption" value="noPhoto" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+                <span class="text-xs sm:text-sm font-semibold text-slate-700">沒有，我用純文字設定</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- 部份 A: 有照片時之照片上傳元件 -->
+          <div id="photoUploadSection" class="mb-4 bg-indigo-50/30 rounded-2xl p-4 border border-indigo-100/80 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-indigo-950 flex items-center gap-1">
+                <i class="fa-solid fa-cloud-arrow-up text-indigo-600"></i> 上傳個人照 / 穿搭照（系統會自動幫你完美壓縮）
+              </span>
+              <span id="uploadStatusText" class="text-[10px] text-slate-400">尚未選擇檔案</span>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row items-center gap-4">
+              <div class="w-full sm:w-auto">
+                <label for="photoFile" class="flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl text-xs font-bold cursor-pointer transition shadow-sm">
+                  <i class="fa-solid fa-image"></i> 選擇個人照片
+                </label>
+                <input type="file" id="photoFile" accept="image/*" class="hidden">
+              </div>
+              
+              <!-- 圖片預覽區 -->
+              <div id="photoPreviewContainer" class="hidden relative w-16 h-16 rounded-xl border-2 border-indigo-200 overflow-hidden bg-white shadow-sm">
+                <img id="photoPreview" class="w-full h-full object-cover" src="#" alt="預覽圖">
+                <button type="button" id="clearPhotoBtn" class="absolute top-0 right-0 bg-red-500 hover:bg-red-600 text-white w-4.5 h-4.5 flex items-center justify-center rounded-bl-lg text-[9px] transition">
+                  <i class="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 部份 B & C: 手動輸入特徵（僅當選擇「純文字設定」時顯示） -->
+          <div id="characterTextSection" class="hidden space-y-4 border-t border-dashed border-indigo-100 pt-4 animate-fadeIn">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">自訂或套用外貌範本</label>
+                <select id="charPresetSelect" class="w-full text-xs sm:text-sm p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="custom">✍️ 我想自己客製化 / 貼上特徵</option>
+                  <option value="boy1">👦 男生範本 (短黑髮、藍白色棒球外套)</option>
+                  <option value="girl1">👧 女生範本 (雙馬尾、粉紅色長袖連帽 T)</option>
+                  <option value="boy2">👓 眼鏡男生範本 (短棕髮、黑框眼鏡、黃色衛衣)</option>
+                  <option value="girl2">🎀 可愛短髮女生 (短鮑伯頭、紅色蝴蝶結、白色 T 恤)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">貼上 Gemini 的特徵分析</label>
+                <span class="text-[10px] text-indigo-600 font-medium block mb-1">請將從 Gemini 複製的外貌特徵貼入下方欄位中：</span>
+              </div>
+            </div>
+            
+            <div>
+              <textarea id="characterDetail" rows="3" class="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400 font-mono" placeholder="例如：短黑髮男性，穿著藍色條紋運動服"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- 功能 2: 視覺風格 -->
+        <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 transition duration-300 hover:shadow-md">
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <span class="bg-indigo-100 text-indigo-600 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold">2</span>
+            視覺風格選擇
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-2">選擇貼圖風格</label>
+              <select id="stylePresetSelect" class="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="cute-vector">✨ 可愛卡通人物向量風格（推薦：經典貼紙感）</option>
+                <option value="clay-3d">🧸 3D 黏土公仔玩具風格（推薦：立體精緻感）</option>
+                <option value="anime-chibi">🌸 日系二頭身 Q 版動漫插畫風格</option>
+                <option value="custom">🎨 自訂其他視覺風格（在右側填寫）</option>
+              </select>
+            </div>
+            <div id="customStyleContainer" class="hidden animate-fadeIn">
+              <label class="block text-sm font-bold text-slate-700 mb-2">
+                自訂風格描述
+              </label>
+              <input type="text" id="customStyleText" placeholder="例如：帶有水彩暈染與手繪鉛筆線條的溫馨插畫" class="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400">
+            </div>
+          </div>
+        </div>
+
+        <!-- 功能 3: 背景去背 -->
+        <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 transition duration-300 hover:shadow-md">
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <span class="bg-indigo-100 text-indigo-600 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold">3</span>
+            技術規格與背景去背
+          </h3>
+          <div>
+            <label class="block text-sm font-bold text-slate-700 mb-2">去背與背景環境設定</label>
+            <select id="bgSelect" class="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="black-stroke">🎨 黑色背景 + 角色帶有連續明顯白色粗外框（推薦！超便於 Canva 摳圖去背）</option>
+              <option value="white-bg">⚪ 純白色背景 (背景完全純白乾淨，無複雜陰影)</option>
+              <option value="no-limit">🌌 無背景限制 (由 AI 自由發揮簡約幾何或其他風格背景)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 功能 4: 貼圖主題與情境 -->
+        <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 transition duration-300 hover:shadow-md">
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <span class="bg-indigo-100 text-indigo-600 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold">4</span>
+            貼圖主題與情境
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-bold text-slate-700 mb-2">選擇主題情境</label>
+              <select id="themeSelect" class="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="campus-life">🏫 校園生活日常 (下課、寫作業、上體育課、打掃、開心與煩惱等表情)</option>
+                <option value="grad-blessing">🎓 畢業快樂與祝福 (畢業快樂、裝作鬼臉、營造溫馨畢業氛圍等表情)</option>
+                <option value="daily-slang">💬 日常百搭流行語 (讚、笑死、OMG驚訝、大哭崩潰、加油、OK、超棒)</option>
+                <option value="word-based">💬 依自訂文字生成情境 (自訂 1 ~ 9 組文字)</option>
+                <option value="custom">✍️ 自訂情境描述 (在右側自由輸入發揮)</option>
+              </select>
+            </div>
+            
+            <div id="customThemeContainer" class="hidden animate-fadeIn">
+              <label class="block text-sm font-bold text-slate-700 mb-2">
+                自訂特定情境描述
+              </label>
+              <input type="text" id="customThemeText" placeholder="例如：在太空中飄浮與外星人打招呼" class="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400">
+            </div>
+          </div>
+
+          <!-- 依自訂文字生成情境之子輸入區 -->
+          <div id="wordInputSection" class="hidden mt-4 pt-4 border-t border-dashed border-indigo-100 space-y-2 animate-fadeIn">
+            <label class="block text-xs font-bold text-indigo-950">輸入 1~9 組貼圖特定短詞（未滿 9 組將由 AI 依情境自動補齊）</label>
+            <input type="text" id="wordInput" placeholder="請用空白或逗號隔開，如：你好, OK, 謝謝, 讚" class="w-full text-xs sm:text-sm p-3 bg-indigo-50/50 border-2 border-indigo-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-indigo-300">
+            <p class="text-[10px] text-indigo-600 leading-relaxed">
+              💡 貼心設計：例如輸入「你好 OK」，AI 會自動將第 1 張設計為『你好』、第 2 張設計為『OK』，其餘 7 張自動補齊實用詞彙！
+            </p>
+          </div>
+        </div>
+
+        <!-- 功能 5: 文字要求與多語言 -->
+        <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 transition duration-300 hover:shadow-md">
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <span class="bg-indigo-100 text-indigo-600 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold">5</span>
+            畫面文字約束要求
+          </h3>
+          <div class="space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label class="flex items-center gap-2 p-3 bg-indigo-50/50 border-2 border-indigo-600 rounded-2xl cursor-pointer transition hover:bg-indigo-50" id="textYesLabel">
+                <input type="radio" name="textConstraint" value="yes" checked class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+                <div>
+                  <span class="text-xs sm:text-sm font-bold text-indigo-950 block">畫面上出現情境短文字</span>
+                  <span class="text-[10px] text-indigo-600">AI 會配合表情與情境加上對應文字</span>
+                </div>
+              </label>
+              <label class="flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-2xl cursor-pointer transition hover:bg-slate-50" id="textNoLabel">
+                <input type="radio" name="textConstraint" value="no" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500">
+                <div>
+                  <span class="text-xs sm:text-sm font-semibold text-slate-700 block">不出現任何文字 (純圖像)</span>
+                  <span class="text-[10px] text-slate-500">最乾淨，方便去 Canva 中手動加上可愛對話框</span>
+                </div>
+              </label>
+            </div>
+
+            <!-- 出現文字時的語言偏好選擇 -->
+            <div id="textLanguageSection" class="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2">
+              <label class="block text-xs font-bold text-slate-700">選擇出現在畫面上的文字語言：</label>
+              <div class="grid grid-cols-3 gap-2">
+                <label class="flex items-center justify-center gap-1.5 p-2 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
+                  <input type="radio" name="textLangOption" value="zht" checked class="w-3.5 h-3.5 text-indigo-600">
+                  <span class="text-[11px] font-bold text-slate-700">繁體中文</span>
+                </label>
+                <label class="flex items-center justify-center gap-1.5 p-2 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
+                  <input type="radio" name="textLangOption" value="eng" class="w-3.5 h-3.5 text-indigo-600">
+                  <span class="text-[11px] font-bold text-slate-700">純英文</span>
+                </label>
+                <label class="flex items-center justify-center gap-1.5 p-2 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50">
+                  <input type="radio" name="textLangOption" value="mix" class="w-3.5 h-3.5 text-indigo-600">
+                  <span class="text-[11px] font-bold text-slate-700">中英混合</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+      
+      <!-- 右側：即時預覽 & 學生提交 (5 cols) -->
+      <section class="lg:col-span-5 space-y-5 lg:sticky lg:top-[88px]">
+        
+        <!-- 即時預覽 & 自主複製 (已依需求將「即時咒語預覽」全面更名為「即時提示詞預覽」) -->
+        <div class="bg-indigo-950 text-indigo-100 rounded-3xl p-5 sm:p-6 shadow-xl relative overflow-hidden flex flex-col h-[400px]">
+          <div class="absolute right-0 top-0 opacity-5 transform translate-x-4 -translate-y-4">
+            <i class="fa-solid fa-cube text-[150px]"></i>
+          </div>
+          
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="text-xs font-bold tracking-wider uppercase text-indigo-300 flex items-center gap-2">
+              <i class="fa-solid fa-bolt animate-pulse text-rose-400"></i> 即時提示詞預覽 (隨選隨變)
+            </h3>
+            <span class="text-[10px] bg-indigo-800 text-indigo-200 px-2.5 py-0.5 rounded font-mono">3x3 Sticker Grid</span>
+          </div>
+
+          <!-- 提示詞文字顯示區 -->
+          <textarea id="promptPreview" readonly class="flex-grow w-full bg-indigo-900/40 text-xs sm:text-sm font-mono text-white p-4 rounded-2xl border border-indigo-800/80 focus:outline-none focus:ring-0 resize-none custom-scroll leading-relaxed select-all" placeholder="提示詞載入中..."></textarea>
+          
+          <!-- 一鍵複製 (自主分流) -->
+          <div class="mt-4">
+            <button id="copyPromptBtn" class="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold text-sm py-3 px-4 rounded-2xl shadow-lg hover:brightness-110 active:scale-[0.98] transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-copy"></i> 複製提示詞 (自行去生圖)
+            </button>
+          </div>
+        </div>
+
+        <!-- 學生代製與資料寫入區 -->
+        <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-sm border border-slate-100 transition duration-300 hover:shadow-md">
+          <h3 class="text-base sm:text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+            <span class="bg-indigo-100 text-indigo-600 w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold">6</span>
+            傳送給老師代製貼圖
+          </h3>
+          
+          <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">班級座號 (例如：12)</label>
+                <input type="number" id="studentNo" min="1" max="60" placeholder="請輸入座號" class="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">你的真實姓名</label>
+                <input type="text" id="studentName" placeholder="例如：陳大同" class="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400">
+              </div>
+            </div>
+
+            <!-- 送出按鈕 -->
+            <button id="submitToGasBtn" class="w-full bg-indigo-600 text-white font-extrabold text-sm py-4 rounded-2xl shadow-lg hover:bg-indigo-700 active:scale-[0.98] transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-paper-plane animate-bounce"></i> 確認無誤！傳送給老師
+            </button>
+
+            <!-- 提醒資訊 -->
+            <p class="text-[11px] text-slate-400 text-center leading-relaxed">
+              * 送出後，老師會將大家提交的特徵與照片在後台匯總並代製跑圖。稍後就可以去 Canva 組裝與加中文字囉！
+            </p>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="bg-slate-900 text-slate-400 text-xs py-6 mt-12 border-t border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-2">
+      <p class="font-medium text-slate-300">🎓 「個人化貼圖提示詞產生器」資訊協作系統 🎨</p>
+      <p>專為學術與教育帳號 @go.edu.tw 設計之課堂 AI 生圖教學工作流</p>
+    </div>
+  </footer>
+
+  <!-- 自訂提示訊息 (Toast) 容器 -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-[9999] flex flex-col gap-2 max-w-sm w-full"></div>
+
+  <!-- 狀態覆蓋彈出層 (Modal) -->
+  <div id="modalOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl text-center space-y-4 transform transition-all scale-95 duration-200" id="modalCard">
+      <!-- 圖示容器 -->
+      <div id="modalIconContainer" class="w-16 h-16 rounded-full flex items-center justify-center mx-auto text-3xl"></div>
+      <h3 id="modalTitle" class="text-lg font-black text-slate-900"></h3>
+      <p id="modalMsg" class="text-xs text-slate-500 leading-relaxed"></p>
+      <div class="pt-2">
+        <button id="modalCloseBtn" class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-indigo-700 transition">我知道了</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STREAMING_CHUNK: JavaScript 核心邏輯 -->
+  <script>
+    // 預設內建您的專屬 GAS 網址 (直接寫死於程式碼中)
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyPvIWZhNoPRemlxG78QOBF3MFmZuu-uyKCkn3aJzaSllOkfrqmRXEGGcAVTc7qUFL4/exec';
+    
+    // 儲存照片 Base64 資料與檔名
+    let uploadedFileData = null;
+    let uploadedFileName = "";
+    let uploadedFileMimeType = "";
+
+    // DOM 元素繫結
+    const hasPhotoLabel = document.getElementById('hasPhotoLabel');
+    const noPhotoLabel = document.getElementById('noPhotoLabel');
+    const photoUploadSection = document.getElementById('photoUploadSection');
+    const characterTextSection = document.getElementById('characterTextSection');
+    const photoFile = document.getElementById('photoFile');
+    const photoPreviewContainer = document.getElementById('photoPreviewContainer');
+    const photoPreview = document.getElementById('photoPreview');
+    const clearPhotoBtn = document.getElementById('clearPhotoBtn');
+    const uploadStatusText = document.getElementById('uploadStatusText');
+
+    const charPresetSelect = document.getElementById('charPresetSelect');
+    const characterDetail = document.getElementById('characterDetail');
+    
+    const stylePresetSelect = document.getElementById('stylePresetSelect');
+    const customStyleContainer = document.getElementById('customStyleContainer');
+    const customStyleText = document.getElementById('customStyleText');
+    const bgSelect = document.getElementById('bgSelect');
+    
+    const themeSelect = document.getElementById('themeSelect');
+    const customThemeContainer = document.getElementById('customThemeContainer');
+    const customThemeText = document.getElementById('customThemeText');
+    const wordInputSection = document.getElementById('wordInputSection');
+    const wordInput = document.getElementById('wordInput');
+    
+    const textYesLabel = document.getElementById('textYesLabel');
+    const textNoLabel = document.getElementById('textNoLabel');
+    const textLanguageSection = document.getElementById('textLanguageSection');
+
+    const promptPreview = document.getElementById('promptPreview');
+    const copyPromptBtn = document.getElementById('copyPromptBtn');
+    const copyGeminiPromptBtn = document.getElementById('copyGeminiPromptBtn');
+
+    const studentNo = document.getElementById('studentNo');
+    const studentName = document.getElementById('studentName');
+    const submitToGasBtn = document.getElementById('submitToGasBtn');
+
+    const modalOverlay = document.getElementById('modalOverlay');
+    const modalCard = document.getElementById('modalCard');
+    const modalIconContainer = document.getElementById('modalIconContainer');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalMsg = document.getElementById('modalMsg');
+    const modalCloseBtn = document.getElementById('modalCloseBtn');
+
+    // 備用特徵範本
+    const characterPresets = {
+      boy1: "短黑髮男童，穿藍白色棒球外套與運動長褲",
+      girl1: "雙馬尾女童，身穿粉紅色長袖連帽 T 與深藍色牛仔褲",
+      boy2: "短棕髮男童，戴著黑色粗框眼鏡，身穿鮮黃色衛衣",
+      girl2: "短鮑伯頭女童，頭戴紅色蝴蝶結髮帶，身穿簡單的白 T 恤",
+      custom: ""
+    };
+
+    // 貼圖風格範本
+    const stylePresets = {
+      "cute-vector": "可愛卡通人物向量風格（推薦：經典貼紙感），鮮明色彩，高飽和度，粗邊線，帶有乾淨的貼紙邊界感覺",
+      "clay-3d": "3D 黏土公仔玩具風格，帶有些微黏土材質的光澤感與厚實份量，精緻黏土玩具公仔外觀",
+      "anime-chibi": "日系二頭身 Q 版動漫插畫風格，精細的大眼睛，柔和漸層色調，生動活潑的手繪動漫感"
+    };
+
+    // 去背技術規格
+    const bgSpecs = {
+      "black-stroke": "每個角色皆須有連續且明顯的『粗白色貼圖邊框』，並統一使用『純黑色背景』（方便學生後續在電腦端快速進行魔術去背）",
+      "white-bg": "統一使用『純白色背景』，無多餘陰影，利於邊線乾淨去背",
+      "no-limit": "無背景限制，背景呈現融合主題的簡約幾何圖形調性，由 AI 自由發揮"
+    };
+
+    // 情境大主題
+    const themePresets = {
+      "campus-life": "國小校園生活日常：包含下課鐘聲、寫作業、上體育課、打掃時間等充滿活力的快樂情境與多種不同表情",
+      "grad-blessing": "畢業快樂與祝福：包含畢業快樂、裝作鬼臉、珍重再見、向未來招手等情境，展現六年級畢業生的生動樣貌",
+      "daily-slang": "日常對話百搭語：包含讚、笑死、傻眼、加油、OK、超棒、崩潰、愛你等日常對話實用貼圖表情"
+    };
+
+    // 核心安全複製函式 (提升相容性，防止複製不完全、防止 iOS select Bug)
+    async function secureCopyText(text) {
+      if (!text) return false;
+      
+      // 1. 優先採用現代 Clipboard API (若環境與權限允許)
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (err) {
+          // 若受 iframe 權限限制拋出錯誤，將會無縫退回傳統 Fallback 方案
+        }
+      }
+      
+      // 2. 備用傳統文字框方案 (精密調校避免畫面捲動並強選所有文字)
+      const tempTextarea = document.createElement('textarea');
+      tempTextarea.value = text;
+      
+      // 設置絕對隱形防干擾樣式
+      tempTextarea.style.position = 'fixed';
+      tempTextarea.style.top = '0';
+      tempTextarea.style.left = '0';
+      tempTextarea.style.width = '2em';
+      tempTextarea.style.height = '2em';
+      tempTextarea.style.padding = '0';
+      tempTextarea.style.border = 'none';
+      tempTextarea.style.outline = 'none';
+      tempTextarea.style.boxShadow = 'none';
+      tempTextarea.style.background = 'transparent';
+      
+      document.body.appendChild(tempTextarea);
+      tempTextarea.focus();
+      tempTextarea.select();
+      // 核心修正：強制設定選取範圍，徹底解決 iOS 等行動載具只複製第一行或失效的問題
+      tempTextarea.setSelectionRange(0, 99999); 
+      
+      let success = false;
+      try {
+        success = document.execCommand('copy');
+      } catch (err) {
+        success = false;
+      }
+      
+      document.body.removeChild(tempTextarea);
+      return success;
+    }
+
+    // 步驟一：一鍵複製 Gemini 提示詞功能（優化版：規範第三人稱，排除你與您）
+    if (copyGeminiPromptBtn) {
+      copyGeminiPromptBtn.addEventListener('click', async () => {
+        const geminiPrompt = "請分析這張照片人物的外貌，並用『一個[男孩/女孩]，留著...，身穿...』的『第三人稱』格式，以簡短的繁體中文描述其髮型、髮色、有無眼鏡、衣服款式與顏色。請不要出現『你』或『您』。";
+        const success = await secureCopyText(geminiPrompt);
+        if (success) {
+          showToast('✨ Gemini 分析提示詞已複製！請貼給 Gemini 喔！', 'success');
+        } else {
+          showToast('❌ 複製失敗，請手動複製框內文字', 'error');
+        }
+      });
+    }
+
+    // 監聽照片上傳及前端壓縮處理
+    photoFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        showToast('❌ 請選擇正確的圖片檔案格式！', 'error');
+        return;
+      }
+
+      uploadStatusText.textContent = "正在進行智慧壓縮中...";
+      
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = function (event) {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = function () {
+          const canvas = document.createElement('canvas');
+          const max_size = 800; // 壓縮限制於 800px，檔案極小上傳極速，完全防止超時崩潰
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width;
+              width = max_size;
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height;
+              height = max_size;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          
+          uploadedFileData = compressedDataUrl;
+          uploadedFileName = file.name;
+          uploadedFileMimeType = 'image/jpeg';
+
+          photoPreview.src = compressedDataUrl;
+          photoPreviewContainer.classList.remove('hidden');
+          uploadStatusText.textContent = `壓縮成功 (${file.name})`;
+          showToast('📸 圖片已成功於前端壓縮並準備就緒！', 'success');
+          updatePrompt();
+        };
+      };
+    });
+
+    clearPhotoBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      photoFile.value = '';
+      uploadedFileData = null;
+      uploadedFileName = '';
+      uploadedFileMimeType = '';
+      photoPreview.src = '#';
+      photoPreviewContainer.classList.add('hidden');
+      uploadStatusText.textContent = '尚未選擇檔案';
+      showToast('🗑️ 照片已成功移除', 'info');
+      updatePrompt();
+    });
+
+    // 1. 角色設定切換：上傳照片 / 純文字設定 智慧切換
+    const photoRadios = document.querySelectorAll('input[name="photoOption"]');
+    photoRadios.forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (e.target.value === 'hasPhoto') {
+          hasPhotoLabel.className = "flex items-center gap-2 p-3 bg-indigo-50/50 border-2 border-indigo-600 rounded-2xl cursor-pointer transition hover:bg-indigo-50";
+          noPhotoLabel.className = "flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-2xl cursor-pointer transition hover:bg-slate-50";
+          photoUploadSection.classList.remove('hidden');
+          characterTextSection.classList.add('hidden');
+        } else {
+          noPhotoLabel.className = "flex items-center gap-2 p-3 bg-indigo-50/50 border-2 border-indigo-600 rounded-2xl cursor-pointer transition hover:bg-indigo-50";
+          hasPhotoLabel.className = "flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-2xl cursor-pointer transition hover:bg-slate-50";
+          photoUploadSection.classList.add('hidden');
+          characterTextSection.classList.remove('hidden');
+        }
+        updatePrompt();
+      });
+    });
+
+    // 2. 視覺風格切換：自訂風格時才出現欄位
+    stylePresetSelect.addEventListener('change', () => {
+      if (stylePresetSelect.value === 'custom') {
+        customStyleContainer.classList.remove('hidden');
+      } else {
+        customStyleContainer.classList.add('hidden');
+        customStyleText.value = '';
+      }
+      updatePrompt();
+    });
+
+    // 4. 貼圖主題與情境切換
+    themeSelect.addEventListener('change', () => {
+      const val = themeSelect.value;
+      if (val === 'word-based') {
+        wordInputSection.classList.remove('hidden');
+        customThemeContainer.classList.add('hidden');
+        customThemeText.value = '';
+      } else if (val === 'custom') {
+        wordInputSection.classList.add('hidden');
+        customThemeContainer.classList.remove('hidden');
+        wordInput.value = '';
+      } else {
+        wordInputSection.classList.add('hidden');
+        customThemeContainer.classList.add('hidden');
+        wordInput.value = '';
+        customThemeText.value = '';
+      }
+      updatePrompt();
+    });
+
+    // 5. 文字約束切換
+    const textRadios = document.querySelectorAll('input[name="textConstraint"]');
+    textRadios.forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        if (e.target.value === 'yes') {
+          textYesLabel.className = "flex items-center gap-2 p-3 bg-indigo-50/50 border-2 border-indigo-600 rounded-2xl cursor-pointer transition hover:bg-indigo-50";
+          textNoLabel.className = "flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-2xl cursor-pointer transition hover:bg-slate-50";
+          textLanguageSection.classList.remove('hidden');
+        } else {
+          textNoLabel.className = "flex items-center gap-2 p-3 bg-indigo-50/50 border-2 border-indigo-600 rounded-2xl cursor-pointer transition hover:bg-indigo-50";
+          textYesLabel.className = "flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-2xl cursor-pointer transition hover:bg-slate-50";
+          textLanguageSection.classList.add('hidden');
+        }
+        updatePrompt();
+      });
+    });
+
+    const langRadios = document.querySelectorAll('input[name="textLangOption"]');
+    langRadios.forEach(radio => {
+      radio.addEventListener('change', updatePrompt);
+    });
+
+    charPresetSelect.addEventListener('change', () => {
+      const selected = charPresetSelect.value;
+      if (selected !== 'custom') {
+        characterDetail.value = characterPresets[selected];
+      } else {
+        characterDetail.value = "";
+      }
+      updatePrompt();
+    });
+
+    characterDetail.addEventListener('input', () => {
+      charPresetSelect.value = 'custom';
+      updatePrompt();
+    });
+
+    customStyleText.addEventListener('input', updatePrompt);
+    bgSelect.addEventListener('change', updatePrompt);
+    customThemeText.addEventListener('input', updatePrompt);
+    wordInput.addEventListener('input', updatePrompt);
+
+    // 核心提示詞骨架組裝與動態預覽
+    function updatePrompt() {
+      // 1. [角色設定]
+      const photoOpt = document.querySelector('input[name="photoOption"]:checked').value;
+      let charPrompt = "";
+      const backupText = characterDetail.value.trim() || "短黑髮男性，穿藍色條紋運動服";
+      
+      if (photoOpt === 'hasPhoto') {
+        charPrompt = `首選： 依據使用者上傳之圖片，精確複製其人物特徵（髮型、服裝）、動作與藝術風格，確保 9 張圖形象完全一致。\n備選（無圖時）： 可愛 3D Q 版 ${backupText}。`;
+      } else {
+        charPrompt = `首選： 無照片，完全依據備選設定進行生成。\n備選（無圖時）： 可愛 3D Q 版 ${backupText}。`;
+      }
+
+      // 2. [風格設定]
+      const stylePreset = stylePresetSelect.value;
+      let styleText = stylePresets[stylePreset] || "";
+      if (stylePreset === 'custom') {
+        const customStyleVal = customStyleText.value.trim();
+        styleText = customStyleVal || "自訂獨特手繪插畫風格";
+      }
+
+      // 3. [背景與去背技術規格]
+      const bgPreset = bgSelect.value;
+      const bgText = bgSpecs[bgPreset];
+
+      // 4. [情境動作]
+      const themePreset = themeSelect.value;
+      let themeText = "";
+      
+      if (themePreset === 'word-based') {
+        const rawWords = wordInput.value.trim();
+        const wordsArray = rawWords ? rawWords.split(/[\s,，、]+/).filter(w => w.length > 0) : [];
+        
+        if (wordsArray.length > 0) {
+          const formattedWordsList = wordsArray.map((word, idx) => `第 ${idx + 1} 張寫上『${word}』`).join('、');
+          themeText = `依自訂文字生成特定情境，設定如下：${formattedWordsList}。`;
+          
+          if (wordsArray.length < 9) {
+            themeText += ` 因為目前僅指定了 ${wordsArray.length} 組文字，其餘剩餘未滿 9 組的張數，請 AI 根據上述文字的校園或日常生活氛圍，另外自行建議、補齊並配對適合學生的實用詞（如：加油、OK、讚等中英文皆可），以完整填滿這 3x3 網格（共 9 張貼圖），每張貼圖需配備相符之生動表情與自訂字詞。`;
+          }
+        } else {
+          themeText = "依自訂文字生成特定情境（目前尚未填寫文字，請 AI 根據小學日常生活自動隨機推薦並生成 9 組適合學生的日常中文或英文詞彙，填滿 3x3 的 9 張貼圖）";
+        }
+      } else if (themePreset === 'custom') {
+        const customThemeVal = customThemeText.value.trim();
+        themeText = customThemeVal || "自訂貼圖情境表現";
+      } else {
+        themeText = themePresets[themePreset] || "";
+      }
+
+      // 5. [文字約束及語言設定]
+      const textOpt = document.querySelector('input[name="textConstraint"]:checked').value;
+      let textConstraintText = "";
+      
+      if (textOpt === 'yes') {
+        const langOpt = document.querySelector('input[name="textLangOption"]:checked').value;
+        let langString = "英文藝術字體";
+        if (langOpt === 'zht') {
+          langString = "繁體中文藝術字體 (Traditional Chinese art typography)";
+        } else if (langOpt === 'mix') {
+          langString = "英文或繁體中文藝術字體 (Mixed Traditional Chinese and English art typography)";
+        }
+        
+        textConstraintText = `畫面中需出現對應情境的短文字效果，文字語言應使用「${langString}」來呈現。文字應以生動、飽和且立體的可愛藝術風格繪製，並與角色產生有趣的物理互動（例如角色拿著字、頭頂戴著字等）。`;
+      } else {
+        textConstraintText = "畫面中不可出現任何英文字母、數字或中文字形（純圖像呈現），方便後續在 Canva 軟體中手動加入個人化對話框文字。";
+      }
+
+      // 6. [骨架拼裝] - 已補齊並修正風格設定引號對稱性
+      const finalPrompt = `製作 1 組 9 張的精緻貼圖，以 3x3 網格排列呈現，每張需設計截然不同的動態姿勢與表情。尺寸為 1：1。
+[角色設定]
+${charPrompt}
+[風格設定]
+視覺風格： 高品質「${styleText}」（或沿用參考圖風格）」，表情需生動誇張。
+技術規格： ${bgText}。
+[情境動作]
+主題情境： 「${themeText}」。
+[文字約束]
+畫面要求： ${textConstraintText}`;
+
+      promptPreview.value = finalPrompt;
+    }
+
+    // 初始化更新一次
+    updatePrompt();
+
+    // 重設表單至最初狀況，避免重覆點擊與多重提交
+    function resetForm() {
+      // 1. 清空學生個人欄位
+      studentNo.value = "";
+      studentName.value = "";
+
+      // 2. 清除照片快取與預覽
+      photoFile.value = "";
+      uploadedFileData = null;
+      uploadedFileName = "";
+      uploadedFileMimeType = "";
+      photoPreview.src = "#";
+      photoPreviewContainer.classList.add("hidden");
+      uploadStatusText.textContent = "尚未選擇檔案";
+
+      // 3. 回歸最基本預設選項
+      document.querySelector('input[name="photoOption"][value="hasPhoto"]').checked = true;
+      hasPhotoLabel.className = "flex items-center gap-2 p-3 bg-indigo-50/50 border-2 border-indigo-600 rounded-2xl cursor-pointer transition hover:bg-indigo-50";
+      noPhotoLabel.className = "flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-2xl cursor-pointer transition hover:bg-slate-50";
+      photoUploadSection.classList.remove('hidden');
+      characterTextSection.classList.add('hidden');
+
+      charPresetSelect.value = "custom";
+      characterDetail.value = "";
+
+      stylePresetSelect.value = "cute-vector";
+      customStyleContainer.classList.add("hidden");
+      customStyleText.value = "";
+
+      bgSelect.value = "black-stroke";
+
+      themeSelect.value = "campus-life";
+      customThemeContainer.classList.add("hidden");
+      customThemeText.value = "";
+      wordInputSection.classList.add("hidden");
+      wordInput.value = "";
+
+      document.querySelector('input[name="textConstraint"][value="yes"]').checked = true;
+      textYesLabel.className = "flex items-center gap-2 p-3 bg-indigo-50/50 border-2 border-indigo-600 rounded-2xl cursor-pointer transition hover:bg-indigo-50";
+      textNoLabel.className = "flex items-center gap-2 p-3 bg-white border border-slate-200 rounded-2xl cursor-pointer transition hover:bg-slate-50";
+      textLanguageSection.classList.remove('hidden');
+      document.querySelector('input[name="textLangOption"][value="zht"]').checked = true;
+
+      // 4. 重算並重繪預覽
+      updatePrompt();
+    }
+
+    // 提示詞一鍵複製
+    copyPromptBtn.addEventListener('click', async () => {
+      const text = promptPreview.value;
+      const success = await secureCopyText(text);
+      if (success) {
+        showToast('✨ 貼圖提示詞已成功複製到剪貼簿囉！', 'success');
+      } else {
+        showToast('❌ 複製失敗，請手動圈選文字進行複製', 'error');
+      }
+    });
+
+    // 送出至後台
+    submitToGasBtn.addEventListener('click', async () => {
+      const num = studentNo.value.trim();
+      const name = studentName.value.trim();
+      const prompt = promptPreview.value;
+      const photoOpt = document.querySelector('input[name="photoOption"]:checked').value;
+
+      if (!num || parseInt(num) < 1 || parseInt(num) > 60) {
+        showToast('⚠️ 請填寫正確的班級座號 (1 - 60) 喔！', 'warning');
+        studentNo.focus();
+        return;
+      }
+
+      if (!name) {
+        showToast('⚠️ 學生姓名欄位不能為空！請輸入真實姓名', 'warning');
+        studentName.focus();
+        return;
+      }
+
+      if (photoOpt === 'hasPhoto' && !uploadedFileData) {
+        showToast('⚠️ 你選擇了有參考照片，但尚未上傳照片喔！請上傳或切換為純文字設定。', 'warning');
+        return;
+      }
+
+      const payload = {
+        seatNumber: num,
+        studentName: name,
+        prompt: prompt,
+        status: '等待製圖',
+        timestamp: new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
+        fileData: uploadedFileData,
+        fileName: uploadedFileName,
+        fileMimeType: uploadedFileMimeType
+      };
+
+      showModal('loading', '發送傳送中...', '你的貼圖提示詞正在寫入試算表，且照片正安全儲存於老師的 Google 雲端硬碟中，這可能需要幾秒鐘，請勿關閉視窗...');
+
+      try {
+        await fetch(GAS_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        // 成功後，前端版面與欄位全部初始化歸零！防範重複點擊提交
+        resetForm();
+
+        showModal(
+          'success',
+          '🎉 成功傳送給老師與雲端！',
+          `<b>${name}</b> 同學（座號 <b>${num}</b>），你的專屬貼圖提示詞與個人照片已經成功送達老師的雲端資料夾與資料庫！<br>老師會為你代製 3x3 貼圖，跑圖完成後我們會在 <b>Canva 課堂</b> 一起完成神奇去背與美化！`
+        );
+        showToast('🚀 資料與照片已完美送達雲端！欄位已自動歸零清空。', 'success');
+      } catch (err) {
+        showModal(
+          'error',
+          '連線傳送失敗了',
+          `原因：${err.message || '網路逾時'}<br>請確認你的網路正常，或請老師檢查 GAS 部署權限。你也可以直接點擊「複製提示詞」，手動將提示詞複製並發送給老師！`
+        );
+        showToast('❌ 寫入失敗，請聯繫老師排查。', 'error');
+      }
+    });
+
+    modalCloseBtn.addEventListener('click', () => {
+      modalOverlay.classList.add('hidden');
+    });
+
+    function showModal(type, title, message) {
+      modalOverlay.classList.remove('hidden');
+      modalTitle.innerHTML = title;
+      modalMsg.innerHTML = message;
+
+      modalIconContainer.className = "w-16 h-16 rounded-full flex items-center justify-center mx-auto text-3xl";
+      modalCloseBtn.classList.remove('hidden');
+
+      if (type === 'loading') {
+        modalIconContainer.innerHTML = '<i class="fa-solid fa-spinner animate-spin text-indigo-600"></i>';
+        modalIconContainer.classList.add('bg-indigo-50');
+        modalCloseBtn.classList.add('hidden'); 
+      } else if (type === 'success') {
+        modalIconContainer.innerHTML = '<i class="fa-solid fa-circle-check text-green-600"></i>';
+        modalIconContainer.classList.add('bg-green-50');
+      } else if (type === 'error') {
+        modalIconContainer.innerHTML = '<i class="fa-solid fa-circle-exclamation text-rose-600"></i>';
+        modalIconContainer.classList.add('bg-rose-50');
+      } else if (type === 'warning') {
+        modalIconContainer.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-500"></i>';
+        modalIconContainer.classList.add('bg-amber-50');
+      } else {
+        modalIconContainer.innerHTML = '<i class="fa-solid fa-lightbulb text-indigo-600"></i>';
+        modalIconContainer.classList.add('bg-indigo-50');
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      let bgStyle = 'bg-white border-slate-100 text-slate-800';
+      let icon = '<i class="fa-solid fa-circle-info text-indigo-600"></i>';
+      
+      if (type === 'success') {
+        bgStyle = 'bg-emerald-50 border-emerald-200 text-emerald-900';
+        icon = '<i class="fa-solid fa-circle-check text-emerald-600"></i>';
+      } else if (type === 'error') {
+        bgStyle = 'bg-rose-50 border-rose-200 text-rose-900';
+        icon = '<i class="fa-solid fa-circle-xmark text-rose-600"></i>';
+      } else if (type === 'warning') {
+        bgStyle = 'bg-amber-50 border-amber-200 text-amber-900';
+        icon = '<i class="fa-solid fa-triangle-exclamation text-amber-600"></i>';
+      }
+
+      toast.className = `flex items-center gap-3 p-4 rounded-2xl border shadow-lg transition-all duration-300 transform translate-y-2 opacity-0 ${bgStyle} text-xs sm:text-sm font-semibold`;
+      toast.innerHTML = `${icon} <span class="flex-grow">${message}</span>`;
+      
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 50);
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-2', 'opacity-0');
+        setTimeout(() => {
+          toast.remove();
+        }, 300);
+      }, 4200);
+    }
+  </script>
+</body>
+</html>
