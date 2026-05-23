@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎨 CYT個人化貼圖提示詞產生器</title>
+  <title>🎨 個人化貼圖提示詞產生器</title>
   <!-- 載入 Tailwind CSS 用於現代化響應式排版 -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- 載入 Google Fonts "Inter" 與 "Noto Sans TC" 提升文字質感 -->
@@ -56,7 +56,7 @@
         </div>
         <div>
           <h1 class="text-xl sm:text-2xl font-black text-indigo-950 tracking-tight flex items-center gap-2">
-            CYT個人化貼圖提示詞產生器
+            個人化貼圖提示詞產生器
             <span class="text-[10px] sm:text-xs bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full font-bold">AI 協作工作流</span>
           </h1>
           <p class="text-xs text-slate-500">一鍵生成 3x3 個人專屬貼圖提示詞，支援參考照雲端上傳！</p>
@@ -77,18 +77,18 @@
       </h2>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs sm:text-sm">
         
-        <!-- 步驟一：優化給 Gemini 的指令（規範第三人稱，並提供一鍵複製） -->
+        <!-- 步驟一：給 Gemini 的指令（規範第三人稱，強化細節描述，支援萬用主角，一鍵複製） -->
         <div class="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/10 flex flex-col justify-between h-full">
           <div>
             <span class="inline-block bg-white text-indigo-950 font-black rounded-lg px-2 py-0.5 mb-2 shadow-sm text-xs">步驟一：Gemini 特徵分析</span>
             <p class="leading-relaxed text-slate-100 mb-3">
-              打開個人 Gemini 對話框，<b>上傳個人照或穿搭照</b>，並點擊下方黑框按鈕，將複製好的提示詞貼給 AI 進行分析：
+              打開個人 Gemini 對話框，<b>上傳個人照、寵物或角色物品照</b>，並點擊下方黑框按鈕，將複製好的特徵分析提示詞貼給 AI 進行分析：
             </p>
           </div>
           <!-- 獨立優雅的黑色圓角提示詞複製區 -->
           <div class="bg-indigo-950/80 rounded-2xl p-3 border border-indigo-800 flex flex-col gap-2.5 shadow-inner">
             <div id="geminiPromptText" class="text-[11px] font-mono text-indigo-200 select-all leading-relaxed bg-indigo-900/40 p-2.5 rounded-xl border border-indigo-950/50">
-              「請分析這張照片人物的外貌，並用『一個[男孩/女孩]，留著...，身穿...』的『第三人稱』格式，以簡短的繁體中文描述其髮型、髮色、有無眼鏡、衣服款式與顏色（例如：一個女孩，留著棕色雙馬尾，身穿紅色的連帽上衣）。請不要出現『你』或『您』。」
+              「請仔細分析這張照片中的主要主角（可以是人、動物或物品）。用簡短流暢的繁體中文，精確描述其外觀特色。請特別加強『頭部與臉部細節』（如：臉型或頭部形狀、髮型與髮色/毛髮材質質感、眼神神態與顏色、有無眼鏡、表情特色、特殊斑紋或五官比例），以及主體的『身形與穿著服飾配件』。統一以『一個/一隻 [主角名稱]，具有...，戴著/穿著...』的第三人稱格式直接輸出，絕對不要出現『你』或『您』等字眼。」
             </div>
             <button type="button" id="copyGeminiPromptBtn" class="w-full py-2 bg-gradient-to-r from-indigo-500 to-violet-500 hover:brightness-110 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md">
               <i class="fa-solid fa-copy animate-pulse"></i> 一鍵複製分析提示詞
@@ -100,7 +100,7 @@
         <div class="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/10 flex flex-col h-full justify-between">
           <div>
             <span class="inline-block bg-white text-indigo-950 font-black rounded-lg px-2 py-0.5 mb-2 shadow-sm text-xs">步驟二：填寫本產生器</span>
-            <p class="leading-relaxed text-slate-100">將 Gemini 分析出的<b>外貌特徵描述</b>貼到本頁「自訂特徵欄」中，並上傳預備照片。接著自由選擇貼圖風格、繁中或英文文字與貼圖主題情境。</p>
+            <p class="leading-relaxed text-slate-100">將 Gemini 分析出的<b>特徵描述</b>貼到本頁「自訂特徵欄」中，並上傳預備照片。接著自由選擇貼圖風格、繁中或英文文字與貼圖主題情境。</p>
           </div>
           <div class="mt-4 border-t border-white/10 pt-3 text-[11px] text-indigo-200 flex items-center gap-1">
             <i class="fa-solid fa-circle-info"></i> 自訂特徵能讓沒有照片時的效果更好！
@@ -204,7 +204,7 @@
             </div>
             
             <div>
-              <textarea id="characterDetail" rows="3" class="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400 font-mono" placeholder="例如：短黑髮男性，穿著藍色條紋運動服"></textarea>
+              <textarea id="characterDetail" rows="3" class="w-full text-xs sm:text-sm p-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-slate-400 font-mono" placeholder="例如：一個戴著黑框眼鏡的男孩，留著蓬鬆的黑色短髮，有著圓滾滾的臉龐與溫和的眼神，身穿一件亮黃色的連帽衛衣"></textarea>
             </div>
           </div>
         </div>
@@ -336,7 +336,7 @@
       <!-- 右側：即時預覽 & 學生提交 (5 cols) -->
       <section class="lg:col-span-5 space-y-5 lg:sticky lg:top-[88px]">
         
-        <!-- 即時預覽 & 自主複製 (已依需求將「即時咒語預覽」全面更名為「即時提示詞預覽」) -->
+        <!-- 即時預覽 & 自主複製 -->
         <div class="bg-indigo-950 text-indigo-100 rounded-3xl p-5 sm:p-6 shadow-xl relative overflow-hidden flex flex-col h-[400px]">
           <div class="absolute right-0 top-0 opacity-5 transform translate-x-4 -translate-y-4">
             <i class="fa-solid fa-cube text-[150px]"></i>
@@ -473,7 +473,7 @@
     const modalMsg = document.getElementById('modalMsg');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
 
-    // 備用特徵範本
+    // 備用特徵範本 (已完全移除可能會干擾學生修改的中括號英文對照)
     const characterPresets = {
       boy1: "短黑髮男童，穿藍白色棒球外套與運動長褲",
       girl1: "雙馬尾女童，身穿粉紅色長袖連帽 T 與深藍色牛仔褲",
@@ -550,10 +550,10 @@
       return success;
     }
 
-    // 步驟一：一鍵複製 Gemini 提示詞功能（優化版：規範第三人稱，排除你與您）
+    // 步驟一：一鍵複製 Gemini 提示詞功能（優化版：強烈引導AI深度分析頭部與臉部細節、不限人獸物品）
     if (copyGeminiPromptBtn) {
       copyGeminiPromptBtn.addEventListener('click', async () => {
-        const geminiPrompt = "請分析這張照片人物的外貌，並用『一個[男孩/女孩]，留著...，身穿...』的『第三人稱』格式，以簡短的繁體中文描述其髮型、髮色、有無眼鏡、衣服款式與顏色。請不要出現『你』或『您』。";
+        const geminiPrompt = "請仔細分析這張照片中的主要主角（可以是人、動物或物品）。用簡短流暢的繁體中文，精確描述其外觀特色。請特別加強『頭部與臉部細節』（如：臉型或頭部形狀、髮型與髮色/毛髮材質質感、眼神神態與顏色、有無眼鏡、表情特色、特殊斑紋或五官比例），以及主體的『身形與穿著服飾配件』。統一以『一個/一隻 [主角名稱]，具有...，戴著/穿著...』的第三人稱格式直接輸出，絕對不要出現『你』或『您』等字眼。";
         const success = await secureCopyText(geminiPrompt);
         if (success) {
           showToast('✨ Gemini 分析提示詞已複製！請貼給 Gemini 喔！', 'success');
@@ -729,7 +729,7 @@
       // 1. [角色設定]
       const photoOpt = document.querySelector('input[name="photoOption"]:checked').value;
       let charPrompt = "";
-      const backupText = characterDetail.value.trim() || "短黑髮男性，穿藍色條紋運動服";
+      const backupText = characterDetail.value.trim() || "一個戴著黑框眼鏡的男孩，留著蓬鬆的黑色短髮，有著圓滾滾的臉龐與溫和的眼神，身穿一件亮黃色的連帽衛衣";
       
       if (photoOpt === 'hasPhoto') {
         charPrompt = `首選： 依據使用者上傳之圖片，精確複製其人物特徵（髮型、服裝）、動作與藝術風格，確保 9 張圖形象完全一致。\n備選（無圖時）： 可愛 3D Q 版 ${backupText}。`;
@@ -797,7 +797,7 @@
 [角色設定]
 ${charPrompt}
 [風格設定]
-視覺風格： 高品質「${styleText}」（或沿用參考圖風格）」，表情需生動誇張。
+視覺風格： 高品質「${styleText}（或沿用參考圖風格）」，表情需生動誇張。
 技術規格： ${bgText}。
 [情境動作]
 主題情境： 「${themeText}」。
