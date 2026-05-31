@@ -13,7 +13,7 @@
 
     <div class="max-w-3xl w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-8 mt-10">
         <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">CYT簡易貼圖網格裁切工具</h1>
-
+        
         <!-- 圖片上傳區塊 -->
         <div class="mb-6">
             <label class="block text-sm font-medium text-gray-700 mb-2">上傳圖片</label>
@@ -31,7 +31,7 @@
         </div>
 
         <!-- 分割設定區塊 -->
-        <div class="grid grid-cols-2 gap-4 mb-8">
+        <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">欄數 (行/Columns)</label>
                 <input type="number" id="colsInput" value="3" min="1" max="20" 
@@ -44,9 +44,36 @@
             </div>
         </div>
 
-        <!-- 預覽區 -->
+        <!-- 模式切換與重設工具列 -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-slate-700">調校模式：</span>
+                <div class="inline-flex rounded-lg bg-gray-200 p-1">
+                    <button id="modeGlobalBtn" class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all bg-white text-blue-600 shadow-sm">
+                        全域對齊模式
+                    </button>
+                    <button id="modeIndividualBtn" class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all text-gray-600 hover:text-gray-900">
+                        單格微調模式
+                    </button>
+                </div>
+            </div>
+            <button id="resetGridBtn" class="text-xs bg-white hover:bg-gray-100 text-gray-600 px-4 py-2 rounded-lg border border-gray-200 transition-colors shadow-sm">
+                重設為等比例均分
+            </button>
+        </div>
+
+        <!-- 操作模式小提醒提示 -->
+        <div id="modeTip" class="mb-4 text-xs text-blue-600 bg-blue-50 p-3 rounded-lg border border-blue-100 hidden">
+            💡 <strong>單格微調模式：</strong> 點擊下方任何一個網格，即可對該網格邊界和角落的 8 個控制點進行獨立縮放，完全不干涉其他格！
+        </div>
+
+        <!-- 預覽區 (包裹在相對定位容器中，用於疊加手動拖曳層) -->
         <div class="mb-8 flex justify-center">
-            <canvas id="previewCanvas" class="max-w-full max-h-96 rounded shadow-sm border border-gray-200 hidden"></canvas>
+            <div id="canvasContainer" class="relative inline-block hidden">
+                <canvas id="previewCanvas" class="max-w-full max-h-96 rounded shadow-sm border border-gray-200 block"></canvas>
+                <!-- 手動拖曳互動遮罩 -->
+                <div id="dragOverlay" class="absolute inset-0 select-none pointer-events-none"></div>
+            </div>
         </div>
 
         <!-- 執行按鈕 -->
@@ -68,13 +95,54 @@
         const imgSize = document.getElementById('imgSize');
         const imgRatio = document.getElementById('imgRatio');
         const previewCanvas = document.getElementById('previewCanvas');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const dragOverlay = document.getElementById('dragOverlay');
+        const resetGridBtn = document.getElementById('resetGridBtn');
+        const modeGlobalBtn = document.getElementById('modeGlobalBtn');
+        const modeIndividualBtn = document.getElementById('modeIndividualBtn');
+        const modeTip = document.getElementById('modeTip');
         const ctx = previewCanvas.getContext('2d');
 
         let currentImage = null;
+        let currentMode = 'global'; // 'global' 全域格線模式 | 'individual' 單格微調模式
+        
+        // 細胞式格點座標陣列。每一格：{ id: 序號, row: 列索引, col: 欄索引, x1:左, y1:上, x2:右, y2:下 } 均為百分比 0 ~ 100
+        let cells = []; 
+        let selectedCellId = null; // 在單格模式下被選取的 Cell ID
+        let activeDrag = null; // 當前被拖曳的線段資訊 
+
+        const MIN_PERCENT_GAP = 1.0; // 分割格子的最小安全寬高比間距 (百分比)
 
         // GCD (最大公因數) 用於計算最簡比例
         function gcd(a, b) {
             return b === 0 ? a : gcd(b, a % b);
+        }
+
+        // 初始化細胞格點，預設均分狀態
+        function initGridCells() {
+            const cols = Math.max(1, parseInt(colsInput.value) || 3);
+            const rows = Math.max(1, parseInt(rowsInput.value) || 3);
+            cells = [];
+            
+            let index = 1;
+            const colWidth = 100 / cols;
+            const rowHeight = 100 / rows;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    cells.push({
+                        id: index++,
+                        row: r,
+                        col: c,
+                        x1: c * colWidth,
+                        y1: r * rowHeight,
+                        x2: (c + 1) * colWidth,
+                        y2: (r + 1) * rowHeight
+                    });
+                }
+            }
+            // 預設選取第一格
+            selectedCellId = cells.length > 0 ? cells[0].id : null;
         }
 
         // 處理圖片上傳
@@ -103,54 +171,358 @@
                     previewCanvas.width = width;
                     previewCanvas.height = height;
                     ctx.drawImage(img, 0, 0);
-                    previewCanvas.classList.remove('hidden');
+                    
+                    // 顯示容器 (含 Canvas 與 拖曳層)
+                    canvasContainer.classList.remove('hidden');
 
                     // 啟用下載按鈕
                     downloadBtn.disabled = false;
+                    
+                    // 初始化分割細胞並進行初次渲染
+                    initGridCells();
                     drawGridOverlay();
+                    updateDragOverlay();
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         });
 
-        // 監聽網格變化以重繪預覽格線
+        // 監聽網格行列數變化
         [colsInput, rowsInput].forEach(input => {
-            input.addEventListener('input', drawGridOverlay);
+            input.addEventListener('input', () => {
+                if (!currentImage) return;
+                initGridCells();
+                drawGridOverlay();
+                updateDragOverlay();
+            });
+        });
+
+        // 重設網格為均等分配
+        resetGridBtn.addEventListener('click', () => {
+            if (!currentImage) return;
+            initGridCells();
+            drawGridOverlay();
+            updateDragOverlay();
+        });
+
+        // 切換調校模式：全域對齊模式
+        modeGlobalBtn.addEventListener('click', () => {
+            currentMode = 'global';
+            modeGlobalBtn.className = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-all bg-white text-blue-600 shadow-sm';
+            modeIndividualBtn.className = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-all text-gray-600 hover:text-gray-900';
+            modeTip.classList.add('hidden');
+            
+            // 重要：切換模式時，同時刷新 Canvas 的全域格線與 DOM 覆蓋層
+            drawGridOverlay();
+            updateDragOverlay();
+        });
+
+        // 切換調校模式：單格微調模式
+        modeIndividualBtn.addEventListener('click', () => {
+            currentMode = 'individual';
+            modeIndividualBtn.className = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-all bg-white text-blue-600 shadow-sm';
+            modeGlobalBtn.className = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-all text-gray-600 hover:text-gray-900';
+            modeTip.classList.remove('hidden');
+            
+            // 重要：切換模式時，同時重繪 Canvas（單格模式下 Canvas 不畫白色線段）與 DOM 覆蓋層
+            drawGridOverlay();
+            updateDragOverlay();
         });
 
         // 在畫布上繪製預覽格線
         function drawGridOverlay() {
             if (!currentImage) return;
             
-            const cols = parseInt(colsInput.value) || 3;
-            const rows = parseInt(rowsInput.value) || 3;
             const width = currentImage.width;
             const height = currentImage.height;
-            const cellWidth = width / cols;
-            const cellHeight = height / rows;
 
             // 重繪原圖以清除舊格線
             ctx.drawImage(currentImage, 0, 0);
 
-            // 設定格線樣式
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // 半透明白線
-            ctx.lineWidth = Math.max(2, width / 400); // 依據圖片大小動態調整線條粗細
+            // ⚠️ 核心防混淆修改：只有在「全域對齊模式」下，才在 Canvas 上畫出所有格子的白色分割格線！
+            if (currentMode === 'global') {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'; // 半透明白線
+                ctx.lineWidth = Math.max(2, width / 400); // 依據圖片大小動態調整線條粗細
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';   // 加上陰影使格線在亮色插圖上依然清晰
+                ctx.shadowBlur = 4;
 
-            ctx.beginPath();
-            // 畫垂直線
-            for (let i = 1; i < cols; i++) {
-                const x = i * cellWidth;
-                ctx.moveTo(x, 0);
-                ctx.lineTo(x, height);
+                // 遍歷所有細胞網格並繪製
+                cells.forEach(cell => {
+                    const x1 = (cell.x1 / 100) * width;
+                    const y1 = (cell.y1 / 100) * height;
+                    const x2 = (cell.x2 / 100) * width;
+                    const y2 = (cell.y2 / 100) * height;
+
+                    ctx.beginPath();
+                    ctx.rect(x1, y1, x2 - x1, y2 - y1);
+                    ctx.stroke();
+                });
+
+                // 重置陰影設定以免影響其他地方
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
             }
-            // 畫水平線
-            for (let i = 1; i < rows; i++) {
-                const y = i * cellHeight;
-                ctx.moveTo(0, y);
-                ctx.lineTo(width, y);
+            // 若為「單格微調模式」，Canvas 保持原圖狀態，不做任何白色劃線繪製。
+        }
+
+        // 更新手動拖曳層的 DOM 控制線與數字氣泡
+        function updateDragOverlay() {
+            dragOverlay.innerHTML = '';
+            if (!currentImage) return;
+
+            const cols = Math.max(1, parseInt(colsInput.value) || 3);
+            const rows = Math.max(1, parseInt(rowsInput.value) || 3);
+
+            // 1. 產生細胞格高亮與事件
+            cells.forEach(cell => {
+                // 建立一個與網格位置重合的互動感應 DIV
+                const cellDiv = document.createElement('div');
+                cellDiv.className = 'absolute pointer-events-auto transition-colors duration-150';
+                cellDiv.style.left = `${cell.x1}%`;
+                cellDiv.style.top = `${cell.y1}%`;
+                cellDiv.style.width = `${cell.x2 - cell.x1}%`;
+                cellDiv.style.height = `${cell.y2 - cell.y1}%`;
+
+                if (currentMode === 'individual') {
+                    cellDiv.style.cursor = 'pointer';
+                    if (cell.id === selectedCellId) {
+                        // ⚠️ 核心修改：當前選中的單格呈現亮藍色實線外框與微透明遮罩
+                        cellDiv.className += ' border-2 border-blue-500 bg-blue-500/10 z-10';
+                    } else {
+                        // ⚠️ 核心修改：未選中的單格「完全不加邊框線條」，保持極簡純淨，僅在滑鼠移過時有超微弱提示
+                        cellDiv.className += ' hover:bg-blue-500/5 z-0';
+                    }
+                    
+                    // 點擊選取該網格以啟用 8 個獨立調整手把
+                    cellDiv.addEventListener('mousedown', (e) => {
+                        selectedCellId = cell.id;
+                        updateDragOverlay();
+                    });
+                    cellDiv.addEventListener('touchstart', (e) => {
+                        selectedCellId = cell.id;
+                        updateDragOverlay();
+                    }, { passive: true });
+                }
+
+                dragOverlay.appendChild(cellDiv);
+
+                // 2. 「動態序號氣泡中心化」：不論哪種模式，數字徽章都精準定位在幾何中心
+                const midX = (cell.x1 + cell.x2) / 2;
+                const midY = (cell.y1 + cell.y2) / 2;
+
+                const badge = document.createElement('div');
+                // 為了不干擾底層的拖曳動作，氣泡設定為 pointer-events-none
+                badge.className = 'absolute -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-xs font-black shadow-md rounded-full pointer-events-none select-none z-30 transition-all duration-100';
+                badge.style.left = `${midX}%`;
+                badge.style.top = `${midY}%`;
+                badge.style.width = '24px';
+                badge.style.height = '24px';
+                badge.style.backgroundColor = '#facc15'; // 亮黃色
+                badge.style.color = '#0f172a'; // 深色字
+                badge.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
+                badge.textContent = cell.id;
+
+                dragOverlay.appendChild(badge);
+            });
+
+            // 3. 根據當前模式生成相對應的操作手把
+            if (currentMode === 'global') {
+                // --- 全域對齊模式：產生貫穿全圖的橫豎格線拖曳條 ---
+                
+                // 產生垂直對齊格線 (共有 cols - 1 條)
+                for (let c = 0; c < cols - 1; c++) {
+                    const matchedCell = cells.find(cl => cl.row === 0 && cl.col === c);
+                    if (!matchedCell) continue;
+                    const pct = matchedCell.x2;
+
+                    const handler = document.createElement('div');
+                    handler.className = 'absolute top-0 bottom-0 cursor-col-resize group z-20 pointer-events-auto flex justify-center';
+                    handler.style.left = `${pct}%`;
+                    handler.style.width = '16px';
+                    handler.style.marginLeft = '-8px';
+
+                    // 滑鼠靠近全域對齊線時，會高亮顯示一條藍線引導拖曳
+                    const line = document.createElement('div');
+                    line.className = 'w-[2px] h-full bg-blue-500/0 group-hover:bg-blue-500/80 group-hover:shadow-[0_0_8px_rgba(59,130,246,0.8)] transition-all';
+                    handler.appendChild(line);
+
+                    handler.addEventListener('mousedown', (e) => startDrag(e, 'global-col', c));
+                    handler.addEventListener('touchstart', (e) => startDrag(e, 'global-col', c), { passive: true });
+
+                    dragOverlay.appendChild(handler);
+                }
+
+                // 產生水平對齊格線 (共有 rows - 1 條)
+                for (let r = 0; r < rows - 1; r++) {
+                    const matchedCell = cells.find(cl => cl.row === r && cl.col === 0);
+                    if (!matchedCell) continue;
+                    const pct = matchedCell.y2;
+
+                    const handler = document.createElement('div');
+                    handler.className = 'absolute left-0 right-0 cursor-row-resize group z-20 pointer-events-auto flex flex-col justify-center';
+                    handler.style.top = `${pct}%`;
+                    handler.style.height = '16px';
+                    handler.style.marginTop = '-8px';
+
+                    const line = document.createElement('div');
+                    line.className = 'h-[2px] w-full bg-blue-500/0 group-hover:bg-blue-500/80 group-hover:shadow-[0_0_8px_rgba(59,130,246,0.8)] transition-all';
+                    handler.appendChild(line);
+
+                    handler.addEventListener('mousedown', (e) => startDrag(e, 'global-row', r));
+                    handler.addEventListener('touchstart', (e) => startDrag(e, 'global-row', r), { passive: true });
+
+                    dragOverlay.appendChild(handler);
+                }
+
+            } else if (currentMode === 'individual' && selectedCellId !== null) {
+                // --- 單格獨立微調模式：在選中單格外緣疊加 8 個控制手把 ---
+                const cell = cells.find(cl => cl.id === selectedCellId);
+                if (cell) {
+                    const midX = (cell.x1 + cell.x2) / 2;
+                    const midY = (cell.y1 + cell.y2) / 2;
+
+                    // 定義手把類型、鼠標指標以及各自對應的百分比座標
+                    const handles = [
+                        { type: 'tl', cursor: 'nwse-resize', top: cell.y1, left: cell.x1 },
+                        { type: 'tr', cursor: 'nesw-resize', top: cell.y1, left: cell.x2 },
+                        { type: 'bl', cursor: 'nesw-resize', top: cell.y2, left: cell.x1 },
+                        { type: 'br', cursor: 'nwse-resize', top: cell.y2, left: cell.x2 },
+                        { type: 't', cursor: 'ns-resize', top: cell.y1, left: midX },
+                        { type: 'b', cursor: 'ns-resize', top: cell.y2, left: midX },
+                        { type: 'l', cursor: 'ew-resize', top: midY, left: cell.x1 },
+                        { type: 'r', cursor: 'ew-resize', top: midY, left: cell.x2 }
+                    ];
+
+                    handles.forEach(h => {
+                        const marker = document.createElement('div');
+                        marker.className = 'absolute w-3.5 h-3.5 bg-white border-2 border-blue-600 rounded-full z-40 pointer-events-auto -translate-x-1/2 -translate-y-1/2 shadow-md hover:scale-125 hover:bg-blue-50 transition-all';
+                        marker.style.top = `${h.top}%`;
+                        marker.style.left = `${h.left}%`;
+                        marker.style.cursor = h.cursor;
+
+                        // 綁定單格手把拖曳事件
+                        marker.addEventListener('mousedown', (e) => startDrag(e, 'individual-handle', cell.id, h.type));
+                        marker.addEventListener('touchstart', (e) => startDrag(e, 'individual-handle', cell.id, h.type), { passive: true });
+
+                        dragOverlay.appendChild(marker);
+                    });
+                }
             }
-            ctx.stroke();
+        }
+
+        // 開始拖曳事件
+        function startDrag(e, type, index, handleType = '') {
+            const isTouch = e.type.startsWith('touch');
+            activeDrag = { type, index, handleType, isTouch };
+
+            if (!isTouch) {
+                e.preventDefault();
+            }
+
+            window.addEventListener('mousemove', onDrag);
+            window.addEventListener('touchmove', onDrag, { passive: false });
+            window.addEventListener('mouseup', endDrag);
+            window.addEventListener('touchend', endDrag);
+        }
+
+        // 拖曳進行中
+        function onDrag(e) {
+            if (!activeDrag) return;
+
+            if (e.cancelable) {
+                e.preventDefault();
+            }
+
+            const rect = dragOverlay.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            // 計算相對於拖曳層的百分比位置 (0 ~ 100)
+            let pctX = ((clientX - rect.left) / rect.width) * 100;
+            let pctY = ((clientY - rect.top) / rect.height) * 100;
+
+            // 邊界安全剪裁
+            pctX = Math.max(0, Math.min(100, pctX));
+            pctY = Math.max(0, Math.min(100, pctY));
+
+            if (activeDrag.type === 'global-col') {
+                // --- 全域對齊垂直線拖曳 ---
+                const colIdx = activeDrag.index;
+                
+                // 找出該線左右相鄰欄位中，可能存在的最大/最小界線，以實作防碰撞
+                const leftCells = cells.filter(cl => cl.col === colIdx);
+                const rightCells = cells.filter(cl => cl.col === colIdx + 1);
+
+                const maxLeftX1 = Math.max(...leftCells.map(cl => cl.x1));
+                const minRightX2 = Math.min(...rightCells.map(cl => cl.x2));
+
+                const minLimit = maxLeftX1 + MIN_PERCENT_GAP;
+                const maxLimit = minRightX2 - MIN_PERCENT_GAP;
+
+                const finalPct = Math.max(minLimit, Math.min(maxLimit, pctX));
+
+                // 同步更新所有與此分界線接壤的細胞邊界
+                cells.forEach(cl => {
+                    if (cl.col === colIdx) cl.x2 = finalPct;
+                    if (cl.col === colIdx + 1) cl.x1 = finalPct;
+                });
+
+            } else if (activeDrag.type === 'global-row') {
+                // --- 全域對齊水平線拖曳 ---
+                const rowIdx = activeDrag.index;
+
+                const topCells = cells.filter(cl => cl.row === rowIdx);
+                const bottomCells = cells.filter(cl => cl.row === rowIdx + 1);
+
+                const maxTopY1 = Math.max(...topCells.map(cl => cl.y1));
+                const minBottomY2 = Math.min(...bottomCells.map(cl => cl.y2));
+
+                const minLimit = maxTopY1 + MIN_PERCENT_GAP;
+                const maxLimit = minBottomY2 - MIN_PERCENT_GAP;
+
+                const finalPct = Math.max(minLimit, Math.min(maxLimit, pctY));
+
+                cells.forEach(cl => {
+                    if (cl.row === rowIdx) cl.y2 = finalPct;
+                    if (cl.row === rowIdx + 1) cl.y1 = finalPct;
+                });
+
+            } else if (activeDrag.type === 'individual-handle') {
+                // --- 單格獨立微調手把拖曳 ---
+                const cellId = activeDrag.index;
+                const handleType = activeDrag.handleType;
+                const cell = cells.find(cl => cl.id === cellId);
+
+                if (cell) {
+                    // 根據手把類型靈活動態變更個別細胞的對應邊界
+                    if (handleType.includes('l')) {
+                        cell.x1 = Math.min(cell.x2 - MIN_PERCENT_GAP, pctX);
+                    }
+                    if (handleType.includes('r')) {
+                        cell.x2 = Math.max(cell.x1 + MIN_PERCENT_GAP, pctX);
+                    }
+                    if (handleType.includes('t')) {
+                        cell.y1 = Math.min(cell.y2 - MIN_PERCENT_GAP, pctY);
+                    }
+                    if (handleType.includes('b')) {
+                        cell.y2 = Math.max(cell.y1 + MIN_PERCENT_GAP, pctY);
+                    }
+                }
+            }
+
+            // 重繪預覽圖格線，並即時微調手把與氣泡中心點
+            drawGridOverlay();
+            updateDragOverlay();
+        }
+
+        // 結束拖曳
+        function endDrag() {
+            activeDrag = null;
+            window.removeEventListener('mousemove', onDrag);
+            window.removeEventListener('touchmove', onDrag);
+            window.removeEventListener('mouseup', endDrag);
+            window.removeEventListener('touchend', endDrag);
         }
 
         // 將 Canvas 轉換為 Blob 的 Promise 封裝
@@ -172,60 +544,64 @@
             downloadBtn.disabled = true;
 
             const zip = new JSZip();
-            const cols = parseInt(colsInput.value) || 3;
-            const rows = parseInt(rowsInput.value) || 3;
-            const cellWidth = currentImage.width / cols;
-            const cellHeight = currentImage.height / rows;
+            const width = currentImage.width;
+            const height = currentImage.height;
 
-            // 建立一個暫時的 Canvas 用於擷取每個區塊
+            // 建立一個暫時的 Canvas 用於擷取每個自訂大小的區塊
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = cellWidth;
-            tempCanvas.height = cellHeight;
             const tempCtx = tempCanvas.getContext('2d');
 
-            let index = 1;
             const promises = [];
 
-            // 迴圈裁切：由上至下(y)，由左至右(x)
-            for (let y = 0; y < rows; y++) {
-                for (let x = 0; x < cols; x++) {
-                    // 清除畫布
-                    tempCtx.clearRect(0, 0, cellWidth, cellHeight);
-                    
-                    // 從原圖對應位置擷取並畫到暫存 Canvas
-                    tempCtx.drawImage(
-                        currentImage,
-                        x * cellWidth, y * cellHeight, cellWidth, cellHeight, // 來源座標與尺寸
-                        0, 0, cellWidth, cellHeight // 目標座標與尺寸
-                    );
+            // 遍歷所有獨立座標的細胞網格並進行切片
+            for (let i = 0; i < cells.length; i++) {
+                const cell = cells[i];
+                
+                // 根據百分比精確還原到貼圖的像素座標
+                const cellX = Math.round((cell.x1 / 100) * width);
+                const cellY = Math.round((cell.y1 / 100) * height);
+                const cellWidth = Math.round((cell.x2 / 100) * width) - cellX;
+                const cellHeight = Math.round((cell.y2 / 100) * height) - cellY;
 
-                    // 記錄當前的 index 以防非同步發生覆蓋
-                    const currentIndex = index;
-                    
-                    // 將擷取的區塊轉為 Blob 並加入 ZIP Promise 陣列
-                    const blobPromise = getCanvasBlob(tempCanvas).then(blob => {
-                        zip.file(`${currentIndex}.png`, blob);
-                    });
-                    
-                    promises.push(blobPromise);
-                    index++;
-                }
+                // 排除寬高不合法的切片
+                if (cellWidth <= 0 || cellHeight <= 0) continue;
+
+                // 將暫存畫布動態設定為該特定網格的真實寬高
+                tempCanvas.width = cellWidth;
+                tempCanvas.height = cellHeight;
+                tempCtx.clearRect(0, 0, cellWidth, cellHeight);
+                                    
+                // 自原圖剪裁區域並繪製到暫存 Canvas
+                tempCtx.drawImage(
+                    currentImage,
+                    cellX, cellY, cellWidth, cellHeight, // 來源對應座標與尺寸
+                    0, 0, cellWidth, cellHeight         // 輸出目標
+                );
+
+                const currentIndex = cell.id;
+                                    
+                // 將擷取的區塊轉為 Blob 並壓入壓縮隊列
+                const blobPromise = getCanvasBlob(tempCanvas).then(blob => {
+                    zip.file(`${currentIndex}.png`, blob);
+                });
+                                    
+                promises.push(blobPromise);
             }
 
-            // 等待所有裁切完成
+            // 等待所有自訂與不規則裁切完成
             await Promise.all(promises);
 
-            // 產生 ZIP 檔並下載
+            // 產生 ZIP 檔並開啟下載
             zip.generateAsync({ type: 'blob' }).then(function(content) {
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(content);
-                link.download = `cropped_grid_${cols}x${rows}.zip`;
-                link.click();
-                
+                link.download = `cropped_custom_grid.zip`;
+                link.click();                                
+
                 // 恢復按鈕狀態
                 downloadBtn.innerHTML = originalText;
-                downloadBtn.disabled = false;
-                
+                downloadBtn.disabled = false;                                
+
                 // 清理記憶體
                 URL.revokeObjectURL(link.href);
             });
@@ -233,3 +609,4 @@
     </script>
 </body>
 </html>
+
