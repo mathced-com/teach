@@ -1,623 +1,376 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教室座位抽籤系統</title>
-    <!-- External Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智慧考程看板 v3.4 (自動填滿排版)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root { 
+      --primary-color: #2c3e50; 
+      --bg-color: #ecf0f1; 
+      
+      /* 狀態顏色 */
+      --color-safe: #27ae60;
+      --color-warn: #f39c12;
+      --color-alert: #c0392b;
+      --color-wait: #3498db;
 
-    <style>
-        /* --- Global Styles & Variables --- */
-        :root {
-            --seat-bg: #ffffff;
-            --locked-bg: #e0e0e0;
-            --blackboard-bg: #2b3e50;
-            --main-text-color: #333;
-            --light-text-color: #fff;
-            --border-color: #bdbdbd;
-            --shadow-color: rgba(0, 0, 0, 0.15);
-            --selected-outline: #007bff;
-            --danger-color: #d32f2f;
-            --success-color: #28a745;
-            --font-family: 'Helvetica Neue', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
-        }
+      /* 字體大小 (初始值會被 JS 覆蓋) */
+      --schedule-font-size: 1.2rem;
+      --note-font-size: 1.8rem;
+    }
+    body { font-family: 'Noto Sans TC', sans-serif; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; background-color: var(--bg-color); overflow: hidden; }
+    
+    /* Top Bar */
+    #top-bar { background: #34495e; color: white; padding: 5px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; flex-shrink: 0; }
+    .mode-switch label { margin-right: 15px; cursor: pointer; }
 
-        body {
-            font-family: var(--font-family);
-            background-color: #f5f5f5;
-            color: var(--main-text-color);
-            margin: 0; padding: 20px;
-            display: flex; justify-content: center; align-items: flex-start;
-            min-height: 100vh;
-        }
+    /* Header */
+    #header { 
+      flex: 0 0 30%; 
+      background: #fff; 
+      display: flex; 
+      padding: 0; 
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    #box-now { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; border-right: 1px solid #ddd; padding: 10px; }
+    #box-remain { flex: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; overflow: hidden; padding: 10px; }
+    
+    .time-label { font-size: 1rem; color: #7f8c8d; margin-top: 5px; z-index: 2; position: relative;}
+    .time-value { font-size: 5rem; font-weight: bold; font-variant-numeric: tabular-nums; line-height: 1; z-index: 2; position: relative; transition: color 0.3s;}
+    #clock-val { color: var(--primary-color); }
+    #progress-bg-layer { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background-color: var(--color-safe); opacity: 0.2; z-index: 1; transition: width 1s linear, background-color 0.5s; }
+    #status-display { font-size: 3rem; font-weight: bold; color: var(--primary-color); z-index: 3; margin-bottom: 10px; line-height: 1.2; text-align: center; width: 100%; }
+    
+    /* Time Sync */
+    #time-sync-wrapper { position: absolute; top: 10px; right: 10px; z-index: 20; display: flex; flex-direction: column; align-items: flex-end; }
+    #btn-sync-toggle { background: rgba(0,0,0,0.1); color: #7f8c8d; border: 1px solid #ccc; padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.3s; }
+    #btn-sync-toggle:hover { background: #34495e; color: #fff; }
+    #sync-panel { display: none; margin-top: 5px; background: rgba(255,255,255,0.95); padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: right; }
+    .btn-adj { padding: 4px 8px; cursor: pointer; background: #2c3e50; color: #fff; border: none; border-radius: 4px; margin: 2px; font-size: 0.8rem; }
+    #offset-display { display: block; margin-top: 5px; font-size: 0.8rem; color: #e74c3c; }
 
-        .container { width: 100%; max-width: 1200px; display: flex; flex-direction: column; gap: 20px; }
+    /* Manual Controls */
+    #manual-controls { display: none; position: absolute; bottom: 10px; right: 20px; z-index: 10; background: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 8px; border: 1px solid #ccc; }
+    #manual-controls input { width: 60px; text-align: center; font-size: 1rem; padding: 2px;}
 
-        .seating-area-container { display: flex; flex-direction: column; gap: 20px; transition: transform 0.5s; }
+    /* Main Content */
+    #main { flex: 1; display: flex; padding: 20px; gap: 20px; overflow: hidden; /* 防止撐開外層 */ }
+    
+    /* Left Panel (Schedule) */
+    #left-panel { flex: 1; background: #fff; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    #schedule-list { 
+      flex: 1; 
+      overflow-y: hidden; /* 隱藏捲軸，改由自動縮放控制 */ 
+      display: flex; 
+      flex-direction: column;
+      justify-content: flex-start; /* 內容置頂 */
+    }
 
-        .container.view-swapped .seating-area-container { transform: rotateX(180deg); }
-        .container.view-swapped .seating-area-container > * { transform: rotateX(180deg); }
+    /* Right Panel (Notes) */
+    #right-panel { flex: 2; background: #fff; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    #note-content { 
+      white-space: pre-wrap; line-height: 1.4; color: #2c3e50; flex: 1; 
+      overflow: hidden; /* 隱藏捲軸，改由自動縮放 */
+      font-size: var(--note-font-size); 
+      display: flex; align-items: center; justify-content: center; text-align: left; /* 預設垂直置中 */
+    }
+    /* 如果內容很多，靠上對齊 */
+    #note-content.align-top { align-items: flex-start; }
 
-        #blackboard {
-            background-color: var(--blackboard-bg);
-            color: var(--light-text-color);
-            padding: 15px; text-align: center;
-            font-size: 1.8em; font-weight: bold; border-radius: 10px;
-            box-shadow: 0 4px 8px var(--shadow-color); letter-spacing: 5px;
-        }
+    .panel-title { font-size: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    .btn-group { display: flex; gap: 5px; align-items: center; }
+    .btn-font { background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; padding: 2px 8px; font-size: 0.9rem; cursor: pointer; border-radius: 4px; font-weight: bold; }
+    
+    .schedule-item { 
+      display: flex; justify-content: space-between; padding: 0.5em 10px; /* 改用 em padding 以隨字體縮放 */
+      border-bottom: 1px solid #f0f0f0; 
+      font-size: var(--schedule-font-size); 
+      line-height: 1.4;
+      white-space: nowrap; /* 讓系統知道要盡量不換行 */
+    }
+    .schedule-item.active { background-color: #fff3cd; border-left: 5px solid var(--color-alert); font-weight: bold; }
+    .schedule-item.next { border-left: 5px solid var(--color-safe); background-color: #e8f8f5; }
 
-        #seating-chart { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; }
-
-        .seat {
-            aspect-ratio: 2 / 1; 
-            background-color: var(--seat-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            padding: 2px; box-shadow: 0 2px 4px var(--shadow-color);
-            transition: background-color 0.3s, box-shadow 0.3s;
-            position: relative; overflow: hidden; cursor: pointer;
-        }
-        
-        .seat:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
-        .seat.locked { background-color: var(--locked-bg); }
-        .seat.selected { outline: 3px solid var(--selected-outline); }
-
-        /* 隱藏左上角的桌次號碼 */
-        .seat-id {
-            display: none; 
-            position: absolute;
-            top: 4px; left: 6px;
-            font-size: 0.7em;
-            color: rgba(0, 0, 0, 0.3);
-            font-weight: bold;
-        }
-
-        .student-name {
-            font-size: 2.5em;
-            font-weight: bold; text-align: center;
-            word-break: break-all; line-height: 1.2; color: var(--main-text-color);
-        }
-
-        .seat.two-line .student-name { font-size: 2em; }
-
-        .controls-panel { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .control-group { background-color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px var(--shadow-color); display: flex; flex-direction: column; gap: 10px; }
-        .control-group h3 { margin: 0 0 10px 0; border-bottom: 2px solid #eee; padding-bottom: 10px; font-size: 1.2em; }
-        textarea { width: 100%; height: 180px; border: 1px solid var(--border-color); border-radius: 4px; padding: 8px; font-size: 1em; resize: vertical; box-sizing: border-box; }
-        .button-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
-
-        button { padding: 10px 15px; font-size: 1em; border: none; border-radius: 5px; cursor: pointer; background-color: #4285f4; color: white; transition: background-color 0.3s, transform 0.1s; font-weight: bold; }
-        button:hover { background-color: #3367d6; }
-        button.edit-mode { background-color: #f4b400; }
-        button.danger { background-color: #db4437; }
-        button.success { background-color: var(--success-color); }
-
-        #stats-panel { font-size: 1.1em; line-height: 1.6; }
-        #stats-panel span { font-weight: bold; color: #007bff; font-size: 1.2em;}
-
-        @media (max-width: 768px) {
-            .student-name { font-size: 1.2em; }
-            .seat.two-line .student-name { font-size: 1em; }
-            .controls-panel { grid-template-columns: 1fr; }
-        }
-
-        /* PDF 匯出模式 */
-        body.pdf-export-mode .controls-panel, body.pdf-export-mode .hide-on-pdf { display: none; }
-        body.pdf-export-mode .seating-area-container { background-color: white; padding: 10px; border: 1px solid black; }
-        body.pdf-export-mode #blackboard { background-color: white; color: black; border: 2px solid black; }
-        body.pdf-export-mode .seat { border: 1px solid black; box-shadow: none; background-color: white; }
-        body.pdf-export-mode .student-name { color: black; }
-        body.pdf-export-mode .seat-id { display: none; }
-
-        /* Modal */
-        .custom-modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.6); display: flex;
-            justify-content: center; align-items: center; z-index: 1000;
-            opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s;
-        }
-        .custom-modal-overlay.visible { opacity: 1; visibility: visible; }
-        .custom-modal { background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); width: 90%; max-width: 400px; text-align: center; transform: scale(0.9); transition: transform 0.3s; }
-        .custom-modal-overlay.visible .custom-modal { transform: scale(1); }
-        .custom-modal-buttons { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
-    </style>
+    /* Modals */
+    .btn-edit { background-color: #3498db; color: white; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem; }
+    .btn-save { background-color: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1.2rem; margin-top: 10px; width: 100%; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: #fff; padding: 20px; border-radius: 10px; width: 600px; max-height: 90vh; overflow-y: auto; }
+    textarea { width: 100%; height: 200px; font-size: 1.2rem; padding: 10px; box-sizing: border-box;}
+    input { padding: 8px; font-size: 1rem; box-sizing: border-box;}
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 5px; }
+    #loading-mask { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:2000; display:flex; justify-content:center; align-items:center; font-size:2rem; color:#555; }
+  </style>
 </head>
 <body>
 
-    <div class="container" id="main-container">
-        <!-- Blackboard & Seating Area -->
-        <div class="seating-area-container" id="seating-area-container">
-            <div id="blackboard">黑板</div>
-            <div id="seating-chart"></div>
-        </div>
+  <div id="loading-mask">資料讀取中...</div>
 
-        <!-- Control Panels -->
-        <div class="controls-panel">
-            <div class="control-group">
-                <h3>手動輸入</h3>
-                <label for="student-names">學生名單</label>
-                <textarea id="student-names" placeholder="每行一位學生..."></textarea>
-                 <button id="init-btn">填入名單</button>
-            </div>
+  <div id="top-bar">
+    <div class="mode-switch">
+      顯示模式：
+      <label><input type="radio" name="mode" value="schedule" checked onclick="switchMode('schedule')"> 📅 智慧考程表</label>
+      <label><input type="radio" name="mode" value="manual" onclick="switchMode('manual')"> ⏳ 手動倒數計時</label>
+    </div>
+    <div style="font-size:0.8rem; color:#ccc;">v3.4 Auto-Fit</div>
+  </div>
 
-            <div class="control-group">
-                <h3>主要功能</h3>
-                <div class="button-grid">
-                    <button id="draw-btn">開始抽籤</button>
-                    <button id="lock-btn">鎖定座位</button>
-                    <button id="swap-view-btn">翻轉視角</button>
-                    <button id="pdf-btn" class="hide-on-pdf">匯出PDF</button>
-                    <button id="import-btn" class="success">匯入狀態</button>
-                    <button id="export-btn" class="success">儲存結果</button>
-                </div>
-                <input type="file" id="file-input" accept=".xlsx, .xls" style="display: none;">
-            </div>
-            
-            <div class="control-group">
-                <h3>數據統計</h3>
-                <div id="stats-panel"></div>
-            </div>
-        </div>
+  <div id="header">
+    <div id="box-now">
+      <div class="time-label">現在時間</div>
+      <div id="clock-val" class="time-value">--:--:--</div>
     </div>
 
-    <div id="custom-modal-template" style="display:none;">
-        <div class="custom-modal-overlay">
-            <div class="custom-modal">
-                <p class="modal-message"></p>
-                <div class="modal-buttons"></div>
-            </div>
-        </div>
+    <div id="box-remain">
+      <div id="progress-bg-layer"></div>
+      <div id="status-display">準備中</div>
+      <div id="countdown-val" class="time-value">--:--:--</div>
+      <div id="label-remain" class="time-label">剩餘時間</div>
     </div>
 
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // --- Global Variables & Constants ---
-        const SEAT_COUNT = 30;
-        const ROWS = 5;
-        const COLS = 6;
-        
-        const seatingChart = document.getElementById('seating-chart');
-        const mainContainer = document.getElementById('main-container');
-        const seatingAreaContainer = document.getElementById('seating-area-container');
-        
-        let seatData = []; 
-        let isLockMode = false;
-        let isViewSwapped = false;
-        let selectedSeatsForSwap = [];
-        
-        // --- 隱藏互斥變數 ---
-        let secretExclusions = []; 
-        let rawExclusionInput = "";
+    <div id="manual-controls">
+      <input type="number" id="manual-min" value="10" min="1"> 分鐘
+      <button onclick="startManualTimer()" class="btn-adj">開始</button>
+      <button onclick="stopManualTimer()" class="btn-adj" style="background:#c0392b;">停止</button>
+    </div>
 
-        const studentNamesTextarea = document.getElementById('student-names');
-        const statsPanel = document.getElementById('stats-panel');
-        const initBtn = document.getElementById('init-btn');
-        const drawBtn = document.getElementById('draw-btn');
-        const lockBtn = document.getElementById('lock-btn');
-        const swapViewBtn = document.getElementById('swap-view-btn');
-        const pdfBtn = document.getElementById('pdf-btn');
-        const importBtn = document.getElementById('import-btn');
-        const exportBtn = document.getElementById('export-btn');
-        const fileInput = document.getElementById('file-input');
+    <div id="time-sync-wrapper">
+      <button id="btn-sync-toggle" onclick="toggleSyncPanel()">⚙️ 校正時間</button>
+      <div id="sync-panel">
+        <div style="font-size:0.8rem; color:#555; margin-bottom:5px;">微調系統時間 (Sync)</div>
+        <div><button class="btn-adj" onclick="adjustTime(60)">+1分</button><button class="btn-adj" onclick="adjustTime(-60)">-1分</button></div>
+        <div><button class="btn-adj" onclick="adjustTime(1)">+1秒</button><button class="btn-adj" onclick="adjustTime(-1)">-1秒</button></div>
+        <span id="offset-display">(無校正)</span>
+      </div>
+    </div>
+  </div>
 
-        const modalTemplate = document.getElementById('custom-modal-template');
-        function showModal(message, options = {}) {
-            return new Promise(resolve => {
-                const modalInstance = modalTemplate.firstElementChild.cloneNode(true);
-                modalInstance.querySelector('.modal-message').innerHTML = message;
-                const buttonsContainer = modalInstance.querySelector('.modal-buttons');
-                const close = (value) => {
-                    modalInstance.classList.remove('visible');
-                    setTimeout(() => { if(modalInstance.parentElement) document.body.removeChild(modalInstance); resolve(value); }, 300);
-                };
-                if (options.confirm) {
-                    const confirmBtn = document.createElement('button');
-                    confirmBtn.textContent = options.confirmText || '確定';
-                    confirmBtn.onclick = () => close(true);
-                    buttonsContainer.appendChild(confirmBtn);
-                    const cancelBtn = document.createElement('button');
-                    cancelBtn.textContent = options.cancelText || '取消';
-                    cancelBtn.classList.add('danger');
-                    cancelBtn.onclick = () => close(false);
-                    buttonsContainer.appendChild(cancelBtn);
-                } else {
-                    const okBtn = document.createElement('button');
-                    okBtn.textContent = options.okText || '好的';
-                    okBtn.onclick = () => close(true);
-                    buttonsContainer.appendChild(okBtn);
-                }
-                document.body.appendChild(modalInstance);
-                setTimeout(() => modalInstance.classList.add('visible'), 10);
-            });
-        }
+  <div id="main">
+    <div id="left-panel">
+      <div class="panel-title">
+        <span>今日考程</span>
+        <div class="btn-group">
+          <button class="btn-font" onclick="adjustFontSize('schedule', 0.1)">A+</button>
+          <button class="btn-font" onclick="adjustFontSize('schedule', -0.1)">A-</button>
+          <button class="btn-edit" onclick="openScheduleEditor()" style="margin-left:5px;">編輯</button>
+        </div>
+      </div>
+      <div id="schedule-list"></div>
+    </div>
+    <div id="right-panel">
+      <div class="panel-title">
+        <span>考生注意事項</span>
+        <div class="btn-group">
+          <button class="btn-font" onclick="adjustFontSize('note', 0.1)">A+</button>
+          <button class="btn-font" onclick="adjustFontSize('note', -0.1)">A-</button>
+          <button class="btn-edit" onclick="openNoteEditor()" style="margin-left:5px;">編輯</button>
+        </div>
+      </div>
+      <div id="note-content"></div>
+    </div>
+  </div>
 
-        function initialize() {
-            for (let i = 1; i <= SEAT_COUNT; i++) {
-                seatData.push({
-                    id: i,
-                    studentId: null,
-                    studentName: null,
-                    isLocked: false,
-                });
-            }
-            renderAllSeats();
-            updateStats();
-            setupEventListeners();
-        }
+  <div id="modal-schedule" class="modal"><div class="modal-content"><h3>編輯考程</h3><table id="edit-table"><thead><tr><th>科目</th><th>開始</th><th>結束</th></tr></thead><tbody id="edit-tbody"></tbody></table><button onclick="addScheduleRow()" style="margin-top:10px;">+ 新增一行</button><div style="margin-top:20px;text-align:right;"><button class="btn-edit" style="background:#95a5a6" onclick="closeModal('modal-schedule')">取消</button><button class="btn-save" style="width:auto;" onclick="saveSchedule()">儲存並更新</button></div></div></div>
+  <div id="modal-note" class="modal"><div class="modal-content"><h3>編輯叮嚀內容</h3><textarea id="edit-note-text"></textarea><div style="margin-top:20px;text-align:right;"><button class="btn-edit" style="background:#95a5a6" onclick="closeModal('modal-note')">取消</button><button class="btn-save" style="width:auto;" onclick="saveNote()">儲存並更新</button></div></div></div>
 
-        function renderAllSeats() {
-            seatingChart.innerHTML = '';
-            seatData.forEach(data => {
-                const seatDiv = createSeatElement(data);
-                seatingChart.appendChild(seatDiv);
-            });
-            updateStats();
-        }
+<script>
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyTLTALtHJNzeE0mZeMV9F8FxVL9C2ajDf9CArppXsLVz-AZhYTSWsf9_-Hk8orewIG6g/exec";
 
-        function createSeatElement(data) {
-            const seatDiv = document.createElement('div');
-            seatDiv.className = 'seat';
-            seatDiv.dataset.seatId = data.id;
-            if (data.isLocked) seatDiv.classList.add('locked');
-            
-            const seatIdSpan = document.createElement('span');
-            seatIdSpan.className = 'seat-id';
-            seatIdSpan.textContent = data.id; 
+  let scheduleData = [];
+  let timeOffset = 0;
+  let currentMode = 'schedule';
+  let manualEndTime = null;
+  let manualDurationMin = 10;
+  let currentFontSizes = { schedule: 1.2, note: 1.8 };
 
-            const studentNameSpan = document.createElement('span');
-            studentNameSpan.className = 'student-name';
-            
-            updateStudentDisplay(studentNameSpan, data, seatDiv);
-
-            seatDiv.appendChild(seatIdSpan);
-            seatDiv.appendChild(studentNameSpan);
-            return seatDiv;
-        }
-
-        function updateStudentDisplay(span, data, parentDiv) {
-            const hasId = data.studentId && String(data.studentId).trim() !== '';
-            const hasName = data.studentName && String(data.studentName).trim() !== '';
-
-            if (hasId && hasName) {
-                span.innerHTML = `${data.studentId}<br>${data.studentName}`;
-                parentDiv.classList.add('two-line');
-            } else if (hasId) {
-                span.textContent = data.studentId;
-                parentDiv.classList.remove('two-line');
-            } else if (hasName) {
-                span.textContent = data.studentName;
-                parentDiv.classList.remove('two-line');
-            } else {
-                span.innerHTML = '';
-                parentDiv.classList.remove('two-line');
-            }
-        }
-
-        function updateSeatElement(seatId) {
-            const seatDiv = seatingChart.querySelector(`[data-seat-id='${seatId}']`);
-            const data = seatData.find(s => s.id === seatId);
-            if (!seatDiv || !data) return;
-
-            seatDiv.className = 'seat';
-            if (data.isLocked) seatDiv.classList.add('locked');
-            if (selectedSeatsForSwap.includes(seatId)) seatDiv.classList.add('selected');
-
-            let seatIdSpan = seatDiv.querySelector('.seat-id');
-            if (!seatIdSpan) {
-                seatIdSpan = document.createElement('span');
-                seatIdSpan.className = 'seat-id';
-                seatDiv.prepend(seatIdSpan);
-            }
-            seatIdSpan.textContent = data.id;
-
-            let studentNameSpan = seatDiv.querySelector('.student-name');
-            if (!studentNameSpan) {
-                studentNameSpan = document.createElement('span');
-                studentNameSpan.className = 'student-name';
-                seatDiv.appendChild(studentNameSpan);
-            }
-            updateStudentDisplay(studentNameSpan, data, seatDiv);
-        }
-        
-        function updateStats() {
-            const occupied = seatData.filter(s => (s.studentId || s.studentName) && !s.isLocked).length;
-            const available = seatData.filter(s => !s.isLocked).length;
-
-            statsPanel.innerHTML = `
-                已分配人數: <span>${occupied}</span><br>
-                總可抽籤座位數: <span>${available}</span>
-            `;
-        }
-
-        function setupEventListeners() {
-            initBtn.addEventListener('click', handleInitNames);
-            drawBtn.addEventListener('click', handleDraw);
-            lockBtn.addEventListener('click', toggleLockMode);
-            swapViewBtn.addEventListener('click', handleSwapView);
-            pdfBtn.addEventListener('click', generatePDF);
-            seatingChart.addEventListener('click', handleSeatClick);
-            importBtn.addEventListener('click', () => fileInput.click());
-            exportBtn.addEventListener('click', handleExportExcel);
-            fileInput.addEventListener('change', handleImportExcel);
-
-            // --- 快捷鍵偵測與記憶功能更新 ---
-            document.addEventListener('keydown', (e) => {
-                const isAlt = e.altKey;
-                const isSecretKey = (e.code === 'KeyX' || e.key === 'x' || e.code === 'KeyS' || e.key === 's');
-
-                if (isAlt && isSecretKey) {
-                    e.preventDefault(); 
-                    e.stopPropagation();
-                    
-                    const input = prompt("【隱藏設定】輸入互斥配對（格式：A,B;C,D）\n這兩個人周圍8格不會出現對方", rawExclusionInput);
-                    
-                    if (input !== null) {
-                        rawExclusionInput = input;
-                        secretExclusions = input.split(';').map(p => p.split(',').map(s => s.trim().toLowerCase())).filter(pair => pair.length >= 2);
-                        alert("隱藏規則已更新！系統會在抽籤時自動確保這些人彼此分開。");
-                    }
-                }
-            }, true);
-        }
-
-        function handleInitNames() {
-            const parseStudentLine = (line) => {
-                const trimmed = line.trim();
-                if (!trimmed) return null;
-                const parts = trimmed.split(/\s+/);
-                if (parts.length === 1) {
-                    return isNaN(parts[0]) ? { studentId: null, studentName: parts[0] } : { studentId: parts[0], studentName: null };
-                }
-                return { studentId: parts[0].trim(), studentName: parts.slice(1).join(' ').trim() };
-            };
-            
-            const info = studentNamesTextarea.value.split('\n').map(parseStudentLine).filter(Boolean);
-            const availableSeats = seatData.filter(s => !s.isLocked);
-            
-            if (info.length > availableSeats.length) {
-                showModal('學生人數超過可抽籤的座位數，請檢查！'); return;
-            }
-            
-            seatData.forEach(s => { if (!s.isLocked) { s.studentId = null; s.studentName = null; } });
-            info.forEach((student, index) => { 
-                availableSeats[index].studentId = student.studentId; 
-                availableSeats[index].studentName = student.studentName; 
-            });
-            
-            renderAllSeats();
-            showModal('名單已成功填入！');
-        }
-
-        function isMooreAdjacent(id1, id2) {
-            const r1 = Math.floor((id1 - 1) / COLS), c1 = (id1 - 1) % COLS;
-            const r2 = Math.floor((id2 - 1) / COLS), c2 = (id2 - 1) % COLS;
-            return Math.abs(r1 - r2) <= 1 && Math.abs(c1 - c2) <= 1;
-        }
-
-        function isLayoutValid(layout) {
-            if (secretExclusions.length === 0) return true;
-            
-            const map = {};
-            seatData.forEach(s => {
-                if (s.isLocked) {
-                    map[s.id] = { studentId: s.studentId, studentName: s.studentName };
-                } else if (layout[s.id]) {
-                    map[s.id] = layout[s.id];
-                }
-            });
-
-            for (let pair of secretExclusions) {
-                if (pair.length < 2) continue;
-                let p1 = pair[0];
-                let p2 = pair[1];
-                
-                let pos1 = null, pos2 = null;
-                for (let sid in map) {
-                    const student = map[sid];
-                    const sId = (student.studentId || "").toString().toLowerCase();
-                    const sName = (student.studentName || "").toString().toLowerCase();
-                    
-                    if (sId === p1 || sName === p1) pos1 = parseInt(sid);
-                    if (sId === p2 || sName === p2) pos2 = parseInt(sid);
-                }
-
-                if (pos1 !== null && pos2 !== null) {
-                    if (isMooreAdjacent(pos1, pos2)) return false;
-                }
-            }
-            return true;
-        }
-
-        async function handleDraw() {
-            const studentsToDraw = seatData.filter(s => (s.studentId || s.studentName) && !s.isLocked);
-            if (studentsToDraw.length === 0) { showModal('沒有可供抽籤的學生！'); return; }
-            const confirmed = await showModal('確定要開始抽籤嗎？', { confirm: true });
-            if (!confirmed) return;
-
-            let finalArrangement = null;
-            let attempts = 0;
-            const MAX_GLOBAL_RETRY = 2000; 
-
-            const availableSeatIds = seatData.filter(s => !s.isLocked).map(s => s.id);
-
-            while (attempts < MAX_GLOBAL_RETRY) {
-                const combined = generateArr(studentsToDraw, availableSeatIds);
-                
-                if (combined) {
-                    if (isLayoutValid(combined)) {
-                        finalArrangement = combined;
-                        break;
-                    }
-                }
-                attempts++;
-            }
-
-            if (!finalArrangement) {
-                showModal('無法在滿足互斥條件的情況下生成排列，請檢查互斥名單是否過於嚴苛或名單有誤。');
-                return;
-            }
-            
-            seatData.forEach(s => { if (!s.isLocked) { s.studentId = null; s.studentName = null; } });
-            renderAllSeats();
-
-            const sortedIds = Object.keys(finalArrangement).map(Number).sort((a, b) => a - b);
-            for (let id of sortedIds) {
-                await new Promise(r => setTimeout(r, 150));
-                const s = seatData.find(x => x.id === id);
-                s.studentId = finalArrangement[id].studentId;
-                s.studentName = finalArrangement[id].studentName;
-                updateSeatElement(id);
-            }
-            
-            const successMsg = secretExclusions.length > 0 ? '已經完成抽籤' : '抽籤完畢';
-            showModal(successMsg);
-        }
-        
-        function generateArr(students, seats) {
-            if (students.length === 0) return {};
-            const shuffle = (a) => a.sort(() => Math.random() - 0.5);
-            let att = 0;
-            while (att < 100) {
-                let shuf = shuffle([...students].map(s => ({ o: s.id, id: s.studentId, n: s.studentName })));
-                let res = {}, ok = true;
-                for (let i = 0; i < shuf.length; i++) {
-                    const nid = seats[i];
-                    // 在不分區模式下，移除座位不得與原座位相同的限制，以提高成功率。
-                    // 只要符合互斥設定即可。
-                    res[nid] = { studentId: shuf[i].id, studentName: shuf[i].n };
-                }
-                if (ok) return res; att++;
-            }
-            return null;
-        }
-
-        function toggleLockMode() {
-            isLockMode = !isLockMode;
-            mainContainer.classList.toggle('lock-mode-active', isLockMode);
-            lockBtn.classList.toggle('edit-mode', isLockMode);
-            lockBtn.textContent = isLockMode ? '完成鎖定' : '鎖定座位';
-            if (!isLockMode) { selectedSeatsForSwap = []; renderAllSeats(); }
-        }
-
-        async function handleSeatClick(e) {
-            const seatDiv = e.target.closest('.seat'); if (!seatDiv) return;
-            const seatId = parseInt(seatDiv.dataset.seatId);
-            if (isLockMode) await handleLocking(seatId);
-            else await handleSwapping(seatId);
-        }
-
-        async function handleLocking(seatId) {
-            const seat = seatData.find(s => s.id === seatId);
-            const willBeLocked = !seat.isLocked;
-            if (willBeLocked && (seat.studentId || seat.studentName)) {
-                const empty = seatData.find(s => !s.studentId && !s.studentName && !s.isLocked);
-                if (!empty) { showModal('沒有空位移動學生，無法鎖定。'); return; }
-                const confirmed = await showModal(`移動學生到 (${empty.id}) 並鎖定原位？`, { confirm: true });
-                if (confirmed) {
-                    empty.studentId = seat.studentId; empty.studentName = seat.studentName;
-                    seat.studentId = null; seat.studentName = null;
-                    updateSeatElement(empty.id);
-                } else return;
-            }
-            seat.isLocked = willBeLocked;
-            updateSeatElement(seat.id);
-            updateStats();
-        }
-
-        async function handleSwapping(seatId) {
-            const idx = selectedSeatsForSwap.indexOf(seatId);
-            if (idx > -1) selectedSeatsForSwap.splice(idx, 1);
-            else if (selectedSeatsForSwap.length < 2) selectedSeatsForSwap.push(seatId);
-            
-            document.querySelectorAll('.seat.selected').forEach(s => s.classList.remove('selected'));
-            selectedSeatsForSwap.forEach(id => document.querySelector(`[data-seat-id='${id}']`)?.classList.add('selected'));
-            
-            if (selectedSeatsForSwap.length === 2) {
-                const [id1, id2] = selectedSeatsForSwap;
-                const s1 = seatData.find(s => s.id === id1), s2 = seatData.find(s => s.id === id2);
-                
-                const content1 = s1.studentName || s1.studentId || "空位";
-                const content2 = s2.studentName || s2.studentId || "空位";
-                const info1 = `${id1}(${content1})`;
-                const info2 = `${id2}(${content2})`;
-
-                if (await showModal(`確定要交換座位 ${info1} 和座位 ${info2} 嗎？`, { confirm: true })) {
-                    [s1.studentId, s2.studentId] = [s2.studentId, s1.studentId];
-                    [s1.studentName, s2.studentName] = [s2.studentName, s1.studentName];
-                }
-                selectedSeatsForSwap = [];
-                updateSeatElement(id1); updateSeatElement(id2); updateStats();
-            }
-        }
-        
-        async function handleSwapView() {
-            if (await showModal('確定要翻轉教室視角嗎？', { confirm: true })) {
-                isViewSwapped = !isViewSwapped; mainContainer.classList.toggle('view-swapped', isViewSwapped);
-                const temp = JSON.parse(JSON.stringify(seatData));
-                for (let i = 0; i < SEAT_COUNT / 2; i++) {
-                    const i1 = i, i2 = SEAT_COUNT - 1 - i;
-                    [seatData[i1].studentId, seatData[i2].studentId] = [temp[i2].studentId, temp[i1].studentId];
-                    [seatData[i1].studentName, seatData[i2].studentName] = [temp[i2].studentName, temp[i1].studentName];
-                    [seatData[i1].isLocked, seatData[i2].isLocked] = [temp[i2].isLocked, temp[i1].isLocked];
-                }
-                renderAllSeats();
-            }
-        }
-
-        async function generatePDF() {
-            const { jsPDF } = window.jspdf;
-            document.body.classList.add('pdf-export-mode');
-            try {
-                await new Promise(r => setTimeout(r, 100));
-                const canvas = await html2canvas(seatingAreaContainer, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-                const pdf = new jsPDF({ orientation: 'landscape', unit: 'cm', format: 'a4' });
-                const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
-                const ratio = canvas.width / canvas.height;
-                let fw = pw - 2, fh = fw / ratio;
-                if (fh > ph - 2) { fh = ph - 2; fw = fh * ratio; }
-                pdf.addImage(canvas.toDataURL('image/png'), 'PNG', (pw - fw) / 2, (ph - fh) / 2, fw, fh);
-                pdf.save('教室座位表.pdf');
-            } finally { document.body.classList.remove('pdf-export-mode'); }
-        }
-
-        function handleExportExcel() {
-            const data = seatData.map(s => ({ 
-                '座位編號': s.id, 
-                '學生號碼': s.studentId || '', 
-                '學生姓名': s.studentName || '', 
-                '是否鎖定': s.isLocked 
-            }));
-            const ws = XLSX.utils.json_to_sheet(data);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, '座位表');
-            XLSX.writeFile(wb, '座位表狀態.xlsx');
-        }
-
-        function handleImportExcel(e) {
-            const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-                const wb = XLSX.read(new Uint8Array(evt.target.result), { type: 'array' });
-                const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                data.forEach(row => {
-                    const s = seatData.find(x => x.id === row['座位編號']);
-                    if (s) { 
-                        s.studentId = row['學生號碼'] || null; 
-                        s.studentName = row['學生姓名'] || null; 
-                        s.isLocked = String(row['是否鎖定']).toUpperCase() === 'TRUE'; 
-                    }
-                });
-                renderAllSeats();
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        initialize();
+  window.onload = function() {
+    loadData();
+    setInterval(updateSystem, 1000);
+    // 視窗改變大小時，重新計算字體
+    window.addEventListener('resize', () => {
+      autoFitFonts('schedule');
+      autoFitFonts('note');
     });
-    </script>
+  };
+
+  function toggleSyncPanel() { const p = document.getElementById('sync-panel'); const b = document.getElementById('btn-sync-toggle'); p.style.display = p.style.display==='block'?'none':'block'; b.innerText = p.style.display==='block'?'❌ 關閉面板':'⚙️ 校正時間'; }
+  
+  // 手動調整字體 (基於自動計算後的結果增減)
+  function adjustFontSize(target, delta) { 
+    let newSize = currentFontSizes[target] + delta; 
+    if (newSize < 0.5) newSize = 0.5; 
+    currentFontSizes[target] = newSize; 
+    document.documentElement.style.setProperty(`--${target}-font-size`, `${newSize.toFixed(2)}rem`); 
+  }
+  
+  function loadData() {
+    document.getElementById('loading-mask').style.display = 'flex';
+    fetch(GAS_API_URL).then(r => r.json()).then(d => {
+      onDataLoaded(d);
+      document.getElementById('loading-mask').style.display = 'none';
+    }).catch(e => {
+      document.getElementById('loading-mask').style.display = 'none';
+      alert("讀取失敗，請檢查網路狀態。");
+    });
+  }
+
+  function sendDataToGAS(payload) {
+    document.getElementById('loading-mask').innerText = "儲存中..."; document.getElementById('loading-mask').style.display = 'flex';
+    fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) }).then(r => r.json()).then(res => { alert(res.message); loadData(); })
+    .catch(e => { alert("儲存失敗"); document.getElementById('loading-mask').style.display = 'none'; });
+  }
+
+  function onDataLoaded(data) {
+    scheduleData = data.schedule || [];
+    const noteEl = document.getElementById('note-content');
+    noteEl.innerText = data.note || "";
+    renderSchedule();
+    
+    // 資料載入後，執行自動排版
+    // 使用 setTimeout 確保 DOM 已經渲染完成
+    setTimeout(() => {
+        autoFitFonts('schedule');
+        autoFitFonts('note');
+    }, 100);
+  }
+
+  // === 核心：自動字體縮放演算法 ===
+  function autoFitFonts(target) {
+    if (target === 'schedule') {
+        const container = document.getElementById('schedule-list');
+        const items = container.querySelectorAll('.schedule-item');
+        if (items.length === 0) return;
+
+        // 考程表邏輯：
+        // 從大字體開始嘗試 (例如 4rem)，如果高度溢出或寬度溢出，就縮小
+        let size = 4.0;
+        const minSize = 0.8;
+        const parentH = document.getElementById('left-panel').clientHeight - 60; // 扣除標題高度
+        const parentW = document.getElementById('left-panel').clientWidth - 40;  // 扣除 padding
+
+        // 簡單的二分法或迴圈檢測 (這裡用遞減法比較穩)
+        // 為了效能，設定最大迴圈次數
+        for (; size > minSize; size -= 0.1) {
+            document.documentElement.style.setProperty(`--schedule-font-size`, `${size}rem`);
+            
+            // 檢查是否溢出
+            // 1. 檢查總高度
+            if (container.scrollHeight > parentH) continue;
+            
+            // 2. 檢查是否有任何單行寬度溢出
+            let widthOverflow = false;
+            items.forEach(item => {
+                if (item.scrollWidth > parentW) widthOverflow = true;
+            });
+            if (widthOverflow) continue;
+
+            // 都沒溢出，這是最佳大小
+            break;
+        }
+        currentFontSizes.schedule = size; // 更新基準值
+    } 
+    else if (target === 'note') {
+        const el = document.getElementById('note-content');
+        if (!el.innerText.trim()) return;
+
+        let size = 6.0; // 叮嚀可以非常大
+        const minSize = 1.0;
+        const parent = document.getElementById('right-panel');
+        const parentH = parent.clientHeight - 60; 
+        const parentW = parent.clientWidth - 40;
+
+        // 移除垂直置中設定，先測量真實高度
+        el.classList.add('align-top');
+
+        for (; size > minSize; size -= 0.2) {
+            document.documentElement.style.setProperty(`--note-font-size`, `${size}rem`);
+            // 檢查高度與寬度 (雖然有換行，但單字太長也可能溢出)
+            if (el.scrollHeight <= parentH && el.scrollWidth <= parentW) {
+                break;
+            }
+        }
+        
+        // 如果最終字體很小(內容多)，保持靠上對齊；如果字體大(內容少)，改回垂直置中
+        if (size > 3.0) el.classList.remove('align-top');
+        else el.classList.add('align-top');
+
+        currentFontSizes.note = size;
+    }
+  }
+
+  // --- Timer & Logic (維持 v3.3) ---
+  function updateSystem() {
+    const now = new Date(Date.now() + timeOffset);
+    document.getElementById('clock-val').innerText = now.toLocaleTimeString('zh-TW', { hour12: false });
+    if (currentMode === 'schedule') updateScheduleMode(now);
+    else updateManualMode(now);
+  }
+
+  function updateScheduleMode(now) {
+    let statusText = "目前無考試", remainingText = "--:--:--", labelText = "狀態", progressPercent = 0, foundExam = false, nextExam = null, colorState = 'var(--primary-color)';
+    const todayStr = now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate()+' ';
+    const listItems = document.querySelectorAll('.schedule-item');
+    listItems.forEach(el => { el.classList.remove('active'); el.classList.remove('next'); });
+
+    for (let i = 0; i < scheduleData.length; i++) {
+      const start = new Date(todayStr + scheduleData[i][1]); const end = new Date(todayStr + scheduleData[i][2]);
+      if (now >= start && now <= end) {
+        foundExam = true; statusText = `正在考試：${scheduleData[i][0]}`; remainingText = formatCountDown(end - now); labelText = "距離收卷";
+        progressPercent = ((now - start) / (end - start)) * 100;
+        const pR = 100 - progressPercent;
+        if(pR<10) colorState='var(--color-alert)'; else if(pR<=40) colorState='var(--color-warn)'; else colorState='var(--color-safe)';
+        if(listItems[i]) listItems[i].classList.add('active'); break;
+      }
+      if (!foundExam && !nextExam && now < start) nextExam = { subject: scheduleData[i][0], start: start, index: i };
+    }
+
+    if (!foundExam) {
+      if (nextExam) {
+        statusText = `下一節：${nextExam.subject}`; remainingText = formatCountDown(nextExam.start - now); labelText = "距離開考"; colorState = 'var(--color-wait)';
+        if(listItems[nextExam.index]) listItems[nextExam.index].classList.add('next');
+      } else {
+        statusText = "今日考試結束"; remainingText = "--:--:--"; labelText = "狀態"; colorState = 'var(--primary-color)';
+      }
+    }
+
+    document.getElementById('status-display').innerText = statusText; document.getElementById('label-remain').innerText = labelText;
+    const c = document.getElementById('countdown-val'); c.innerText = remainingText; c.style.color = colorState;
+    const bg = document.getElementById('progress-bg-layer'); if(foundExam){ bg.style.width=progressPercent+"%"; bg.style.backgroundColor=colorState; }else{ bg.style.width="0%"; }
+  }
+
+  function updateManualMode(now) {
+    document.getElementById('label-remain').innerText = "剩餘時間";
+    if (!manualEndTime) { updateDisplay("手動模式：等待開始", "--:--:--", 0, '#ccc'); return; }
+    const diff = manualEndTime - now;
+    if (diff <= 0) { updateDisplay("考試結束！", "00:00:00", 100, 'var(--color-alert)'); return; }
+    const totalMs = manualDurationMin*60000; const progressPercent = ((totalMs-diff)/totalMs)*100;
+    const pR = 100 - progressPercent; let color = 'var(--color-safe)'; if(pR<10)color='var(--color-alert)'; else if(pR<=40)color='var(--color-warn)';
+    updateDisplay(`倒數計時中 (${manualDurationMin}分)`, formatCountDown(diff), progressPercent, color);
+  }
+
+  function updateDisplay(status, remainText, bgPercent, color) {
+    document.getElementById('status-display').innerText = status;
+    const c = document.getElementById('countdown-val'); c.innerText = remainText; c.style.color = color;
+    const bg = document.getElementById('progress-bg-layer'); bg.style.width = bgPercent + "%"; bg.style.backgroundColor = color;
+  }
+
+  // Utils
+  function switchMode(mode) { currentMode = mode; document.getElementById('manual-controls').style.display = mode === 'manual' ? 'block' : 'none'; if(mode === 'manual') manualEndTime = null; }
+  function startManualTimer() { const min = parseFloat(document.getElementById('manual-min').value); if (!min || min <= 0) return alert("請輸入有效"); manualDurationMin = min; manualEndTime = new Date(new Date(Date.now()+timeOffset).getTime() + min*60000); }
+  function stopManualTimer() { manualEndTime = null; }
+  function formatCountDown(ms) { if(ms<0)ms=0; const t=Math.floor(ms/1000),h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60; return`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`; }
+  function adjustTime(s){ timeOffset+=s*1000; const sign = timeOffset >= 0 ? "+" : ""; document.getElementById('offset-display').innerText = `(${sign}${timeOffset/1000}s)`; updateSystem(); }
+  function renderSchedule(){const c=document.getElementById('schedule-list');c.innerHTML='';scheduleData.forEach(i=>{c.innerHTML+=`<div class="schedule-item"><span class="schedule-subject">${i[0]}</span><span class="schedule-time">${i[1]}~${i[2]}</span></div>`;});}
+  function closeModal(id){document.getElementById(id).style.display='none';}
+  function openScheduleEditor(){const t=document.getElementById('edit-tbody');t.innerHTML='';scheduleData.forEach(i=>addScheduleRow(i[0],i[1],i[2]));if(scheduleData.length===0)addScheduleRow();document.getElementById('modal-schedule').style.display='flex';}
+  function addScheduleRow(s='',st='',en=''){const t=document.createElement('tr');t.innerHTML=`<td><input value="${s}"></td><td><input type="time" value="${st}"></td><td><input type="time" value="${en}"></td><td><button onclick="this.closest('tr').remove()" style="color:red;">X</button></td>`;document.getElementById('edit-tbody').appendChild(t);}
+  function saveSchedule(){const r=document.querySelectorAll('#edit-tbody tr'),n=[];r.forEach(t=>{const i=t.querySelectorAll('input');if(i[0].value)n.push([i[0].value,i[1].value,i[2].value]);});closeModal('modal-schedule');sendDataToGAS({schedule:n});}
+  function openNoteEditor(){document.getElementById('edit-note-text').value=document.getElementById('note-content').innerText;document.getElementById('modal-note').style.display='flex';}
+  function saveNote(){const n=document.getElementById('edit-note-text').value;closeModal('modal-note');sendDataToGAS({note:n});}
+</script>
 </body>
 </html>
