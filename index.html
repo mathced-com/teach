@@ -19,14 +19,11 @@
     .skip{position:fixed;top:12px;left:12px;z-index:100;transform:translateY(-160%);padding:10px 16px;border-radius:10px;color:#fff;background:var(--blue);font-weight:800;text-decoration:none}.skip:focus{transform:none}
     .hero{position:relative;overflow:hidden;color:#fff;background:radial-gradient(circle at 82% 22%,rgba(38,217,255,.2),transparent 25%),radial-gradient(circle at 14% 72%,rgba(119,101,255,.19),transparent 28%),linear-gradient(135deg,var(--navy-950),var(--navy-900) 52%,#0b2f50)}
     .hero:before{content:"";position:absolute;inset:0;opacity:.16;background-image:linear-gradient(rgba(255,255,255,.16) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.16) 1px,transparent 1px);background-size:48px 48px;mask-image:linear-gradient(to bottom,#000 20%,transparent 92%)}
-    .hero:after{content:"";position:absolute;width:440px;height:440px;right:-190px;bottom:-240px;border:1px solid rgba(38,217,255,.35);border-radius:50%;box-shadow:0 0 0 70px rgba(38,217,255,.035),0 0 0 140px rgba(38,217,255,.025)}
-    .wrap{width:min(1180px,calc(100% - 40px));margin:auto}.hero-inner{position:relative;z-index:1;padding:28px 0 76px}
-    .topbar{display:flex;align-items:center;justify-content:space-between;gap:24px}.brand{display:flex;align-items:center;gap:12px;font-weight:900;letter-spacing:.04em}.brand-mark{display:grid;place-items:center;width:42px;height:42px;border:1px solid rgba(255,255,255,.32);border-radius:13px;background:linear-gradient(135deg,rgba(38,217,255,.24),rgba(119,101,255,.22));font-size:19px}.brand small{display:block;margin-top:2px;color:#9db5cf;font-size:10px;letter-spacing:.18em}
+    .hero:after{content:"";position:absolute;width:220px;height:220px;right:-120px;top:-140px;border:1px solid rgba(38,217,255,.28);border-radius:50%;box-shadow:0 0 0 42px rgba(38,217,255,.025)}
+    .wrap{width:min(1180px,calc(100% - 40px));margin:auto}.hero-inner{position:relative;z-index:1;padding:18px 0}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:24px}.brand{display:flex;align-items:center;gap:12px;font-weight:900;letter-spacing:.04em}.brand-mark{display:grid;place-items:center;width:42px;height:42px;border:1px solid rgba(255,255,255,.32);border-radius:13px;background:linear-gradient(135deg,rgba(38,217,255,.24),rgba(119,101,255,.22));font-size:19px}
     .repo{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid rgba(255,255,255,.2);border-radius:99px;color:#d9e8f8;background:rgba(255,255,255,.06);font-size:14px;font-weight:700;text-decoration:none}.repo:hover{border-color:rgba(38,217,255,.7);background:rgba(38,217,255,.1)}
-    .hero-content{display:grid;grid-template-columns:minmax(0,1fr) 280px;align-items:end;gap:60px;margin-top:72px}.eyebrow{display:flex;align-items:center;gap:9px;margin:0 0 18px;color:var(--cyan);font-size:13px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.eyebrow:before{content:"";width:30px;height:2px;background:currentColor;box-shadow:0 0 12px currentColor}
-    h1{max-width:800px;margin:0;font-size:clamp(42px,6vw,74px);line-height:1.08;letter-spacing:-.045em}h1 span{color:transparent;background:linear-gradient(90deg,#fff 5%,var(--cyan) 55%,#9d91ff);background-clip:text;-webkit-background-clip:text}.lead{max-width:690px;margin:24px 0 0;color:#b8cbe0;font-size:clamp(17px,2vw,20px);line-height:1.8}
-    .stat{padding:24px;border:1px solid rgba(255,255,255,.15);border-radius:24px;background:rgba(4,18,35,.54);backdrop-filter:blur(14px)}.stat strong{display:block;color:var(--cyan);font-size:52px;line-height:1}.stat b{display:block;margin-top:10px}.stat small{display:block;margin-top:6px;color:#7f9bb7;line-height:1.5}
-    main{position:relative}.main-inner{padding:48px 0 80px}.controls{position:sticky;top:12px;z-index:10;margin-top:-78px;padding:22px;border:1px solid rgba(255,255,255,.78);border-radius:24px;background:rgba(255,255,255,.92);box-shadow:var(--shadow);backdrop-filter:blur(16px)}
+    main{position:relative}.main-inner{padding:30px 0 80px}.controls{position:sticky;top:12px;z-index:10;padding:22px;border:1px solid rgba(255,255,255,.78);border-radius:24px;background:rgba(255,255,255,.92);box-shadow:var(--shadow);backdrop-filter:blur(16px)}
     .search{position:relative}.search:before{content:"⌕";position:absolute;left:17px;top:50%;transform:translateY(-54%);color:var(--blue);font-size:27px}.search input{width:100%;min-height:52px;padding:13px 18px 13px 52px;border:1px solid var(--line);border-radius:15px;outline:0;color:var(--ink);background:#f8fbfe;font-size:16px;font-weight:700}.search input:focus{border-color:var(--blue);background:#fff;box-shadow:0 0 0 4px rgba(45,108,255,.12)}.search input::placeholder{color:#8393a8;font-weight:600}
     .filters{display:flex;gap:9px;margin-top:14px;overflow-x:auto;padding-bottom:2px}.filter{flex:0 0 auto;min-height:40px;padding:8px 14px;border:1px solid var(--line);border-radius:99px;color:#50627a;background:#fff;cursor:pointer;font-size:14px;font-weight:800}.filter:hover{border-color:#9fb9dc}.filter[aria-pressed="true"]{border-color:var(--blue);color:#fff;background:linear-gradient(135deg,var(--blue),var(--violet));box-shadow:0 7px 18px rgba(45,108,255,.22)}
     .heading{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:42px 2px 22px}.heading h2{margin:0;font-size:clamp(25px,3vw,34px);letter-spacing:-.03em}.heading p{margin:7px 0 0;color:var(--muted)}.count{flex:none;color:var(--muted);font-size:14px;font-weight:800}
@@ -36,8 +33,8 @@
     .card[hidden]{display:none}.empty{display:none;padding:50px 24px;border:1px dashed #b9c9db;border-radius:22px;color:var(--muted);background:#fff;text-align:center}.empty strong{display:block;margin-bottom:8px;color:var(--ink);font-size:20px}
     footer{color:#a8bdd2;background:var(--navy-900)}.footer{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:26px 0;font-size:13px}.footer strong{color:#fff}.footer a{color:var(--cyan);font-weight:800;text-decoration:none}.footer a:hover{text-decoration:underline}
     :focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
-    @media(max-width:900px){.hero-content{grid-template-columns:1fr;gap:28px}.stat{width:min(100%,360px)}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-    @media(max-width:620px){.wrap{width:min(100% - 28px,1180px)}.hero-inner{padding:20px 0 64px}.brand small{display:none}.repo span{display:none}.hero-content{margin-top:50px}.lead{font-size:16px}.controls{top:8px;margin-top:-54px;padding:14px;border-radius:19px}.main-inner{padding-bottom:54px}.heading{align-items:flex-start;margin-top:34px}.heading p{font-size:14px}.grid{grid-template-columns:1fr}.card{min-height:228px}.card>a{padding:21px}.footer{align-items:flex-start;flex-direction:column}}
+    @media(max-width:900px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:620px){.wrap{width:min(100% - 28px,1180px)}.hero-inner{padding:14px 0}.brand{font-size:15px}.repo span{display:none}.controls{top:8px;padding:14px;border-radius:19px}.main-inner{padding-top:20px;padding-bottom:54px}.heading{align-items:flex-start;margin-top:34px}.heading p{font-size:14px}.grid{grid-template-columns:1fr}.card{min-height:228px}.card>a{padding:21px}.footer{align-items:flex-start;flex-direction:column}}
     @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{transition:none!important}}
   </style>
 </head>
@@ -46,12 +43,8 @@
   <header class="hero">
     <div class="wrap hero-inner">
       <div class="topbar">
-        <div class="brand" aria-label="Teach Lab 教學工具站"><span class="brand-mark" aria-hidden="true">TL</span><span>TEACH LAB<small>SMART TOOLS FOR LEARNING</small></span></div>
+        <div class="brand" aria-label="教學相關應用網頁"><span class="brand-mark" aria-hidden="true">TL</span><span>教學相關應用網頁</span></div>
         <a class="repo" href="https://github.com/mathced-com/teach" target="_blank" rel="noopener noreferrer" aria-label="在新分頁開啟 GitHub 專案"><span>查看專案</span><b aria-hidden="true">↗</b></a>
-      </div>
-      <div class="hero-content">
-        <div><p class="eyebrow">Technology × Education</p><h1>讓每一堂課，<br><span>更有方法，也更有趣。</span></h1><p class="lead">從班級管理、課堂抽籤到學科練習與 AI 創作，把老師常用的數位工具集中在一個清楚、快速的入口。</p></div>
-        <div class="stat" aria-label="網站工具統計"><strong>17</strong><b>個教學工具</b><small>依教學情境分類，點選即可開始使用</small></div>
       </div>
     </div>
   </header>
