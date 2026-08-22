@@ -1,0 +1,2098 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <title>班級獎勵制度</title>
+  <style>
+    :root {
+      --ink:#183052;
+      --muted:#66758b;
+      --blue:#315c99;
+      --blue-dark:#1b345d;
+      --sky:#dcecff;
+      --cream:#fbf6e9;
+      --paper:#fffdf8;
+      --gold:#efb84e;
+      --orange:#eb8d35;
+      --green:#2b9063;
+      --red:#bd4b4b;
+      --line:#d8e1ec;
+      --shadow:0 16px 42px rgba(35,53,78,.14);
+      --radius:18px;
+      font-family:"Microsoft JhengHei","Noto Sans TC",system-ui,sans-serif;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;min-height:100%;background:#e9eef5;color:var(--ink)}
+    body{min-width:320px}
+    button,input,select{font:inherit}
+    button{cursor:pointer}
+    button:disabled{cursor:default;opacity:.45}
+    [hidden]{display:none!important}
+    .app{min-height:100vh;background:var(--cream)}
+    .screen{min-height:100vh}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 14px;background:rgba(255,253,248,.96);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10}
+    .topbar.registering{box-shadow:inset 0 -4px 0 #5bb88a}
+    .brand{display:flex;align-items:center;gap:10px;min-width:0}
+    .brand-mark{display:grid;place-items:center;width:40px;height:40px;border-radius:13px;background:linear-gradient(145deg,#ffd67b,#f39a45);font-size:22px;box-shadow:0 6px 14px rgba(220,132,36,.2)}
+    .brand h1{margin:0;font-size:clamp(20px,2vw,28px);font-weight:800;white-space:nowrap}
+    .brand-meta{display:flex;align-items:center;gap:8px;min-width:0;margin-top:1px;color:var(--muted);font-size:13px;white-space:nowrap}
+    .view-mode{font-weight:700;color:#53647e}
+    .compact-status{display:inline-flex;align-items:center;gap:5px;padding-left:8px;border-left:1px solid var(--line);color:#70541d}
+    .sync-detail{max-width:210px;overflow:hidden;text-overflow:ellipsis}
+    .pending-compact{padding:2px 7px;border-radius:999px;background:#fff0c8;color:#7b540d;font-weight:700}
+    .toolbar{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+    .button,.icon-button{border:0;border-radius:12px;min-height:44px;padding:10px 14px;background:#e9eef6;color:var(--ink);font-weight:700}
+    .button:hover,.icon-button:hover{filter:brightness(.98)}
+    .button.primary{background:var(--blue);color:#fff}
+    .button.gold{background:var(--gold);color:#382608}
+    .button.green{background:var(--green);color:#fff}
+    .button.danger{background:#f7dfdf;color:#8b2828}
+    .button.end-register{background:var(--red);color:#fff}
+    .button.ghost{background:transparent;border:1px solid var(--line)}
+    .icon-button{width:44px;padding:0;font-size:20px}
+    .segmented{display:flex;padding:3px;border-radius:13px;background:#e7edf5}
+    .segmented button{border:0;border-radius:10px;padding:8px 12px;background:transparent;color:var(--muted)}
+    .segmented button.active{background:#fff;color:var(--blue);box-shadow:0 2px 7px rgba(29,52,88,.12)}
+    .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--green)}
+    .dot.offline{background:var(--orange)}
+    .display-screen{background:radial-gradient(circle at 8% 12%,rgba(255,206,111,.13),transparent 25%),radial-gradient(circle at 92% 88%,rgba(80,151,204,.09),transparent 27%),var(--cream)}
+    .display-main{padding:9px 14px 8px}
+    .student-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}
+    .student-card{--student-accent:#4679b8;--student-soft:#edf4fc;position:relative;min-width:0;min-height:108px;overflow:hidden;padding:10px 11px 9px;border:1px solid #d7e0ea;border-radius:16px;text-align:left;background:linear-gradient(155deg,#fff 15%,var(--student-soft) 165%);color:var(--ink);box-shadow:0 5px 13px rgba(36,54,79,.075);transition:border-color .18s,box-shadow .18s,transform .18s}
+    .student-card::before{content:"";position:absolute;left:0;right:0;top:0;height:4px;background:var(--student-accent);opacity:.82}
+    .student-card:hover{border-color:var(--student-accent);box-shadow:0 8px 19px rgba(36,54,79,.12);transform:translateY(-2px)}
+    .student-card.pending{background:linear-gradient(155deg,#fff 10%,#fff3cf 170%);border-color:#eccd80}
+    .student-card.has-draw{border:3px solid var(--gold);box-shadow:0 0 0 4px rgba(239,184,78,.18),0 6px 15px rgba(36,54,79,.08)}
+    .student-head{position:relative;display:flex;justify-content:center;gap:6px;align-items:center;min-height:31px;text-align:center}
+    .student-head strong{display:flex;align-items:center;justify-content:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:18px}
+    .student-card.has-draw .student-head strong,.student-card.pending .student-head strong{padding:0 55px}
+    .seat{display:inline-grid;place-items:center;flex:0 0 auto;min-width:31px;height:31px;margin-right:7px;padding:0 6px;border-radius:999px;background:var(--student-soft);color:var(--student-accent);font-size:14px;font-weight:900;letter-spacing:.3px}
+    .badge{position:absolute;right:0;top:0;display:inline-flex;align-items:center;white-space:nowrap;border-radius:999px;padding:3px 7px;background:#ffe0a0;color:#734c09;font-size:12px;font-weight:800}
+    .badge.pending-badge{left:0;right:auto;background:#e8eff9;color:#385777}
+    .student-values{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:7px;text-align:center}
+    .student-values .metric{display:block;min-width:0;padding:5px 3px 4px;border-radius:10px}
+    .student-values .metric small{display:block;color:#61728a;font-size:12px;font-weight:700;white-space:nowrap}
+    .student-values .metric b{display:block;margin-top:0;color:var(--ink);font-size:21px;line-height:1.05}
+    .student-values .points{background:#fff3dd}.student-values .points small{color:#a36318}
+    .student-values .stamps{background:#eaf7f1}.student-values .stamps small{color:#29775b}
+    .student-values .cards{background:#edf3fb}.student-values .cards small{color:#3f6696}
+    .display-footer{display:flex;justify-content:space-between;gap:10px;padding:0 14px 7px;color:var(--muted);font-size:13px}
+
+    .admin-screen{background:#eef2f7}
+    .admin-header{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 20px;background:var(--blue-dark);color:#fff}
+    .admin-title{display:flex;align-items:center;gap:12px}
+    .admin-title strong{border-left:1px solid rgba(255,255,255,.35);padding-left:12px}
+    .admin-header .button{background:rgba(255,255,255,.13);color:#fff}
+    .admin-nav{display:flex;gap:2px;overflow-x:auto;padding:0 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:9}
+    .admin-nav button{flex:0 0 auto;border:0;border-bottom:3px solid transparent;padding:14px 13px 11px;background:transparent;color:#526177;font-weight:700}
+    .admin-nav button.active{border-bottom-color:var(--blue);color:var(--blue)}
+    .nav-count{display:inline-grid;place-items:center;min-width:22px;height:22px;margin-left:4px;border-radius:999px;background:#e5ecf6;font-size:12px}
+    .admin-work{padding:22px;max-width:1500px;margin:auto}
+    .section-heading{display:flex;align-items:end;justify-content:space-between;gap:14px;margin-bottom:18px}
+    .section-heading h2{margin:0;font-size:26px}
+    .section-heading p{margin:4px 0 0;color:var(--muted)}
+    .panel{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 7px 18px rgba(35,53,78,.06)}
+    .table-wrap{overflow:auto}
+    table{width:100%;border-collapse:collapse}
+    th,td{text-align:left;padding:13px 12px;border-bottom:1px solid #e5eaf1;white-space:nowrap}
+    th{background:#f7f9fc;color:var(--muted);font-size:13px}
+    td small{display:block;margin-top:2px;color:var(--muted)}
+    .plus{color:var(--green);font-weight:800}
+    .minus{color:var(--red);font-weight:800}
+    .table-actions{display:flex;gap:5px}
+    .mini-button{border:0;border-radius:8px;padding:7px 9px;background:#e8eef7;color:var(--blue);font-weight:700}
+    .mini-button.delete{background:#f8e4e4;color:#a23535}
+    .confirm-bar{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:15px 16px;margin-top:15px}
+    .confirm-bar span{display:block;color:var(--muted);margin-top:3px}
+    .empty-state{padding:44px 20px;text-align:center;color:var(--muted)}
+
+    .inventory-summary{padding:14px 16px;margin-bottom:18px}
+    .inventory-title,.inventory-extra{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .inventory-title{padding-bottom:9px}
+    .inventory-title span,.inventory-extra span{color:var(--muted)}
+    .inventory-counts{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));border-top:1px solid #e5eaf1}
+    .inventory-counts span{padding:9px 7px;white-space:nowrap;color:#536177}
+    .inventory-extra{padding-top:10px;border-top:1px solid #e5eaf1}
+    .inventory-extra strong{color:var(--blue)}
+    [data-admin-panel="manual-draw"] .section-heading{margin-bottom:10px}
+    .manual-draw-panel{padding:12px;margin-bottom:10px}
+    .manual-draw-panel h3{margin:0 0 4px}
+    .manual-draw-panel>p{margin:0 0 10px;color:var(--muted)}
+    .manual-draw-grid{display:grid;grid-template-columns:minmax(210px,280px) minmax(0,1fr);gap:12px;align-items:start}
+    .manual-draw-grid .field{margin-bottom:0}
+    .manual-check{display:flex;align-items:center;gap:8px;margin:3px 0 13px;color:#536177}
+    .manual-check input{width:20px;height:20px}
+    .choice-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;max-height:none;overflow:visible;padding:2px}
+    .choice-chip{display:flex;align-items:center;gap:6px;min-height:38px;padding:5px 8px;border:1px solid var(--line);border-radius:9px;background:#f8fafc;color:var(--ink)}
+    .choice-chip:has(input:checked){border-color:#6393cc;background:#eaf3ff;box-shadow:0 0 0 2px rgba(49,92,153,.12)}
+    .choice-chip input{width:18px;height:18px;flex:0 0 auto}
+    .choice-chip small{display:block;margin-top:2px;color:var(--muted);font-size:11px}
+    .manual-mode{margin:4px 0 10px}
+    .manual-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+    .redeem-panel{padding:13px}
+    .redeem-toolbar{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:10px}
+    .redeem-toolbar .field{width:min(360px,100%);margin:0}
+    .redeem-summary{color:var(--muted);font-weight:700}
+    .redeem-card-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+    .redeem-card{display:grid;grid-template-columns:46px minmax(0,1fr) auto;align-items:center;gap:7px;min-width:0;padding:8px;border:1px solid var(--line);border-radius:12px;background:#f9fbfd}
+    .redeem-card.selected{border-color:#4c9b7c;background:#eef9f4;box-shadow:0 0 0 2px rgba(47,146,116,.12)}
+    .redeem-card img{width:46px;aspect-ratio:2/3;object-fit:cover;border-radius:6px}
+    .redeem-card strong,.redeem-card small{display:block}
+    .redeem-card strong{line-height:1.2}
+    .redeem-card small{margin-top:2px;color:var(--muted);font-size:12px}
+    .redeem-stepper{display:grid;grid-template-columns:30px 25px 30px;align-items:center;gap:2px;text-align:center}
+    .redeem-stepper button{height:32px;border:0;border-radius:8px;background:#e2eaf4;color:var(--blue);font-size:19px;font-weight:900}
+    .redeem-stepper b{font-size:18px}
+    .redeem-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+    .eligible-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .eligible-student{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:5px 12px;min-height:130px;padding:18px;border:2px solid var(--gold);border-radius:16px;background:#fff9e9;text-align:left;color:var(--ink)}
+    .eligible-seat{grid-row:1/span 2;display:grid;place-items:center;width:52px;height:52px;border-radius:50%;background:#f5dfaa;font-weight:800}
+    .eligible-student b{color:#95600b}
+
+    .cards-manage-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+    .manage-card{display:grid;grid-template-columns:68px 1fr;gap:12px;align-items:center;padding:12px}
+    .manage-card img{width:68px;aspect-ratio:2/3;object-fit:cover;border-radius:8px}
+    .manage-card h3{margin:0 0 5px;font-size:16px}
+    .manage-card p{margin:2px 0;color:var(--muted)}
+    .inventory-edit{display:flex;align-items:center;gap:7px;margin-top:8px}
+    .inventory-edit label{font-size:13px;color:var(--muted);font-weight:700}
+    .inventory-edit input{width:78px;min-height:36px;border:1px solid #bcc9da;border-radius:9px;padding:6px 8px;color:var(--ink)}
+    .settings-grid,.backup-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .settings-grid{grid-template-columns:1fr}
+    .settings-grid .panel,.backup-grid .panel{padding:18px}
+    .field{display:grid;gap:6px;margin-bottom:14px}
+    .field label{color:var(--muted);font-weight:700}
+    .field input,.field select{width:100%;min-height:44px;border:1px solid #bcc9da;border-radius:10px;padding:9px 11px;background:#fff;color:var(--ink)}
+    .inline-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+    .draw-screen{height:100vh;min-height:0;padding:10px 14px 9px;background:radial-gradient(circle at 50% 22%,#29477f 0,#13264c 43%,#071228 100%);color:#eef5ff;overflow:hidden;display:flex;flex-direction:column}
+    .draw-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
+    .draw-header-center{text-align:center}
+    .draw-header-center span,.draw-header-center strong{display:block}
+    .draw-tools{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+    .draw-screen .icon-button{background:rgba(255,255,255,.12);color:#fff}
+    .draw-back{justify-self:start;border:0;padding:10px;background:transparent;color:#fff;font-weight:700}
+    .deck{--draw-rows:1;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));grid-template-rows:repeat(var(--draw-rows),minmax(0,1fr));gap:4px;margin-top:8px;min-height:0;flex:1;overflow:hidden}
+    .deck-card{position:relative;min-width:0;height:100%;max-width:100%;aspect-ratio:2/3;justify-self:center;border:2px solid rgba(255,255,255,.55);border-radius:7px;padding:0;background:#1d3769 center/cover no-repeat;box-shadow:0 3px 8px rgba(0,0,0,.23);transition:opacity .25s,filter .25s,transform .25s;overflow:hidden}
+    .deck-card::after{content:"✦";position:absolute;inset:0;display:grid;place-items:center;color:#e5efff;font-size:20px;text-shadow:0 2px 5px #0a1731}
+    .deck-card.disabled{opacity:.22;pointer-events:none}
+    .deck-card.revealed{display:grid;grid-template-rows:1fr auto;padding:4px;background:#f5d27d;border-color:#fff0b8;opacity:1;pointer-events:none}
+    .deck-card.revealed::after{display:none}
+    .deck-card.revealed img{width:100%;height:100%;min-height:0;object-fit:cover;border-radius:5px}
+    .deck-card.revealed small{padding:3px 0 1px;color:#2d210a;text-align:center;font-weight:800}
+    .deck-card.shuffle-preview{display:block;padding:3px;background:#f7e5b4;border-color:#fff0b8;pointer-events:none}
+    .deck-card.shuffle-preview::after{display:none}
+    .deck-card.shuffle-preview img{display:block;width:100%;height:100%;object-fit:cover;border-radius:4px}
+    .deck-card.awaiting,.deck-card.confirmed-draw{box-shadow:0 0 0 4px rgba(104,218,157,.9),0 7px 17px rgba(0,0,0,.3)}
+    .draw-note{text-align:center;min-height:24px;margin-top:5px;color:#c9d7f0}
+    .draw-note.busy{color:#ffe09a;font-weight:800}
+    .shuffle-stack{z-index:5}
+
+    .overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:18px}
+    .backdrop{position:absolute;inset:0;border:0;background:rgba(8,15,29,.72)}
+    .dialog{position:relative;z-index:1;width:min(850px,95vw);max-height:92vh;overflow:auto;padding:20px;border-radius:20px;background:#fff;color:var(--ink);box-shadow:0 25px 80px rgba(0,0,0,.38)}
+    .dialog.small{width:min(460px,94vw)}
+    .dialog header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+    .dialog h2{margin:0}
+    .dialog footer{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+    .student-title-line{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+    .detail-pending-badge{display:inline-flex;padding:3px 8px;border-radius:999px;background:#fde5e5;color:var(--red);font-size:14px;font-weight:800}
+    .summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+    .summary-box{padding:14px;border-radius:13px;background:#eef3f9}
+    .summary-box span,.summary-box strong{display:block}
+    .summary-box strong{font-size:25px;margin-top:3px}
+    .summary-formula{display:block;min-height:22px;margin-top:7px;color:var(--muted);font-size:16px;white-space:nowrap}
+    .summary-formula span{display:inline}
+    .collection-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0 10px}
+    .collection-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+    .collection-card{position:relative;min-width:0}
+    .collection-card img{display:block;width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:10px}
+    .collection-card.empty{filter:grayscale(1);opacity:.3}
+    .count-badge{position:absolute;top:5px;right:5px;border-radius:999px;padding:3px 6px;background:#fff;color:var(--ink);box-shadow:0 2px 7px rgba(0,0,0,.2);font-weight:800}
+    .register-row{display:grid;grid-template-columns:minmax(100px,.8fr) auto minmax(180px,1fr) auto minmax(110px,1fr) minmax(125px,auto);align-items:center;gap:10px;padding:15px 0;border-bottom:1px solid #e3e9f1}
+    .register-value span,.register-value strong,.register-value small{display:block}
+    .register-value strong{font-size:26px}
+    .stepper{display:grid;grid-template-columns:52px 70px 52px;gap:7px;align-items:center}
+    .stepper button{height:52px;border:0;border-radius:13px;background:#dfe8f4;color:var(--blue);font-size:27px;font-weight:800}
+    .stepper strong{text-align:center;font-size:28px}
+    .convert{border:0;border-radius:11px;padding:11px 12px;background:#fff0c8;color:#805408;font-weight:800}
+    .pending-draw{margin-top:13px;padding:12px;border-radius:11px;background:#e6f0ff;color:#234f88}
+    .processing-note{display:flex;align-items:center;justify-content:flex-end;gap:8px;min-height:24px;margin-top:10px;color:var(--blue);font-weight:700}
+    .processing-note::before{content:"";width:16px;height:16px;border:3px solid #c8d7ea;border-top-color:var(--blue);border-radius:50%;animation:spin .75s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .reveal-overlay{z-index:70}
+    .revealed-card{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:min(360px,82vw);max-height:86vh;padding:15px;border-radius:20px;background:linear-gradient(145deg,#fff4cc,#eeb357);color:#2a210f;box-shadow:0 28px 90px rgba(0,0,0,.5);animation:flip-in .58s ease both}
+    .revealed-card img{width:100%;min-height:0;object-fit:contain;border-radius:13px}
+    .revealed-card strong{font-size:24px;margin:8px 0}
+    .revealed-card .button{width:100%}
+    @keyframes flip-in{from{transform:translateY(25px) rotateY(90deg) scale(.72)}to{transform:none}}
+    .toast{position:fixed;left:50%;bottom:24px;z-index:100;transform:translateX(-50%);padding:11px 16px;border-radius:11px;background:#17325c;color:#fff;box-shadow:var(--shadow)}
+    .mode-banner{padding:10px 16px;border-radius:12px;background:#fff0c8;color:#764f0b}
+    .danger-note{color:var(--red)}
+    .version-mark{position:fixed;top:3px;right:8px;z-index:90;padding:2px 7px;border-radius:999px;background:rgba(255,255,255,.88);color:#667892;font-size:11px;font-weight:800;letter-spacing:.04em;pointer-events:none;box-shadow:0 1px 4px rgba(20,45,78,.1)}
+    .student-heading-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .batch-student-help{margin:0 0 10px;color:var(--muted);line-height:1.6}
+    .batch-student-input{width:100%;min-height:250px;resize:vertical;font:18px/1.65 "Noto Sans TC","Microsoft JhengHei",sans-serif}
+    .batch-student-preview{min-height:24px;margin:9px 0 0;color:var(--blue);font-weight:700}
+
+    @media (min-width:1400px) and (min-height:820px){
+      .student-card{min-height:118px}
+      .student-grid{gap:9px}
+    }
+    @media (max-width:1500px){
+      .redeem-card-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+    }
+    @media (max-width:1200px){
+      .redeem-card-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+    }
+    @media (max-width:1050px){
+      .student-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+      .cards-manage-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+      .deck{grid-template-columns:repeat(10,minmax(0,1fr))}
+      .choice-grid{grid-template-columns:repeat(4,minmax(0,1fr));max-height:300px;overflow:auto}
+      .redeem-card-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    }
+    @media (max-width:760px){
+      .topbar,.admin-header,.section-heading,.confirm-bar{align-items:stretch;flex-direction:column}
+      .toolbar{justify-content:flex-start}
+      .student-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+      .student-card{min-height:104px}
+      .student-card.has-draw .student-head{justify-content:flex-start;text-align:left}
+      .student-card.has-draw .student-head strong{max-width:calc(100% - 54px);padding:0}
+      .admin-work{padding:15px}
+      .inventory-counts{grid-template-columns:repeat(3,minmax(0,1fr))}
+      .eligible-grid,.settings-grid,.backup-grid{grid-template-columns:1fr}
+      .manual-draw-grid{grid-template-columns:1fr}
+      .choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));max-height:300px;overflow:auto}
+      .cards-manage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .redeem-toolbar,.redeem-actions{align-items:stretch;flex-direction:column}
+      .redeem-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .draw-header{grid-template-columns:1fr auto}
+      .draw-header-center{grid-column:1/-1;grid-row:2}
+      .draw-tools{grid-column:2}
+      .deck{grid-template-columns:repeat(6,minmax(0,1fr));min-height:0}
+      .collection-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+      .summary-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .register-row{grid-template-columns:1fr auto 1.5fr}
+      .register-row .second-arrow,.register-row .register-total,.register-row .convert{grid-column:auto/span 1}
+      .display-footer{flex-direction:column}
+    }
+    @media (max-width:430px){
+      .student-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .cards-manage-grid{grid-template-columns:1fr}
+      .brand-meta{white-space:normal;flex-wrap:wrap}
+    }
+    @media (prefers-reduced-motion:reduce){
+      *,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+    }
+  </style>
+</head>
+<body>
+<div class="version-mark" aria-label="版本 v.1.0">v.1.0</div>
+<div class="app" id="app">
+  <section class="screen display-screen" id="display-screen">
+    <header class="topbar" id="display-topbar">
+      <div class="brand">
+        <span class="brand-mark">★</span>
+        <div>
+          <h1 id="class-name">五年級班級獎勵制度</h1>
+          <div class="brand-meta">
+            <span class="view-mode" id="display-mode-label">一般瀏覽</span>
+            <span class="compact-status"><span class="dot offline" id="connection-dot"></span><strong id="connection-label">本機示範模式</strong></span>
+            <span class="sync-detail" id="last-sync-label">尚未連接 GAS</span>
+            <span class="pending-compact" id="pending-summary">0 筆待確認</span>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="segmented" aria-label="學生排序">
+          <button type="button" class="sort-button active" data-sort="seat">依座號</button>
+          <button type="button" class="sort-button" data-sort="stamps">依章數</button>
+        </div>
+        <button type="button" class="icon-button" id="sort-direction" aria-label="切換升冪或降冪">↑</button>
+        <button type="button" class="button green" id="toggle-register">開始登記</button>
+        <button type="button" class="icon-button" id="fullscreen-button" aria-label="全螢幕">⛶</button>
+        <button type="button" class="icon-button" id="login-button" aria-label="老師管理">🔒</button>
+      </div>
+    </header>
+    <main class="display-main">
+      <div class="student-grid" id="student-grid"></div>
+    </main>
+    <footer class="display-footer"><span>點擊學生可查看詳細資料</span><span id="student-count-label"></span></footer>
+  </section>
+
+  <section class="screen admin-screen" id="admin-screen" hidden>
+    <header class="admin-header">
+      <div class="admin-title"><span>班級獎勵制度</span><strong>老師管理</strong></div>
+      <div class="toolbar"><span id="admin-connection">本機示範模式</span><button type="button" class="button" id="return-display">返回一般展示並鎖定</button></div>
+    </header>
+    <nav class="admin-nav" id="admin-nav" aria-label="管理功能">
+      <button type="button" class="active" data-panel="pending">待確認登記 <span class="nav-count" id="pending-nav-count">0</span></button>
+      <button type="button" data-panel="draw-list">抽卡 <span class="nav-count" id="draw-nav-count">0</span></button>
+      <button type="button" data-panel="manual-draw">補登抽卡結果</button>
+      <button type="button" data-panel="redeem">獎品兌換</button>
+      <button type="button" data-panel="students">學生資料</button>
+      <button type="button" data-panel="cards">卡牌與庫存</button>
+      <button type="button" data-panel="backup">備份與同步</button>
+      <button type="button" data-panel="settings">系統設定</button>
+    </nav>
+    <main class="admin-work">
+      <section data-admin-panel="pending">
+        <div class="section-heading"><div><h2>待確認登記</h2><p>檢查學生協助登記的本次異動，再整批寫入正式資料。</p></div><span id="pending-updated"></span></div>
+        <div class="panel" id="pending-panel"></div>
+      </section>
+      <section data-admin-panel="draw-list" hidden>
+        <div class="section-heading"><div><h2>選擇抽卡學生</h2><p>只顯示已正式核准、抽卡次數大於 0 的學生。</p></div><span id="eligible-count"></span></div>
+        <div class="panel inventory-summary">
+          <div class="inventory-title"><strong>目前可抽牌庫</strong><span>星座卡與功能卡共用牌庫</span></div>
+          <div class="inventory-counts" id="inventory-counts"></div>
+          <div class="inventory-extra"><span id="function-inventory"></span><strong id="inventory-total"></strong></div>
+        </div>
+        <div class="eligible-grid" id="eligible-grid"></div>
+      </section>
+      <section data-admin-panel="manual-draw" hidden>
+        <div class="section-heading"><div><h2>補登抽卡結果</h2><p>補回離線抽卡結果，或批次發放老師直接給予的特殊卡。</p></div></div>
+        <div class="panel manual-draw-panel">
+          <div class="segmented manual-mode" aria-label="補登方式">
+            <button type="button" class="active" data-manual-mode="card-to-students">一張卡給多位學生</button>
+            <button type="button" data-manual-mode="student-to-cards">一位學生選多張卡</button>
+          </div>
+          <div class="manual-draw-grid" id="manual-card-to-students">
+            <div class="field"><label for="manual-single-card">卡牌</label><select id="manual-single-card"></select></div>
+            <div><strong>選擇學生（可複選）</strong><div class="choice-grid" id="manual-student-choices"></div></div>
+          </div>
+          <div class="manual-draw-grid" id="manual-student-to-cards" hidden>
+            <div class="field"><label for="manual-single-student">學生</label><select id="manual-single-student"></select></div>
+            <div><strong>選擇卡牌（可複選）</strong><div class="choice-grid" id="manual-card-choices"></div></div>
+          </div>
+          <div class="manual-actions">
+            <div><strong>補登只會增加學生持卡並扣除相對應庫存，不會檢查或扣除抽卡次數。</strong></div>
+            <button type="button" class="button primary" id="save-manual-draw">確認補登入帳</button>
+          </div>
+        </div>
+      </section>
+      <section data-admin-panel="redeem" hidden>
+        <div class="section-heading"><div><h2>獎品兌換與卡片回收</h2><p>選擇學生及要收回的卡片數量；不會更動點數與章數。</p></div></div>
+        <div class="panel redeem-panel">
+          <div class="redeem-toolbar">
+            <div class="field"><label for="redeem-student">學生</label><select id="redeem-student"></select></div>
+            <div class="redeem-summary" id="redeem-owned-summary"></div>
+          </div>
+          <div class="redeem-card-grid" id="redeem-card-grid"></div>
+          <div class="redeem-actions"><strong id="redeem-selection-summary">尚未選擇要扣除的卡片</strong><button type="button" class="button primary" id="save-redeem" disabled>確認兌換並扣卡</button></div>
+        </div>
+      </section>
+      <section data-admin-panel="students" hidden>
+        <div class="section-heading"><div><h2>學生資料</h2><p>座號、姓名與啟用狀態。</p></div><div class="student-heading-actions"><button type="button" class="button" id="batch-add-students">批次新增學生</button><button type="button" class="button primary" id="add-student">新增學生</button></div></div>
+        <div class="panel table-wrap"><table><thead><tr><th>座號</th><th>姓名</th><th>狀態</th><th>正式點數</th><th>正式章數</th><th>抽卡次數</th><th>操作</th></tr></thead><tbody id="student-admin-body"></tbody></table></div>
+      </section>
+      <section data-admin-panel="cards" hidden>
+        <div class="section-heading"><div><h2>卡牌與庫存</h2><p>可修改老師庫存與可抽牌庫；圖片上傳將於後續接上。</p></div><button type="button" class="button primary" id="save-inventory">儲存庫存數量</button></div>
+        <div class="cards-manage-grid" id="cards-manage-grid"></div>
+      </section>
+      <section data-admin-panel="backup" hidden>
+        <div class="section-heading"><div><h2>備份與同步</h2><p>下載或匯入單一 JSON；未連線時仍可使用本機資料。</p></div></div>
+        <div class="backup-grid">
+          <div class="panel"><h3>加密 JSON 備份</h3><p id="backup-status">線上匯出使用目前管理 PIN；離線匯出可設定備份解鎖 PIN。輸入內容均會遮蔽。</p><div class="inline-actions"><button type="button" class="button primary" id="export-json">下載加密 JSON</button><button type="button" class="button" id="import-json-button">匯入 JSON</button><input type="file" id="import-json" accept=".json,application/json" hidden></div></div>
+          <div class="panel"><h3>線上同步</h3><p id="sync-status">尚未設定 GAS Web App URL。</p><div class="inline-actions"><button type="button" class="button green" id="sync-now">立即同步</button></div></div>
+        </div>
+      </section>
+      <section data-admin-panel="settings" hidden>
+        <div class="section-heading"><div><h2>系統設定</h2><p>共用設定連線後會保存至試算表。</p></div></div>
+        <div class="settings-grid">
+          <div class="panel">
+            <div class="field"><label for="setting-class-name">班級名稱</label><input id="setting-class-name"></div>
+            <div class="field"><label for="setting-point-rate">幾點兌換 1 章</label><input id="setting-point-rate" type="number" min="1"></div>
+            <div class="field"><label for="setting-stamp-rate">幾章兌換 1 次抽卡</label><input id="setting-stamp-rate" type="number" min="1"></div>
+            <button type="button" class="button primary" id="save-settings">儲存設定</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <section class="screen draw-screen" id="draw-screen" hidden>
+    <header class="draw-header">
+      <button type="button" class="draw-back" id="draw-back">← 返回管理</button>
+      <div class="draw-header-center"><span id="draw-student"></span><strong id="draw-remaining"></strong></div>
+      <div class="draw-tools">
+        <button type="button" class="icon-button" id="sound-button" aria-label="靜音">🔊</button>
+        <button type="button" class="button gold" id="shuffle-button">洗牌</button>
+        <button type="button" class="button green" id="teacher-confirm" disabled>老師確認</button>
+      </div>
+    </header>
+    <div class="deck" id="deck"></div>
+    <div class="draw-note" id="draw-note">請先洗牌，再請學生選一張卡</div>
+  </section>
+
+  <div class="overlay" id="login-overlay" hidden>
+    <button type="button" class="backdrop" data-close="login-overlay" aria-label="關閉登入"></button>
+    <section class="dialog small" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <header><h2 id="login-title">老師管理登入</h2><button type="button" class="icon-button" data-close="login-overlay" aria-label="關閉">×</button></header>
+      <div class="field"><label for="pin-input">數字 PIN</label><input id="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password"></div>
+      <p id="pin-message">請使用電腦鍵盤輸入。</p>
+      <footer><button type="button" class="button" data-close="login-overlay">取消</button><button type="button" class="button primary" id="pin-submit">登入</button></footer>
+    </section>
+  </div>
+
+  <div class="overlay" id="student-overlay" hidden>
+    <button type="button" class="backdrop" data-close="student-overlay" aria-label="關閉學生資料"></button>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="student-dialog-name">
+      <header><div><small id="student-dialog-seat"></small><div class="student-title-line"><h2 id="student-dialog-name"></h2><span class="detail-pending-badge" id="detail-pending-badge" hidden>待核可</span></div></div><button type="button" class="icon-button" data-close="student-overlay" aria-label="關閉">×</button></header>
+      <div class="summary-row"><div class="summary-box"><span>點數</span><strong id="detail-points"></strong><small class="summary-formula" id="detail-points-formula"></small></div><div class="summary-box"><span>章數</span><strong id="detail-stamps"></strong><small class="summary-formula" id="detail-stamps-formula"></small></div><div class="summary-box"><span>抽卡</span><strong id="detail-draws"></strong><small class="summary-formula" id="detail-draws-formula"></small></div><div class="summary-box"><span>卡片</span><strong id="detail-cards"></strong></div></div>
+      <div class="collection-heading"><strong>卡牌蒐集</strong><div class="segmented"><button type="button" class="active" data-card-filter="all">全部卡牌</button><button type="button" data-card-filter="owned">只看已擁有</button></div></div>
+      <div class="collection-grid" id="collection-grid"></div>
+    </section>
+  </div>
+
+  <div class="overlay" id="student-editor-overlay" hidden>
+    <button type="button" class="backdrop" data-close="student-editor-overlay" aria-label="關閉新增學生"></button>
+    <section class="dialog small" role="dialog" aria-modal="true" aria-labelledby="student-editor-title">
+      <header><h2 id="student-editor-title">新增學生</h2><button type="button" class="icon-button" data-close="student-editor-overlay" aria-label="關閉">×</button></header>
+      <div class="field"><label for="new-student-seat">座號</label><input id="new-student-seat" type="number" min="1" step="1" inputmode="numeric"></div>
+      <div class="field"><label for="new-student-name">姓名</label><input id="new-student-name" autocomplete="off"></div>
+      <p class="danger-note" id="student-editor-error" hidden></p>
+      <footer><button type="button" class="button" data-close="student-editor-overlay">取消</button><button type="button" class="button primary" id="save-student">新增並啟用</button></footer>
+    </section>
+  </div>
+
+  <div class="overlay" id="batch-student-overlay" hidden>
+    <button type="button" class="backdrop" data-close="batch-student-overlay" aria-label="關閉批次新增學生"></button>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="batch-student-title">
+      <header><h2 id="batch-student-title">批次新增學生</h2><button type="button" class="icon-button" data-close="batch-student-overlay" aria-label="關閉">×</button></header>
+      <p class="batch-student-help">每行輸入一位學生，格式為「座號 姓名」。也支援逗號或 Tab 分隔，例如：<br><strong>01 王小明<br>02,李小華</strong></p>
+      <textarea class="batch-student-input" id="batch-student-input" placeholder="01 王小明&#10;02 李小華&#10;03 陳小美" spellcheck="false"></textarea>
+      <p class="batch-student-preview" id="batch-student-preview">尚未輸入學生資料</p>
+      <p class="danger-note" id="batch-student-error" hidden></p>
+      <footer><button type="button" class="button" data-close="batch-student-overlay">取消</button><button type="button" class="button primary" id="save-batch-students">確認批次新增</button></footer>
+    </section>
+  </div>
+
+  <div class="overlay" id="register-overlay" hidden>
+    <button type="button" class="backdrop" data-close="register-overlay" aria-label="關閉登記"></button>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="register-title">
+      <header><div><small>學生協助登記</small><h2 id="register-title"></h2></div></header>
+      <div class="register-row">
+        <div class="register-value"><span>點數</span><strong id="point-base"></strong></div><span>→</span>
+        <div class="stepper"><button type="button" data-step="points" data-delta="-1">－</button><strong id="point-change">0</strong><button type="button" data-step="points" data-delta="1">＋</button></div><span class="second-arrow">→</span>
+        <div class="register-value register-total"><span>總計</span><strong id="point-total"></strong><small>暫定</small></div>
+        <button type="button" class="convert" id="convert-points" hidden></button>
+      </div>
+      <div class="register-row">
+        <div class="register-value"><span>章數</span><strong id="stamp-base"></strong></div><span>→</span>
+        <div class="stepper"><button type="button" data-step="stamps" data-delta="-1">－</button><strong id="stamp-change">0</strong><button type="button" data-step="stamps" data-delta="1">＋</button></div><span class="second-arrow">→</span>
+        <div class="register-value register-total"><span>總計</span><strong id="stamp-total"></strong><small>暫定</small></div>
+        <button type="button" class="convert" id="convert-stamps" hidden></button>
+      </div>
+      <div class="pending-draw" id="pending-draw" hidden></div>
+      <div class="processing-note" id="registration-status" hidden>正在寫入暫存登記，請勿重複點擊或關閉視窗…</div>
+      <footer><button type="button" class="button" data-close="register-overlay">取消</button><button type="button" class="button primary" id="save-registration">送出暫存登記</button></footer>
+    </section>
+  </div>
+
+  <div class="overlay reveal-overlay" id="reveal-overlay" hidden>
+    <button type="button" class="backdrop" id="close-reveal-area" aria-label="關閉卡牌放大檢視"></button>
+    <section class="revealed-card" aria-label="抽中的卡牌">
+      <img id="revealed-image" src="星座卡/00-共用抽卡牌堆卡背.png" alt="">
+      <strong id="revealed-name"></strong>
+      <button type="button" class="button primary" id="close-reveal">確定</button>
+    </section>
+  </div>
+  <div class="overlay" id="backup-pin-overlay" hidden>
+    <button type="button" class="backdrop" id="backup-pin-cancel-area" aria-label="取消輸入備份 PIN"></button>
+    <section class="dialog small" role="dialog" aria-modal="true" aria-labelledby="backup-pin-title">
+      <header><h2 id="backup-pin-title">備份解鎖 PIN</h2><button type="button" class="icon-button" id="backup-pin-close" aria-label="關閉">×</button></header>
+      <p id="backup-pin-help"></p>
+      <div class="field"><label for="backup-pin-input">數字 PIN</label><input id="backup-pin-input" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off"></div>
+      <p class="danger-note" id="backup-pin-error" hidden></p>
+      <footer><button type="button" class="button" id="backup-pin-cancel">取消</button><button type="button" class="button primary" id="backup-pin-confirm">確定</button></footer>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+  <iframe id="gas-bridge-frame" title="GAS 資料橋接" hidden></iframe>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var CONFIG = {
+    GAS_WEB_APP_URL: "https://script.google.com/macros/s/AKfycbwBms3w2WxrWmgJPhmkixMDb4XfcQOKHOImYCXzFGASlAYkvruRY0rbwcQhBz3nNcQL5g/exec",
+    BRIDGE_CHANNEL: "class-reward-bridge-v1",
+    REQUEST_TIMEOUT_MS: 30000,
+    DEMO_PIN: "1234",
+    HIDDEN_CARD_IDS: ["F19","F20"],
+    CARD_DISPLAY_ORDER: ["Z01","Z02","Z03","Z04","Z05","Z06","Z07","Z08","Z09","Z10","Z11","Z12","S13","S14","S15","S16","S17","S18","F19","F20"]
+  };
+
+  var CARD_BACK = "星座卡/00-共用抽卡牌堆卡背.png";
+  var CARD_TYPES = [
+    {id:"Z01",name:"牡羊座",category:"星座卡",image:"星座卡/01-牡羊座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"Z02",name:"金牛座",category:"星座卡",image:"星座卡/02-金牛座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"Z03",name:"雙子座",category:"星座卡",image:"星座卡/03-雙子座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"Z04",name:"巨蟹座",category:"星座卡",image:"星座卡/04-巨蟹座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"Z05",name:"獅子座",category:"星座卡",image:"星座卡/05-獅子座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"Z06",name:"處女座",category:"星座卡",image:"星座卡/06-處女座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"Z07",name:"天秤座",category:"星座卡",image:"星座卡/07-天秤座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"Z08",name:"天蠍座",category:"星座卡",image:"星座卡/08-天蠍座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"Z09",name:"射手座",category:"星座卡",image:"星座卡/09-射手座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"Z10",name:"摩羯座",category:"星座卡",image:"星座卡/10-摩羯座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"Z11",name:"水瓶座",category:"星座卡",image:"星座卡/11-水瓶座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"Z12",name:"雙魚座",category:"星座卡",image:"星座卡/12-雙魚座.png",teacher:2,deck:6,enabled:true,drawable:true,effect:"NONE"},
+    {id:"F19",name:"友情卡",category:"功能卡",image:"功能卡/19-友情卡.png",teacher:1,deck:1,enabled:true,drawable:true,effect:"GIFT"},
+    {id:"F20",name:"雙抽卡",category:"功能卡",image:"功能卡/20-雙抽卡.png",teacher:1,deck:1,enabled:true,drawable:true,effect:"DOUBLE_DRAW"},
+    {id:"S13",name:"導師卡",category:"特殊卡",image:"特殊卡/13-導師卡.png",teacher:5,deck:0,enabled:true,drawable:false,effect:"NONE"},
+    {id:"S14",name:"優秀卡",category:"特殊卡",image:"特殊卡/14-優秀卡.png",teacher:5,deck:0,enabled:true,drawable:false,effect:"NONE"},
+    {id:"S15",name:"參賽卡",category:"特殊卡",image:"特殊卡/15-參賽卡.png",teacher:5,deck:0,enabled:true,drawable:false,effect:"NONE"},
+    {id:"S16",name:"進步卡",category:"特殊卡",image:"特殊卡/16-進步卡.png",teacher:5,deck:0,enabled:true,drawable:false,effect:"NONE"},
+    {id:"S17",name:"合作卡",category:"特殊卡",image:"特殊卡/17-合作卡.png",teacher:5,deck:0,enabled:true,drawable:false,effect:"NONE"},
+    {id:"S18",name:"品格卡",category:"特殊卡",image:"特殊卡/18-品格卡.png",teacher:5,deck:0,enabled:true,drawable:false,effect:"NONE"}
+  ];
+
+  function makeDemoData(){
+    return {
+      schemaVersion:1,
+      demoSeedVersion:3,
+      dataVersion:1,
+      sourceId:"local-demo",
+      exportedAt:null,
+      settings:{className:"五年級班級獎勵制度",pointsPerStamp:5,stampsPerDraw:10},
+      assets:{cardBack:""},
+      students:[],
+      cards:JSON.parse(JSON.stringify(CARD_TYPES)),
+      holdings:{},
+      pending:[],
+      logs:[],
+      syncLogs:[],
+      offlineChanges:[]
+    };
+  }
+
+  var state={
+    data:null,
+    connected:false,
+    sessionToken:"",
+    registerMode:false,
+    sortKey:localStorage.getItem("reward-sort")||"seat",
+    ascending:localStorage.getItem("reward-order")!=="desc",
+    selectedStudentId:null,
+    cardFilter:"all",
+    pinFailures:0,
+    draw:null,
+    registrationSubmitting:false,
+    pendingApproving:false,
+    inventorySaving:false,
+    muted:localStorage.getItem("reward-muted")==="1",
+    requests:new Map(),
+    bridgeReady:false,
+    bridgeConnecting:!!CONFIG.GAS_WEB_APP_URL,
+    bridgeWindow:null,
+    backupPinResolve:null,
+    manualDrawSaving:false,
+    manualMode:"card-to-students",
+    manualSelectedCardId:"",
+    manualSelectedStudentId:"",
+    studentSaving:false,
+    studentBatchSaving:false,
+    studentSavingIds:{},
+    redeemSelectedStudentId:"",
+    redeemQuantities:{},
+    redeemSaving:false
+  };
+
+  var el=function(id){return document.getElementById(id);};
+  var qs=function(selector,scope){return (scope||document).querySelector(selector);};
+  var qsa=function(selector,scope){return Array.prototype.slice.call((scope||document).querySelectorAll(selector));};
+  var uid=function(prefix){return (prefix||"req")+"-"+Date.now()+"-"+Math.random().toString(36).slice(2,9);};
+  var deepCopy=function(value){return JSON.parse(JSON.stringify(value));};
+  var clamp=function(value,min){return Math.max(min,Number(value)||0);};
+  var escapeHtml=function(value){return String(value).replace(/[&<>"']/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch];});};
+  var nowText=function(){return new Date().toLocaleString("zh-TW",{hour12:false});};
+
+  function saveLocal(){
+    localStorage.setItem("class-reward-latest",JSON.stringify(state.data));
+    localStorage.setItem("class-reward-latest-time",new Date().toISOString());
+  }
+
+  function loadLocal(){
+    try{
+      var raw=localStorage.getItem("class-reward-latest");
+      return raw?JSON.parse(raw):makeDemoData();
+    }catch(error){
+      return makeDemoData();
+    }
+  }
+
+  function showToast(message){
+    var toast=el("toast");
+    toast.textContent=message;
+    toast.hidden=false;
+    clearTimeout(showToast.timer);
+    showToast.timer=setTimeout(function(){toast.hidden=true;},2200);
+  }
+
+  function setScreen(name){
+    el("display-screen").hidden=name!=="display";
+    el("admin-screen").hidden=name!=="admin";
+    el("draw-screen").hidden=name!=="draw";
+    if(name==="display") renderDisplay();
+    if(name==="admin") renderAdmin();
+  }
+
+  function openOverlay(id){
+    el(id).hidden=false;
+  }
+
+  function closeOverlay(id){
+    el(id).hidden=true;
+  }
+
+  function updateLoginAvailability(){
+    var waiting=state.bridgeConnecting;
+    el("login-button").disabled=waiting;
+    el("pin-input").disabled=waiting;
+    el("pin-submit").disabled=waiting;
+    if(waiting) el("pin-message").textContent="正在連接 Google 試算表，請稍候…";
+    else if(!el("pin-message").textContent||el("pin-message").textContent.indexOf("正在連接")===0) el("pin-message").textContent="請使用電腦鍵盤輸入。";
+  }
+
+  function bridgeRequest(action,payload,requiresAuth,timeoutMs){
+    if(!CONFIG.GAS_WEB_APP_URL) return Promise.reject(new Error("尚未設定 GAS Web App URL"));
+    if(!state.bridgeReady) return Promise.reject(new Error("GAS 通訊橋接尚未就緒"));
+    var requestId=uid("gas");
+    return new Promise(function(resolve,reject){
+      var timer=setTimeout(function(){
+        state.requests.delete(requestId);
+        reject(new Error("GAS 回應逾時"));
+      },timeoutMs||CONFIG.REQUEST_TIMEOUT_MS);
+      state.requests.set(requestId,{resolve:resolve,reject:reject,timer:timer});
+      state.bridgeWindow.postMessage({
+        channel:CONFIG.BRIDGE_CHANNEL,
+        type:"request",
+        requestId:requestId,
+        action:action,
+        payload:payload||{},
+        sessionToken:requiresAuth?state.sessionToken:""
+      },"*");
+    });
+  }
+
+  function setupBridge(){
+    if(!CONFIG.GAS_WEB_APP_URL){state.bridgeConnecting=false;updateLoginAvailability();return;}
+    var frame=el("gas-bridge-frame");
+    var connectionTimer=setTimeout(function(){
+      if(!state.bridgeConnecting) return;
+      state.bridgeConnecting=false;
+      setOffline("連線等待逾時，目前使用本機資料");
+      updateLoginAvailability();
+    },15000);
+    frame.src=CONFIG.GAS_WEB_APP_URL;
+    window.addEventListener("message",function(event){
+      if(!event.data||event.data.channel!==CONFIG.BRIDGE_CHANNEL) return;
+      if(event.data.type==="ready"){
+        var trustedOrigin=false;
+        try{
+          var host=new URL(event.origin).hostname;
+          trustedOrigin=host==="script.google.com"||host.endsWith(".googleusercontent.com");
+        }catch(error){}
+        if(!trustedOrigin) return;
+        state.bridgeWindow=event.source;
+        state.bridgeReady=true;
+        bridgeRequest("bootstrap",{},false).then(function(result){
+          state.data=result.data;
+          state.connected=true;
+          state.bridgeConnecting=false;
+          clearTimeout(connectionTimer);
+          saveLocal();
+          renderAll();
+          updateLoginAvailability();
+          showToast("已連接 Google 試算表");
+        }).catch(function(error){
+          state.bridgeConnecting=false;
+          clearTimeout(connectionTimer);
+          setOffline(error.message);
+          updateLoginAvailability();
+        });
+        return;
+      }
+      if(event.data.type==="response"){
+        if(event.source!==state.bridgeWindow) return;
+        var pending=state.requests.get(event.data.requestId);
+        if(!pending) return;
+        clearTimeout(pending.timer);
+        state.requests.delete(event.data.requestId);
+        if(event.data.ok) pending.resolve(event.data.result);
+        else pending.reject(new Error(event.data.error||"GAS 操作失敗"));
+      }
+    });
+  }
+
+  function setOffline(reason){
+    state.connected=false;
+    el("connection-label").textContent="離線／本機模式";
+    el("connection-dot").classList.add("offline");
+    el("last-sync-label").textContent=reason||"使用最近本機資料";
+    el("admin-connection").textContent="離線／本機模式";
+    el("sync-status").textContent=reason||"目前使用本機資料，恢復連線後再比對。";
+  }
+
+  function localApi(action,payload){
+    return new Promise(function(resolve,reject){
+      setTimeout(function(){
+        try{
+          if(action==="login"){
+            if(String(payload.pin)!==CONFIG.DEMO_PIN) throw new Error("PIN 不正確");
+            resolve({sessionToken:"local-"+uid("session")});
+            return;
+          }
+          if(action==="submitPending"){
+            upsertPendingLocal(payload);
+            resolve({data:deepCopy(state.data)});
+            return;
+          }
+          if(action==="approvePending"){
+            approvePendingLocal();
+            resolve({data:deepCopy(state.data)});
+            return;
+          }
+          if(action==="deletePending"){
+            state.data.pending=state.data.pending.filter(function(item){return item.studentId!==payload.studentId;});
+            state.data.logs.push({id:uid("log"),type:"DELETE_PENDING",studentId:payload.studentId,at:new Date().toISOString()});
+            saveLocal();
+            resolve({data:deepCopy(state.data)});
+            return;
+          }
+          if(action==="confirmDraw"){
+            confirmDrawLocal(payload);
+            resolve({data:deepCopy(state.data)});
+            return;
+          }
+          if(action==="saveInventory"){
+            saveInventoryLocal(payload);
+            resolve({data:deepCopy(state.data)});
+            return;
+          }
+          if(action==="recordManualCards"){
+            recordManualCardsLocal(payload);
+            resolve({data:deepCopy(state.data)});
+            return;
+          }
+          if(action==="saveStudent"){
+            saveStudentLocal(payload);
+            resolve({data:deepCopy(state.data)});
+            return;
+          }
+          if(action==="saveStudentsBatch"){
+            saveStudentsBatchLocal(payload);
+            resolve({data:deepCopy(state.data)});
+            return;
+          }
+          if(action==="redeemCards"){
+            redeemCardsLocal(payload);
+            resolve({data:deepCopy(state.data)});
+            return;
+          }
+          if(action==="saveSettings"){
+            state.data.settings=Object.assign({},state.data.settings,payload.settings);
+            state.data.dataVersion+=1;
+            resolve({data:deepCopy(state.data)});
+            return;
+          }
+          if(action==="bootstrap"){
+            resolve({data:deepCopy(state.data)});
+            return;
+          }
+          resolve({ok:true});
+        }catch(error){reject(error);}
+      },120);
+    });
+  }
+
+  function api(action,payload,requiresAuth,timeoutMs){
+    if(state.connected) return bridgeRequest(action,payload,requiresAuth,timeoutMs);
+    return localApi(action,payload||{});
+  }
+
+  function upsertPendingLocal(payload){
+    var existing=state.data.pending.find(function(item){return item.studentId===payload.studentId;});
+    if(existing){
+      existing.pointChange=payload.pointChange;
+      existing.stampChange=payload.stampChange;
+      existing.pendingDraws=payload.pendingDraws;
+      existing.pointToStamps=payload.pointToStamps||0;
+      existing.stampsSpentForDraw=payload.stampsSpentForDraw||0;
+      existing.updatedAt=new Date().toISOString();
+    }else{
+      state.data.pending.push({studentId:payload.studentId,pointChange:payload.pointChange,stampChange:payload.stampChange,pendingDraws:payload.pendingDraws,pointToStamps:payload.pointToStamps||0,stampsSpentForDraw:payload.stampsSpentForDraw||0,updatedAt:new Date().toISOString()});
+    }
+    state.data.offlineChanges.push({id:uid("offline"),type:"PENDING_UPSERT",payload:deepCopy(payload),at:new Date().toISOString()});
+    saveLocal();
+  }
+
+  function approvePendingLocal(){
+    state.data.pending.forEach(function(item){
+      var student=getStudent(item.studentId);
+      if(!student) return;
+      student.points+=item.pointChange;
+      student.stamps+=item.stampChange;
+      student.draws+=item.pendingDraws;
+    });
+    state.data.logs.push({id:uid("log"),type:"APPROVE_PENDING",count:state.data.pending.length,at:new Date().toISOString()});
+    state.data.pending=[];
+    state.data.dataVersion+=1;
+    saveLocal();
+  }
+
+  function confirmDrawLocal(payload){
+    var student=getStudent(payload.studentId);
+    var card=getCard(payload.cardId);
+    var recipient=payload.recipientStudentId?getStudent(payload.recipientStudentId):student;
+    if(!student||!card) throw new Error("學生或卡牌不存在");
+    if(!recipient) throw new Error("找不到接收卡牌的學生");
+    if(student.draws<1) throw new Error("學生已沒有抽卡次數");
+    if(card.deck<1) throw new Error("該卡牌庫存不足");
+    student.draws-=1;
+    if(card.effect==="DOUBLE_DRAW") student.draws+=2;
+    card.deck-=1;
+    state.data.holdings[recipient.id]=state.data.holdings[recipient.id]||{};
+    state.data.holdings[recipient.id][card.id]=(state.data.holdings[recipient.id][card.id]||0)+1;
+    recipient.cards+=1;
+    state.data.logs.push({id:uid("log"),type:"DRAW",studentId:student.id,recipientStudentId:recipient.id,cardId:card.id,requestId:payload.requestId,at:new Date().toISOString()});
+    state.data.offlineChanges.push({id:uid("offline"),type:"DRAW",payload:deepCopy(payload),at:new Date().toISOString()});
+    state.data.dataVersion+=1;
+    saveLocal();
+  }
+
+  function saveInventoryLocal(payload){
+    (payload.items||[]).forEach(function(item){
+      var card=getCard(item.cardId);
+      if(card){card.teacher=clamp(item.teacher,0);card.deck=clamp(item.deck,0);}
+    });
+    state.data.logs.push({id:uid("log"),type:"SAVE_INVENTORY",count:(payload.items||[]).length,at:new Date().toISOString()});
+    state.data.dataVersion+=1;
+    saveLocal();
+  }
+
+  function recordManualCardsLocal(payload){
+    var entries=Array.isArray(payload.entries)?payload.entries:[];
+    var inventoryNeed={};
+    entries.forEach(function(entry){
+      var student=getStudent(entry.studentId),card=getCard(entry.cardId);
+      if(!student||!student.active||!card) throw new Error("啟用中的學生或卡牌不存在");
+      inventoryNeed[card.id]=(inventoryNeed[card.id]||0)+1;
+    });
+    Object.keys(inventoryNeed).forEach(function(cardId){var card=getCard(cardId),available=card.drawable?card.deck:card.teacher;if(available<inventoryNeed[cardId]) throw new Error(card.name+"的庫存不足");});
+    entries.forEach(function(entry){
+      var student=getStudent(entry.studentId),card=getCard(entry.cardId);
+      if(card.drawable) card.deck-=1;else card.teacher-=1;
+      state.data.holdings[student.id]=state.data.holdings[student.id]||{};
+      state.data.holdings[student.id][card.id]=(state.data.holdings[student.id][card.id]||0)+1;
+      student.cards+=1;
+    });
+    state.data.logs.push({id:uid("log"),type:"MANUAL_CARD_BATCH",count:entries.length,consumeDraw:false,requestId:payload.requestId,at:new Date().toISOString()});
+    state.data.offlineChanges.push({id:uid("offline"),type:"MANUAL_CARD_BATCH",payload:deepCopy(payload),at:new Date().toISOString()});
+    state.data.dataVersion+=1;
+    saveLocal();
+  }
+
+  function saveStudentLocal(payload){
+    var input=payload.student||{},seat=clamp(input.seat,1),name=String(input.name||"").trim();
+    if(!Number.isInteger(seat)||seat<1) throw new Error("座號必須是 1 以上的整數");
+    if(!name) throw new Error("請輸入學生姓名");
+    var duplicate=state.data.students.find(function(student){return student.seat===seat&&student.id!==input.id;});
+    if(duplicate) throw new Error("座號 "+seat+" 已由 "+duplicate.name+" 使用");
+    var student=input.id?getStudent(input.id):null;
+    if(student){student.seat=seat;student.name=name;student.active=!!input.active;}
+    else{
+      var maxId=state.data.students.reduce(function(max,item){var match=String(item.id).match(/^STU(\d+)$/);return match?Math.max(max,Number(match[1])):max;},0);
+      student={id:"STU"+String(maxId+1).padStart(3,"0"),seat:seat,name:name,active:!!input.active,points:0,stamps:0,draws:0,cards:0};
+      state.data.students.push(student);state.data.holdings[student.id]={};
+    }
+    state.data.dataVersion+=1;
+    state.data.logs.push({id:uid("log"),type:input.id?"UPDATE_STUDENT":"ADD_STUDENT",studentId:student.id,requestId:payload.requestId,at:new Date().toISOString()});
+    state.data.offlineChanges.push({id:uid("offline"),type:"SAVE_STUDENT",payload:deepCopy(payload),at:new Date().toISOString()});
+    saveLocal();
+  }
+
+  function saveStudentsBatchLocal(payload){
+    var items=Array.isArray(payload.students)?payload.students:[];
+    if(!items.length) throw new Error("尚未輸入學生資料");
+    var existingSeats={};
+    state.data.students.forEach(function(student){existingSeats[student.seat]=student.name;});
+    var seen={},normalized=items.map(function(item){
+      var seat=Number(item.seat),name=String(item.name||"").trim();
+      if(!Number.isInteger(seat)||seat<1) throw new Error("座號必須是 1 以上的整數");
+      if(!name) throw new Error("學生姓名不可空白");
+      if(existingSeats[seat]) throw new Error("座號 "+seat+" 已由 "+existingSeats[seat]+" 使用");
+      if(seen[seat]) throw new Error("批次資料中座號 "+seat+" 重複");
+      seen[seat]=true;
+      return {seat:seat,name:name};
+    });
+    var maxId=state.data.students.reduce(function(max,item){var match=String(item.id).match(/^STU(\d+)$/);return match?Math.max(max,Number(match[1])):max;},0);
+    normalized.forEach(function(item,index){
+      var id="STU"+String(maxId+index+1).padStart(3,"0");
+      state.data.students.push({id:id,seat:item.seat,name:item.name,active:true,points:0,stamps:0,draws:0,cards:0});
+      state.data.holdings[id]={};
+    });
+    state.data.students.sort(function(a,b){return a.seat-b.seat;});
+    state.data.dataVersion+=1;
+    state.data.logs.push({id:uid("log"),type:"ADD_STUDENTS_BATCH",count:normalized.length,requestId:payload.requestId,at:new Date().toISOString()});
+    state.data.offlineChanges.push({id:uid("offline"),type:"SAVE_STUDENTS_BATCH",payload:deepCopy(payload),at:new Date().toISOString()});
+    saveLocal();
+  }
+
+  function redeemCardsLocal(payload){
+    var student=getStudent(payload.studentId),items=Array.isArray(payload.items)?payload.items:[];
+    if(!student||!student.active) throw new Error("找不到啟用中的學生資料");
+    if(!items.length) throw new Error("尚未選擇要扣除的卡片");
+    var holdings=state.data.holdings[student.id]||{},seen={};
+    items.forEach(function(item){
+      var card=getCard(item.cardId),quantity=Number(item.quantity);
+      if(!card||!Number.isInteger(quantity)||quantity<1) throw new Error("卡片或扣除數量不正確");
+      if(seen[card.id]) throw new Error("同一卡片不可重複送出");
+      seen[card.id]=true;
+      if((holdings[card.id]||0)<quantity) throw new Error(card.name+"持有數量不足");
+    });
+    items.forEach(function(item){
+      var card=getCard(item.cardId),quantity=Number(item.quantity);
+      holdings[card.id]-=quantity;
+      if(card.drawable) card.deck+=quantity;else card.teacher+=quantity;
+      student.cards-=quantity;
+    });
+    state.data.dataVersion+=1;
+    state.data.logs.push({id:uid("log"),type:"REDEEM_CARDS",studentId:student.id,count:items.reduce(function(total,item){return total+Number(item.quantity);},0),items:deepCopy(items),requestId:payload.requestId,at:new Date().toISOString()});
+    state.data.offlineChanges.push({id:uid("offline"),type:"REDEEM_CARDS",payload:deepCopy(payload),at:new Date().toISOString()});
+    saveLocal();
+  }
+
+  function getStudent(id){return state.data.students.find(function(item){return item.id===id;});}
+  function getCard(id){return state.data.cards.find(function(item){return item.id===id;});}
+  function cardImage(card){return card.backupImageData||card.image;}
+  function isCardHidden(card){return !card.enabled||CONFIG.HIDDEN_CARD_IDS.indexOf(card.id)>=0;}
+  function orderedCards(cards){
+    return cards.slice().sort(function(a,b){
+      var aIndex=CONFIG.CARD_DISPLAY_ORDER.indexOf(a.id);
+      var bIndex=CONFIG.CARD_DISPLAY_ORDER.indexOf(b.id);
+      if(aIndex<0) aIndex=1000+state.data.cards.indexOf(a);
+      if(bIndex<0) bIndex=1000+state.data.cards.indexOf(b);
+      return aIndex-bIndex;
+    });
+  }
+  function getPending(id){return state.data.pending.find(function(item){return item.studentId===id;});}
+  function pendingBreakdown(item){
+    var pointToStamps=Number(item&&item.pointToStamps)||0;
+    var stampsSpentForDraw=Number(item&&item.stampsSpentForDraw)||0;
+    if(item&&item.pendingDraws>0&&pointToStamps===0&&stampsSpentForDraw===0){
+      pointToStamps=Math.floor(Math.max(0,-item.pointChange)/state.data.settings.pointsPerStamp);
+      stampsSpentForDraw=item.pendingDraws*state.data.settings.stampsPerDraw;
+    }
+    return {pointToStamps:pointToStamps,stampsSpentForDraw:stampsSpentForDraw};
+  }
+  function signedChangeHtml(value){
+    if(!value) return "";
+    return '<span class="'+(value>0?"plus":"minus")+'">'+(value>0?"＋":"−")+Math.abs(value)+"</span>";
+  }
+  function pendingFormula(item){
+    var breakdown=pendingBreakdown(item);
+    var pointsSpent=breakdown.pointToStamps*state.data.settings.pointsPerStamp;
+    return {
+      pointDirect:item.pointChange+pointsSpent,
+      pointsSpent:pointsSpent,
+      stampDirect:item.stampChange-breakdown.pointToStamps+breakdown.stampsSpentForDraw,
+      pointToStamps:breakdown.pointToStamps,
+      stampsSpentForDraw:breakdown.stampsSpentForDraw
+    };
+  }
+  function pendingTotals(student){
+    var pending=getPending(student.id);
+    return {
+      points:student.points+(pending?pending.pointChange:0),
+      stamps:student.stamps+(pending?pending.stampChange:0),
+      draws:student.draws+(pending?pending.pendingDraws:0),
+      pending:pending
+    };
+  }
+
+  function renderAll(){
+    el("class-name").textContent=state.data.settings.className;
+    el("setting-class-name").value=state.data.settings.className;
+    el("setting-point-rate").value=state.data.settings.pointsPerStamp;
+    el("setting-stamp-rate").value=state.data.settings.stampsPerDraw;
+    if(state.connected){
+      el("connection-label").textContent="已連線";
+      el("connection-dot").classList.remove("offline");
+      el("last-sync-label").textContent="最近同步 "+nowText();
+      el("admin-connection").textContent="已連線";
+      el("sync-status").textContent="已連接 Google 試算表。";
+    }else{
+      setOffline(CONFIG.GAS_WEB_APP_URL?"等待 GAS 連線":"尚未連接 GAS");
+      el("pin-message").textContent="請使用電腦鍵盤輸入。";
+    }
+    renderDisplay();
+    renderAdmin();
+    updateLoginAvailability();
+  }
+
+  function sortedStudents(){
+    return state.data.students.filter(function(item){return item.active;}).slice().sort(function(a,b){
+      var result;
+      if(state.sortKey==="seat") result=a.seat-b.seat;
+      else result=a.stamps-b.stamps||a.points-b.points||a.seat-b.seat;
+      return state.ascending?result:-result;
+    });
+  }
+
+  function renderDisplay(){
+    var grid=el("student-grid");
+    grid.innerHTML="";
+    sortedStudents().forEach(function(student){
+      var totals=pendingTotals(student);
+      var button=document.createElement("button");
+      var palette=[
+        {accent:"#477fbd",soft:"#edf4fc"},
+        {accent:"#2f9274",soft:"#eaf7f2"},
+        {accent:"#c47a32",soft:"#fff3e5"},
+        {accent:"#8171b6",soft:"#f2effa"}
+      ][(student.seat-1)%4];
+      button.type="button";
+      button.className="student-card"+(totals.pending?" pending":"")+(totals.draws>0?" has-draw":"");
+      button.style.setProperty("--student-accent",palette.accent);
+      button.style.setProperty("--student-soft",palette.soft);
+      button.setAttribute("aria-label",student.seat+"號 "+student.name+"，點數 "+totals.points+"，章數 "+totals.stamps+"，卡片 "+student.cards+" 張"+(totals.pending?"，待老師核可":"")+(totals.draws>0?"，可抽 "+totals.draws+" 次":""));
+      button.innerHTML=
+        '<div class="student-head"><strong><span class="seat">'+String(student.seat).padStart(2,"0")+'</span>'+escapeHtml(student.name)+'</strong>'+
+        (totals.pending?'<span class="badge pending-badge">待核可</span>':"")+
+        (totals.draws>0?'<span class="badge">可抽 '+totals.draws+'</span>':"")+
+        '</div><div class="student-values"><span class="metric points"><small>★ 點數</small><b>'+totals.points+'</b></span><span class="metric stamps"><small>◆ 章數</small><b>'+totals.stamps+'</b></span><span class="metric cards"><small>▣ 卡片</small><b>'+student.cards+'</b></span></div>';
+      button.addEventListener("click",function(){
+        state.selectedStudentId=student.id;
+        if(state.registerMode) openRegistration(student);
+        else openStudentDetail(student);
+      });
+      grid.appendChild(button);
+    });
+    el("student-count-label").textContent="全班 "+sortedStudents().length+" 人";
+    el("pending-summary").textContent=state.data.pending.length+" 筆待確認";
+    el("display-mode-label").textContent=state.registerMode?"學生登記模式":"一般瀏覽";
+    el("toggle-register").textContent=state.registerMode?"結束登記":"開始登記";
+    el("toggle-register").classList.toggle("end-register",state.registerMode);
+    el("display-topbar").classList.toggle("registering",state.registerMode);
+    qsa(".sort-button").forEach(function(button){button.classList.toggle("active",button.dataset.sort===state.sortKey);});
+    el("sort-direction").textContent=state.ascending?"↑":"↓";
+  }
+
+  function openStudentDetail(student){
+    el("student-dialog-seat").textContent=String(student.seat).padStart(2,"0")+" 號";
+    el("student-dialog-name").textContent=student.name;
+    var totals=pendingTotals(student);
+    el("detail-pending-badge").hidden=!totals.pending;
+    el("detail-points").textContent=totals.points;
+    el("detail-stamps").textContent=totals.stamps;
+    el("detail-draws").textContent=totals.draws;
+    if(totals.pending){
+      var formula=pendingFormula(totals.pending);
+      el("detail-points-formula").innerHTML=student.points+signedChangeHtml(formula.pointDirect)+signedChangeHtml(-formula.pointsSpent);
+      el("detail-stamps-formula").innerHTML=student.stamps+signedChangeHtml(formula.stampDirect)+signedChangeHtml(formula.pointToStamps)+signedChangeHtml(-formula.stampsSpentForDraw);
+      el("detail-draws-formula").innerHTML=student.draws+signedChangeHtml(totals.pending.pendingDraws);
+    }else{
+      el("detail-points-formula").textContent="";
+      el("detail-stamps-formula").textContent="";
+      el("detail-draws-formula").textContent="";
+    }
+    el("detail-cards").textContent=student.cards;
+    renderCollection(student);
+    openOverlay("student-overlay");
+  }
+
+  function renderCollection(student){
+    var holdings=state.data.holdings[student.id]||{};
+    var grid=el("collection-grid");
+    grid.innerHTML="";
+    orderedCards(state.data.cards.filter(function(card){return !isCardHidden(card);})).forEach(function(card){
+      var count=holdings[card.id]||0;
+      if(state.cardFilter==="owned"&&count<1) return;
+      var item=document.createElement("div");
+      item.className="collection-card"+(count<1?" empty":"");
+      item.innerHTML='<img src="'+escapeHtml(cardImage(card))+'" alt="'+escapeHtml(card.name)+'"><span class="count-badge">×'+count+"</span>";
+      grid.appendChild(item);
+    });
+  }
+
+  function openRegistration(student){
+    var pending=getPending(student.id);
+    var breakdown=pendingBreakdown(pending);
+    state.registrationSubmitting=false;
+    state.registration={
+      studentId:student.id,
+      pointBase:student.points,
+      stampBase:student.stamps,
+      pointChange:pending?pending.pointChange:0,
+      stampChange:pending?pending.stampChange:0,
+      pendingDraws:pending?pending.pendingDraws:0,
+      pointToStamps:breakdown.pointToStamps,
+      stampsSpentForDraw:breakdown.stampsSpentForDraw
+    };
+    el("register-title").textContent=String(student.seat).padStart(2,"0")+" "+student.name;
+    renderRegistration();
+    setRegistrationBusy(false);
+    openOverlay("register-overlay");
+  }
+
+  function setRegistrationBusy(busy){
+    state.registrationSubmitting=busy;
+    el("registration-status").hidden=!busy;
+    el("save-registration").disabled=busy;
+    el("save-registration").textContent=busy?"正在寫入…":"送出暫存登記";
+    qsa('[data-close="register-overlay"]').forEach(function(button){button.disabled=busy;});
+  }
+
+  function renderRegistration(){
+    var reg=state.registration;
+    var pointTotal=reg.pointBase+reg.pointChange;
+    var stampTotal=reg.stampBase+reg.stampChange;
+    el("point-base").textContent=reg.pointBase;
+    el("stamp-base").textContent=reg.stampBase;
+    el("point-change").textContent=reg.pointChange;
+    el("stamp-change").textContent=reg.stampChange;
+    el("point-total").textContent=pointTotal;
+    el("stamp-total").textContent=stampTotal;
+    qs('[data-step="points"][data-delta="-1"]').hidden=reg.pointChange<1;
+    qs('[data-step="stamps"][data-delta="-1"]').hidden=reg.stampChange<1;
+    var possibleStamps=Math.floor(pointTotal/state.data.settings.pointsPerStamp);
+    var possibleDraws=Math.floor(stampTotal/state.data.settings.stampsPerDraw);
+    el("convert-points").hidden=possibleStamps<1;
+    el("convert-points").textContent="兌換 "+possibleStamps+" 章";
+    el("convert-stamps").hidden=possibleDraws<1;
+    el("convert-stamps").textContent="兌換 "+possibleDraws+" 次抽卡";
+    el("pending-draw").hidden=reg.pendingDraws<1;
+    el("pending-draw").textContent="抽卡次數："+reg.pendingDraws+" 次（暫定）";
+  }
+
+  function renderAdmin(){
+    var pendingCount=state.data.pending.length;
+    var eligible=state.data.students.filter(function(student){return student.active&&student.draws>0;});
+    el("pending-nav-count").textContent=pendingCount;
+    el("draw-nav-count").textContent=eligible.length;
+    renderPending();
+    renderDrawList();
+    renderManualDraw();
+    renderRedeem();
+    renderStudentAdmin();
+    renderCardAdmin();
+  }
+
+  function renderPending(){
+    var panel=el("pending-panel");
+    if(!state.data.pending.length){
+      panel.innerHTML='<div class="empty-state">目前沒有待確認登記。</div>';
+      return;
+    }
+    var rows=state.data.pending.map(function(item){
+      var student=getStudent(item.studentId);
+      if(!student) return "";
+      var formula=pendingFormula(item);
+      var pointParts=signedChangeHtml(formula.pointDirect)+signedChangeHtml(-formula.pointsSpent);
+      var stampParts=signedChangeHtml(formula.stampDirect)+signedChangeHtml(formula.pointToStamps)+signedChangeHtml(-formula.stampsSpentForDraw);
+      if(!stampParts) stampParts='<span class="plus">＋0</span>';
+      return '<tr><td><strong>'+String(student.seat).padStart(2,"0")+" "+escapeHtml(student.name)+'</strong><small>'+new Date(item.updatedAt).toLocaleString("zh-TW",{hour12:false})+'</small></td>'+
+        '<td>'+student.points+pointParts+"</td><td>"+(student.points+item.pointChange)+"</td>"+
+        '<td>'+student.stamps+' '+stampParts+"</td><td>"+(student.stamps+item.stampChange)+"</td>"+
+        '<td>'+(item.pendingDraws?signedChangeHtml(item.pendingDraws):"—")+'</td><td><div class="table-actions"><button class="mini-button" data-edit-pending="'+student.id+'">修改</button><button class="mini-button delete" data-delete-pending="'+student.id+'">刪除</button></div></td></tr>';
+    }).join("");
+    panel.innerHTML='<div class="table-wrap"><table><thead><tr><th>學生／時間</th><th>正式點數＋異動</th><th>暫定點數</th><th>正式章數＋異動</th><th>暫定章數</th><th>暫定抽卡</th><th>操作</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+
+      '<div class="confirm-bar"><div><strong>確認後才會寫入正式資料</strong><span>將更新 '+state.data.pending.length+' 位學生，並建立操作紀錄。</span></div><button type="button" class="button primary" id="approve-pending">確認並正式儲存</button></div>';
+    qs("#approve-pending",panel).addEventListener("click",approvePending);
+    qsa("[data-edit-pending]",panel).forEach(function(button){button.addEventListener("click",function(){openRegistration(getStudent(button.dataset.editPending));});});
+    qsa("[data-delete-pending]",panel).forEach(function(button){button.addEventListener("click",function(){
+      if(!confirm("確定刪除這筆暫存登記？")) return;
+      api("deletePending",{requestId:uid("delete"),studentId:button.dataset.deletePending},true).then(function(result){
+        if(result.data) state.data=result.data;
+        saveLocal();renderAll();showToast("已刪除暫存登記");
+      }).catch(function(error){showToast(error.message);});
+    });});
+  }
+
+  function renderDrawList(){
+    var drawable=orderedCards(state.data.cards.filter(function(card){return !isCardHidden(card)&&card.drawable&&card.deck>0;}));
+    var zodiac=drawable.filter(function(card){return card.category==="星座卡";});
+    el("inventory-counts").innerHTML=zodiac.map(function(card){return "<span>"+escapeHtml(card.name)+" ×"+card.deck+"</span>";}).join("");
+    var functionCards=drawable.filter(function(card){return card.category==="功能卡";});
+    el("function-inventory").textContent=functionCards.length?functionCards.map(function(card){return card.name+" ×"+card.deck;}).join("　"):"功能卡：尚未加入";
+    el("inventory-total").textContent="共 "+drawable.reduce(function(total,card){return total+card.deck;},0)+" 張";
+    var eligible=state.data.students.filter(function(student){return student.active&&student.draws>0;});
+    el("eligible-count").textContent="共 "+eligible.length+" 位學生可抽卡";
+    var grid=el("eligible-grid");
+    grid.innerHTML="";
+    eligible.forEach(function(student){
+      var button=document.createElement("button");
+      button.type="button";
+      button.className="eligible-student";
+      button.innerHTML='<span class="eligible-seat">'+String(student.seat).padStart(2,"0")+'</span><strong>'+escapeHtml(student.name)+"</strong><b>可抽 "+student.draws+" 次</b>";
+      button.addEventListener("click",function(){startDraw(student);});
+      grid.appendChild(button);
+    });
+    if(!eligible.length) grid.innerHTML='<div class="panel empty-state">目前沒有可抽卡學生。</div>';
+  }
+
+  function cardInventoryText(card){
+    return card.drawable?"可抽牌庫 "+card.deck:"老師庫存 "+card.teacher;
+  }
+
+  function renderManualDraw(){
+    var students=state.data.students.filter(function(student){return student.active;});
+    var cards=orderedCards(state.data.cards.filter(function(card){return !isCardHidden(card);}));
+    var currentCard=state.manualSelectedCardId||el("manual-single-card").value;
+    var currentStudent=state.manualSelectedStudentId||el("manual-single-student").value;
+    el("manual-single-card").innerHTML=cards.map(function(card){
+      var available=card.drawable?card.deck:card.teacher;
+      return '<option value="'+card.id+'" '+(available<1?'disabled':'')+'>'+escapeHtml(card.name)+'（'+cardInventoryText(card)+'）</option>';
+    }).join("");
+    el("manual-single-student").innerHTML=students.map(function(student){return '<option value="'+student.id+'">'+String(student.seat).padStart(2,"0")+' '+escapeHtml(student.name)+'</option>';}).join("");
+    el("manual-student-choices").innerHTML=students.map(function(student){return '<label class="choice-chip"><input type="checkbox" value="'+student.id+'" data-manual-student><span>'+String(student.seat).padStart(2,"0")+' '+escapeHtml(student.name)+'</span></label>';}).join("");
+    el("manual-card-choices").innerHTML=cards.map(function(card){
+      var available=card.drawable?card.deck:card.teacher;
+      return '<label class="choice-chip"><input type="checkbox" value="'+card.id+'" data-manual-card '+(available<1?'disabled':'')+'><span>'+escapeHtml(card.name)+'<small>'+cardInventoryText(card)+'</small></span></label>';
+    }).join("");
+    el("manual-card-to-students").hidden=state.manualMode!=="card-to-students";
+    el("manual-student-to-cards").hidden=state.manualMode!=="student-to-cards";
+    if(cards.some(function(card){return card.id===currentCard;})) el("manual-single-card").value=currentCard;
+    if(students.some(function(student){return student.id===currentStudent;})) el("manual-single-student").value=currentStudent;
+    state.manualSelectedCardId=el("manual-single-card").value;
+    state.manualSelectedStudentId=el("manual-single-student").value;
+    qsa("[data-manual-mode]").forEach(function(button){button.classList.toggle("active",button.dataset.manualMode===state.manualMode);});
+    el("save-manual-draw").disabled=state.manualDrawSaving;
+    el("save-manual-draw").textContent=state.manualDrawSaving?"補登中…":"確認補登入帳";
+  }
+
+  function renderRedeem(){
+    var students=state.data.students.filter(function(student){return student.active;});
+    var current=state.redeemSelectedStudentId||el("redeem-student").value;
+    el("redeem-student").innerHTML=students.map(function(student){
+      var holdings=state.data.holdings[student.id]||{};
+      var cardTotal=Object.keys(holdings).reduce(function(total,cardId){return total+Number(holdings[cardId]||0);},0);
+      return '<option value="'+student.id+'">'+String(student.seat).padStart(2,"0")+' '+escapeHtml(student.name)+'('+cardTotal+')</option>';
+    }).join("");
+    if(students.some(function(student){return student.id===current;})) el("redeem-student").value=current;
+    var selectedId=el("redeem-student").value;
+    if(state.redeemSelectedStudentId!==selectedId){state.redeemSelectedStudentId=selectedId;state.redeemQuantities={};}
+    var student=getStudent(selectedId),holdings=student?(state.data.holdings[student.id]||{}):{};
+    var cards=orderedCards(state.data.cards.filter(function(card){return (holdings[card.id]||0)>0;}));
+    Object.keys(state.redeemQuantities).forEach(function(cardId){
+      if(!holdings[cardId]) delete state.redeemQuantities[cardId];
+      else state.redeemQuantities[cardId]=Math.min(state.redeemQuantities[cardId],holdings[cardId]);
+    });
+    el("redeem-owned-summary").textContent=student?"目前共持有 "+student.cards+" 張卡片":"目前沒有可選擇的學生";
+    if(!cards.length){
+      el("redeem-card-grid").innerHTML='<div class="empty-state">這位學生目前沒有可兌換的卡片。</div>';
+    }else{
+      el("redeem-card-grid").innerHTML=cards.map(function(card){
+        var owned=holdings[card.id],quantity=state.redeemQuantities[card.id]||0;
+        return '<article class="redeem-card '+(quantity>0?'selected':'')+'"><img src="'+escapeHtml(cardImage(card))+'" alt=""><div><strong>'+escapeHtml(card.name)+'</strong><small>持有 '+owned+' 張</small></div><div class="redeem-stepper"><button type="button" data-redeem-card="'+card.id+'" data-redeem-delta="-1" '+(quantity<1||state.redeemSaving?'disabled':'')+'>−</button><b>'+quantity+'</b><button type="button" data-redeem-card="'+card.id+'" data-redeem-delta="1" '+(quantity>=owned||state.redeemSaving?'disabled':'')+'>＋</button></div></article>';
+      }).join("");
+    }
+    var selectedItems=cards.map(function(card){return {card:card,quantity:state.redeemQuantities[card.id]||0};}).filter(function(item){return item.quantity>0;});
+    var total=selectedItems.reduce(function(sum,item){return sum+item.quantity;},0);
+    el("redeem-selection-summary").textContent=total?"已選擇 "+selectedItems.length+" 種、共 "+total+" 張卡片":"尚未選擇要扣除的卡片";
+    el("save-redeem").disabled=state.redeemSaving||total<1;
+    el("save-redeem").textContent=state.redeemSaving?"兌換寫入中…":"確認兌換並扣卡";
+    el("redeem-student").disabled=state.redeemSaving;
+  }
+
+  function renderStudentAdmin(){
+    el("student-admin-body").innerHTML=state.data.students.map(function(student){
+      var saving=!!state.studentSavingIds[student.id];
+      return "<tr><td>"+String(student.seat).padStart(2,"0")+"</td><td>"+escapeHtml(student.name)+"</td><td><span class=\""+(student.active?"plus":"minus")+"\">"+(student.active?"啟用":"停用")+"</span></td><td>"+student.points+"</td><td>"+student.stamps+"</td><td>"+student.draws+"</td><td><button type=\"button\" class=\"mini-button "+(student.active?"delete":"")+"\" data-toggle-student=\""+student.id+"\" "+(saving?"disabled":"")+">"+(saving?"處理中…":student.active?"停用":"啟用")+"</button></td></tr>";
+    }).join("");
+  }
+
+  function openStudentEditor(){
+    var nextSeat=state.data.students.reduce(function(max,student){return Math.max(max,student.seat);},0)+1;
+    el("new-student-seat").value=nextSeat;
+    el("new-student-name").value="";
+    el("student-editor-error").hidden=true;
+    el("student-editor-error").textContent="";
+    el("save-student").disabled=false;
+    el("save-student").textContent="新增並啟用";
+    openOverlay("student-editor-overlay");
+    setTimeout(function(){el("new-student-name").focus();},50);
+  }
+
+  function saveNewStudent(){
+    if(state.studentSaving) return;
+    var seat=Number(el("new-student-seat").value),name=el("new-student-name").value.trim();
+    var error="";
+    if(!Number.isInteger(seat)||seat<1) error="座號必須是 1 以上的整數。";
+    else if(!name) error="請輸入學生姓名。";
+    else{
+      var duplicate=state.data.students.find(function(student){return student.seat===seat;});
+      if(duplicate) error="座號 "+seat+" 已由 "+duplicate.name+" 使用。";
+    }
+    if(error){el("student-editor-error").textContent=error;el("student-editor-error").hidden=false;return;}
+    state.studentSaving=true;
+    el("save-student").disabled=true;
+    el("save-student").textContent="新增中…";
+    api("saveStudent",{requestId:uid("student"),student:{id:"",seat:seat,name:name,active:true}},true,45000).then(function(result){
+      if(result.data) state.data=result.data;
+      saveLocal();closeOverlay("student-editor-overlay");renderAll();showToast("已新增 "+String(seat).padStart(2,"0")+" "+name);
+    }).catch(function(error){el("student-editor-error").textContent=error.message;el("student-editor-error").hidden=false;}).finally(function(){state.studentSaving=false;el("save-student").disabled=false;el("save-student").textContent="新增並啟用";});
+  }
+
+  function parseBatchStudents(){
+    var lines=el("batch-student-input").value.split(/\r?\n/),students=[],errors=[],seen={};
+    var existingSeats={};
+    state.data.students.forEach(function(student){existingSeats[student.seat]=student.name;});
+    lines.forEach(function(raw,index){
+      var line=raw.trim();
+      if(!line) return;
+      var match=line.match(/^(\d+)\s*(?:[,，\t]|\s)\s*(.+)$/);
+      if(!match){errors.push("第 "+(index+1)+" 行格式不正確："+line);return;}
+      var seat=Number(match[1]),name=match[2].trim();
+      if(!Number.isInteger(seat)||seat<1||!name){errors.push("第 "+(index+1)+" 行缺少正確的座號或姓名");return;}
+      if(existingSeats[seat]){errors.push("第 "+(index+1)+" 行：座號 "+seat+" 已由 "+existingSeats[seat]+" 使用");return;}
+      if(seen[seat]){errors.push("第 "+(index+1)+" 行：座號 "+seat+" 在批次資料中重複");return;}
+      seen[seat]=true;
+      students.push({seat:seat,name:name});
+    });
+    return {students:students,errors:errors};
+  }
+
+  function updateBatchStudentPreview(){
+    var parsed=parseBatchStudents();
+    el("batch-student-preview").textContent=parsed.students.length?"已辨識 "+parsed.students.length+" 位學生":"尚未輸入可新增的學生資料";
+    el("batch-student-error").hidden=!parsed.errors.length;
+    el("batch-student-error").textContent=parsed.errors.slice(0,5).join("；")+(parsed.errors.length>5?"；另有 "+(parsed.errors.length-5)+" 項錯誤":"");
+    el("save-batch-students").disabled=state.studentBatchSaving||!parsed.students.length||!!parsed.errors.length;
+    return parsed;
+  }
+
+  function openBatchStudentEditor(){
+    el("batch-student-input").value="";
+    el("batch-student-error").hidden=true;
+    el("batch-student-error").textContent="";
+    el("save-batch-students").textContent="確認批次新增";
+    openOverlay("batch-student-overlay");
+    updateBatchStudentPreview();
+    setTimeout(function(){el("batch-student-input").focus();},50);
+  }
+
+  function saveBatchStudents(){
+    if(state.studentBatchSaving) return;
+    var parsed=updateBatchStudentPreview();
+    if(!parsed.students.length||parsed.errors.length) return;
+    var list=parsed.students.map(function(student){return String(student.seat).padStart(2,"0")+" "+student.name;}).join("\n");
+    if(!confirm("確定新增以下 "+parsed.students.length+" 位學生？\n\n"+list+"\n\n新增後皆為啟用狀態，點數、章數、抽卡及持卡數均為 0。")) return;
+    state.studentBatchSaving=true;
+    el("save-batch-students").disabled=true;
+    el("save-batch-students").textContent="批次新增中…";
+    api("saveStudentsBatch",{requestId:uid("students-batch"),students:parsed.students},true,60000).then(function(result){
+      if(result.data) state.data=result.data;
+      saveLocal();closeOverlay("batch-student-overlay");renderAll();showToast("已新增 "+parsed.students.length+" 位學生");
+    }).catch(function(error){el("batch-student-error").textContent=error.message;el("batch-student-error").hidden=false;}).finally(function(){state.studentBatchSaving=false;el("save-batch-students").textContent="確認批次新增";updateBatchStudentPreview();});
+  }
+
+  function toggleStudentStatus(studentId){
+    var student=getStudent(studentId);
+    if(!student||state.studentSavingIds[studentId]) return;
+    var nextActive=!student.active;
+    var message=nextActive
+      ?"確定重新啟用 "+String(student.seat).padStart(2,"0")+" "+student.name+"？"
+      :"確定停用 "+String(student.seat).padStart(2,"0")+" "+student.name+"？\n\n停用後不會顯示於一般展示與補登名單，但既有資料會保留。";
+    if(!confirm(message)) return;
+    state.studentSavingIds[studentId]=true;
+    renderStudentAdmin();
+    api("saveStudent",{requestId:uid("student-status"),student:{id:student.id,seat:student.seat,name:student.name,active:nextActive}},true,45000).then(function(result){
+      if(result.data) state.data=result.data;
+      saveLocal();renderAll();showToast(student.name+"已"+(nextActive?"啟用":"停用"));
+    }).catch(function(error){showToast("學生狀態更新失敗："+error.message);}).finally(function(){delete state.studentSavingIds[studentId];renderStudentAdmin();});
+  }
+
+  function renderCardAdmin(){
+    el("cards-manage-grid").innerHTML=orderedCards(state.data.cards).map(function(card){
+      return '<article class="panel manage-card"><img src="'+escapeHtml(cardImage(card))+'" alt=""><div><h3>'+escapeHtml(card.name)+'</h3><p>'+card.category+(card.drawable?"・可抽取":"・老師頒發")+(isCardHidden(card)?"・暫時隱藏":"")+'</p><div class="inventory-edit"><label for="teacher-'+card.id+'">老師庫存</label><input id="teacher-'+card.id+'" type="number" min="0" step="1" inputmode="numeric" value="'+card.teacher+'" data-teacher-card="'+card.id+'"></div><div class="inventory-edit"><label for="deck-'+card.id+'">可抽牌庫</label><input id="deck-'+card.id+'" type="number" min="0" step="1" inputmode="numeric" value="'+card.deck+'" data-deck-card="'+card.id+'" '+(!card.drawable?'disabled aria-label="此卡不可抽取"':'')+'></div></div></article>';
+    }).join("");
+    el("save-inventory").disabled=state.inventorySaving;
+    el("save-inventory").textContent=state.inventorySaving?"儲存中…":"儲存庫存數量";
+  }
+
+  function approvePending(){
+    if(!state.data.pending.length||state.pendingApproving) return;
+    if(!confirm("確定將全部暫存登記寫入正式資料？")) return;
+    state.pendingApproving=true;
+    renderPending();
+    var button=el("approve-pending");
+    if(button){button.disabled=true;button.textContent="正在正式寫入…";}
+    showToast("正在寫入正式資料，請稍候…");
+    api("approvePending",{requestId:uid("approve")},true).then(function(result){
+      if(result.data) state.data=result.data;
+      saveLocal();renderAll();showToast("已完成整批確認");
+    }).catch(function(error){showToast(error.message);}).finally(function(){state.pendingApproving=false;renderPending();});
+  }
+
+  function saveInventory(){
+    if(state.inventorySaving) return;
+    var items=state.data.cards.map(function(card){
+      return {cardId:card.id,teacher:clamp(el("teacher-"+card.id).value,0),deck:clamp(el("deck-"+card.id).value,0)};
+    });
+    if(items.some(function(item){return !Number.isInteger(item.teacher)||!Number.isInteger(item.deck);})){showToast("庫存數量必須是整數");return;}
+    state.inventorySaving=true;
+    renderCardAdmin();
+    showToast("正在儲存卡牌庫存…");
+    api("saveInventory",{requestId:uid("inventory"),items:items},true).then(function(result){
+      if(result.data) state.data=result.data;
+      saveLocal();renderAll();showToast("老師庫存與可抽牌庫已更新");
+    }).catch(function(error){showToast(error.message);}).finally(function(){state.inventorySaving=false;renderCardAdmin();});
+  }
+
+  function saveManualDraw(){
+    if(state.manualDrawSaving) return;
+    var entries=[];
+    var confirmationLines=[];
+    if(state.manualMode==="card-to-students"){
+      var cardId=el("manual-single-card").value;
+      state.manualSelectedCardId=cardId;
+      qsa("[data-manual-student]:checked").forEach(function(input){entries.push({studentId:input.value,cardId:cardId});});
+      var selectedCard=getCard(cardId);
+      confirmationLines.push("卡牌："+selectedCard.name);
+      confirmationLines.push("學生（"+entries.length+" 位）："+entries.map(function(entry){var student=getStudent(entry.studentId);return String(student.seat).padStart(2,"0")+" "+student.name;}).join("、"));
+    }else{
+      var studentId=el("manual-single-student").value;
+      state.manualSelectedStudentId=studentId;
+      qsa("[data-manual-card]:checked").forEach(function(input){entries.push({studentId:studentId,cardId:input.value});});
+      var selectedStudent=getStudent(studentId);
+      confirmationLines.push("學生："+String(selectedStudent.seat).padStart(2,"0")+" "+selectedStudent.name);
+      confirmationLines.push("卡牌（"+entries.length+" 張）："+entries.map(function(entry){return getCard(entry.cardId).name;}).join("、"));
+    }
+    if(!entries.length){showToast(state.manualMode==="card-to-students"?"請至少選擇一位學生":"請至少選擇一張卡牌");return;}
+    var inventoryNeed={};
+    entries.forEach(function(entry){inventoryNeed[entry.cardId]=(inventoryNeed[entry.cardId]||0)+1;});
+    var shortages=Object.keys(inventoryNeed).map(function(cardId){
+      var card=getCard(cardId),available=card.drawable?card.deck:card.teacher,needed=inventoryNeed[cardId];
+      return available<needed?card.name+"需要 "+needed+" 張，目前只有 "+available+" 張":"";
+    }).filter(Boolean);
+    if(shortages.length){alert("無法補登，卡牌庫存不足：\n\n"+shortages.join("\n"));return;}
+    confirmationLines.push("");
+    confirmationLines.push("將增加 "+entries.length+" 筆學生持卡紀錄並扣除相對應庫存。");
+    confirmationLines.push("不會檢查或扣除學生的抽卡次數。");
+    var message="請再次確認補登資料是否正確：\n\n"+confirmationLines.join("\n")+"\n\n確定送出？";
+    if(!confirm(message)) return;
+    state.manualDrawSaving=true;
+    renderManualDraw();
+    showToast("正在批次補登卡片結果…");
+    api("recordManualCards",{requestId:uid("manual-cards"),entries:entries},true,45000).then(function(result){
+      if(result.data) state.data=result.data;
+      saveLocal();renderAll();showToast("已完成 "+entries.length+" 筆補登");
+    }).catch(function(error){showToast("補登失敗："+error.message);}).finally(function(){state.manualDrawSaving=false;renderManualDraw();});
+  }
+
+  function saveRedeem(){
+    if(state.redeemSaving) return;
+    var student=getStudent(state.redeemSelectedStudentId);
+    if(!student){showToast("請先選擇學生");return;}
+    var items=Object.keys(state.redeemQuantities).map(function(cardId){return {cardId:cardId,quantity:Number(state.redeemQuantities[cardId])};}).filter(function(item){return item.quantity>0;});
+    if(!items.length){showToast("請選擇要扣除的卡片與數量");return;}
+    var lines=items.map(function(item){return getCard(item.cardId).name+" × "+item.quantity;});
+    var total=items.reduce(function(sum,item){return sum+item.quantity;},0);
+    var message="請確認獎品兌換扣卡資料：\n\n學生："+String(student.seat).padStart(2,"0")+" "+student.name+"\n卡片：\n－ "+lines.join("\n－ ")+"\n\n共扣除 "+total+" 張卡片。\n卡片將回到相對應庫存，且不會更動點數與章數。\n\n確定送出？";
+    if(!confirm(message)) return;
+    state.redeemSaving=true;
+    renderRedeem();
+    showToast("正在寫入獎品兌換結果…");
+    api("redeemCards",{requestId:uid("redeem"),studentId:student.id,items:items},true,45000).then(function(result){
+      if(result.data) state.data=result.data;
+      state.redeemQuantities={};
+      saveLocal();renderAll();showToast("已完成兌換並扣除 "+total+" 張卡片");
+    }).catch(function(error){showToast("兌換失敗："+error.message);}).finally(function(){state.redeemSaving=false;renderRedeem();});
+  }
+
+  function startDraw(student){
+    var pool=[];
+    orderedCards(state.data.cards).forEach(function(card){
+      if(isCardHidden(card)||!card.drawable||card.deck<1) return;
+      for(var i=0;i<card.deck;i+=1) pool.push(card.id);
+    });
+    if(!pool.length){showToast("目前可抽牌庫沒有卡片");return;}
+    for(var poolIndex=pool.length-1;poolIndex>0;poolIndex-=1){
+      var swapIndex=Math.floor(Math.random()*(poolIndex+1));
+      var swapValue=pool[poolIndex];pool[poolIndex]=pool[swapIndex];pool[swapIndex]=swapValue;
+    }
+    state.draw={studentId:student.id,remaining:student.draws,pool:pool,pendingElement:null,pendingCardId:null,awaitingConfirm:false,confirming:false,shuffling:false,readyToDraw:false,confirmRequestId:"",confirmedElements:[]};
+    el("draw-student").textContent=String(student.seat).padStart(2,"0")+" "+student.name;
+    renderDeck();
+    setScreen("draw");
+  }
+
+  function renderDeck(){
+    var deck=el("deck");
+    deck.innerHTML="";
+    state.draw.pendingElement=null;
+    state.draw.pendingCardId=null;
+    state.draw.awaitingConfirm=false;
+    el("teacher-confirm").disabled=true;
+    el("shuffle-button").disabled=false;
+    updateDrawHeader("卡牌已全部公開；請老師按洗牌後再抽卡");
+    var columns=window.innerWidth<=760?6:(window.innerWidth<=1050?10:12);
+    deck.style.setProperty("--draw-rows",String(Math.max(1,Math.ceil(state.draw.pool.length/columns))));
+    state.draw.pool.forEach(function(cardId,index){
+      var button=document.createElement("button");
+      button.type="button";
+      button.className="deck-card shuffle-preview";
+      button.dataset.cardId=cardId;
+      button.setAttribute("aria-label","第 "+(index+1)+" 張卡");
+      var card=getCard(cardId);
+      button.innerHTML='<img src="'+escapeHtml(cardImage(card))+'" alt="'+escapeHtml(card.name)+'">';
+      button.addEventListener("click",function(){selectCard(button);});
+      deck.appendChild(button);
+    });
+  }
+
+  function updateDrawHeader(note){
+    el("draw-remaining").textContent="剩餘 "+state.draw.remaining+" 次抽卡";
+    if(note) el("draw-note").textContent=note;
+    el("draw-note").classList.toggle("busy",!!(state.draw&&state.draw.confirming));
+  }
+
+  function selectCard(button){
+    if(state.draw.confirming||state.draw.shuffling||!state.draw.readyToDraw||state.draw.awaitingConfirm||state.draw.pendingElement||state.draw.remaining<1||button.classList.contains("revealed")) return;
+    state.draw.pendingElement=button;
+    state.draw.pendingCardId=button.dataset.cardId;
+    qsa(".deck-card",el("deck")).forEach(function(card){if(card!==button&&!card.classList.contains("revealed")) card.classList.add("disabled");});
+    var card=getCard(state.draw.pendingCardId);
+    el("revealed-image").src=cardImage(card);
+    el("revealed-image").alt=card.name;
+    el("revealed-name").textContent=card.name;
+    playTone(card.category==="功能卡"?620:480,.18);
+    openOverlay("reveal-overlay");
+  }
+
+  function closeReveal(){
+    if(!state.draw||!state.draw.pendingElement||el("reveal-overlay").hidden) return;
+    closeOverlay("reveal-overlay");
+    var card=getCard(state.draw.pendingCardId);
+    var button=state.draw.pendingElement;
+    button.classList.add("revealed","awaiting");
+    button.style.backgroundImage="none";
+    button.innerHTML='<img src="'+escapeHtml(cardImage(card))+'" alt="'+escapeHtml(card.name)+'"><small>'+escapeHtml(card.name)+"</small>";
+    state.draw.awaitingConfirm=true;
+    el("teacher-confirm").disabled=false;
+    el("shuffle-button").disabled=true;
+    updateDrawHeader("請老師確認本次抽卡");
+  }
+
+  function confirmCurrentDraw(){
+    if(!state.draw.awaitingConfirm||!state.draw.pendingElement||state.draw.confirming) return;
+    var element=state.draw.pendingElement;
+    var cardId=state.draw.pendingCardId;
+    var card=getCard(cardId);
+    var recipientStudentId="";
+    if(card.effect==="GIFT"){
+      var seatText=prompt("友情卡要送給哪位學生？請輸入座號。");
+      if(seatText===null) return;
+      var recipient=state.data.students.find(function(student){return student.active&&student.seat===Number(seatText);});
+      if(!recipient){showToast("找不到這個座號的學生");return;}
+      recipientStudentId=recipient.id;
+    }
+    state.draw.confirmRequestId=state.draw.confirmRequestId||uid("draw");
+    var payload={requestId:state.draw.confirmRequestId,studentId:state.draw.studentId,cardId:cardId,recipientStudentId:recipientStudentId};
+    state.draw.confirming=true;
+    el("teacher-confirm").disabled=true;
+    el("teacher-confirm").textContent="確認寫入中…";
+    el("shuffle-button").disabled=true;
+    updateDrawHeader("正在寫入抽卡結果，請勿重複點擊或離開…");
+    api("confirmDraw",payload,true,45000).then(function(result){
+      finishDrawConfirmation(result.data,element,card,cardId);
+    }).catch(function(error){
+      recoverDrawConfirmation(payload,element,card,cardId,error);
+    });
+  }
+
+  function requestWasLogged(data,requestId){
+    return !!(data&&Array.isArray(data.logs)&&data.logs.some(function(log){return String(log.requestId||log["請求ID"]||"")===requestId;}));
+  }
+
+  function finishDrawConfirmation(data,element,card,cardId){
+    if(!state.draw) return;
+    if(data) state.data=data;
+    element.classList.remove("awaiting");
+    element.classList.add("confirmed-draw");
+    element.dataset.confirmed="1";
+    state.draw.confirmedElements.push(element);
+    var poolIndex=state.draw.pool.indexOf(cardId);
+    if(poolIndex>=0) state.draw.pool.splice(poolIndex,1);
+    state.draw.remaining=getStudent(state.draw.studentId).draws;
+    state.draw.pendingElement=null;
+    state.draw.pendingCardId=null;
+    state.draw.awaitingConfirm=false;
+    state.draw.confirming=false;
+    state.draw.readyToDraw=false;
+    state.draw.confirmRequestId="";
+    qsa(".deck-card",el("deck")).forEach(function(deckCard){if(!deckCard.classList.contains("revealed")) deckCard.classList.remove("disabled");});
+    el("teacher-confirm").disabled=true;
+    el("teacher-confirm").textContent="老師確認";
+    el("shuffle-button").disabled=true;
+    updateDrawHeader("已確認 "+card.name+"，正在公開其餘卡牌…");
+    revealRemainingCards(card.name);
+    playTone(760,.2);
+    saveLocal();renderAdmin();renderDisplay();showToast(card.name+" 已確認入帳");
+  }
+
+  function recoverDrawConfirmation(payload,element,card,cardId,error){
+    if(!state.draw) return;
+    updateDrawHeader("連線回應較慢，正在核對試算表結果…");
+    if(!state.connected){unlockUncertainDraw(error);return;}
+    bridgeRequest("bootstrap",{},false,30000).then(function(result){
+      if(requestWasLogged(result.data,payload.requestId)){
+        finishDrawConfirmation(result.data,element,card,cardId);
+        return;
+      }
+      unlockUncertainDraw(error);
+    }).catch(function(){unlockUncertainDraw(error);});
+  }
+
+  function unlockUncertainDraw(error){
+    if(!state.draw) return;
+    state.draw.confirming=false;
+    el("teacher-confirm").disabled=false;
+    el("teacher-confirm").textContent="重新確認";
+    el("shuffle-button").disabled=true;
+    updateDrawHeader("尚未取得確認結果；可按「重新確認」，或返回管理後重新同步");
+    showToast((error&&error.message?error.message:"GAS 回應逾時")+"，已保留本次卡牌供重新確認");
+  }
+
+  function showDrawCardFront(card){
+    var cardData=getCard(card.dataset.cardId);
+    card.classList.add("shuffle-preview");
+    card.style.backgroundImage="none";
+    card.innerHTML='<img src="'+escapeHtml(cardImage(cardData))+'" alt="'+escapeHtml(cardData.name)+'">';
+  }
+
+  function showDrawCardBack(card){
+    card.classList.remove("shuffle-preview");
+    card.innerHTML="";
+    card.style.backgroundImage='url("'+((state.data.assets&&state.data.assets.cardBack)||CARD_BACK)+'")';
+  }
+
+  async function flipDrawCards(cards,toFront,baseTransforms){
+    var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(reduced){cards.forEach(toFront?showDrawCardFront:showDrawCardBack);return;}
+    var closeAnimations=cards.map(function(card,index){
+      var base=baseTransforms?baseTransforms[index]:"none";
+      return card.animate([{transform:base},{transform:base+" scaleX(0)"}],{duration:230,easing:"ease-in",fill:"forwards"});
+    });
+    await Promise.all(closeAnimations.map(function(animation){return animation.finished.catch(function(){});}));
+    cards.forEach(toFront?showDrawCardFront:showDrawCardBack);
+    closeAnimations.forEach(function(animation){animation.cancel();});
+    var openAnimations=cards.map(function(card,index){
+      var base=baseTransforms?baseTransforms[index]:"none";
+      return card.animate([{transform:base+" scaleX(0)"},{transform:base}],{duration:270,easing:"ease-out",fill:"forwards"});
+    });
+    await Promise.all(openAnimations.map(function(animation){return animation.finished.catch(function(){});}));
+    openAnimations.forEach(function(animation){animation.cancel();});
+  }
+
+  async function revealRemainingCards(confirmedCardName){
+    if(!state.draw) return;
+    var active=qsa(".deck-card",el("deck")).filter(function(card){return !card.classList.contains("revealed");});
+    state.draw.shuffling=true;
+    if(active.length) await flipDrawCards(active,true);
+    if(!state.draw) return;
+    state.draw.shuffling=false;
+    el("shuffle-button").disabled=state.draw.remaining<1||!active.length;
+    updateDrawHeader(state.draw.remaining>0
+      ?"已確認 "+confirmedCardName+"；其餘卡牌已公開，請重新洗牌後再抽"
+      :"已確認 "+confirmedCardName+"；本次抽卡完成，其餘卡牌已全部公開");
+  }
+
+  async function shuffleDeck(){
+    if(!state.draw||state.draw.confirming||state.draw.shuffling||state.draw.awaitingConfirm||state.draw.pendingElement||state.draw.remaining<1) return;
+    var button=el("shuffle-button");
+    button.disabled=true;
+    state.draw.shuffling=true;
+    state.draw.readyToDraw=false;
+    var slots=qsa(".deck-card",el("deck"));
+    var active=slots.filter(function(card){return !card.classList.contains("revealed");});
+    if(!active.length){state.draw.shuffling=false;button.disabled=false;return;}
+    var shuffled=active.slice();
+    for(var shuffleIndex=shuffled.length-1;shuffleIndex>0;shuffleIndex-=1){
+      var randomIndex=Math.floor(Math.random()*(shuffleIndex+1));
+      var randomCard=shuffled[shuffleIndex];shuffled[shuffleIndex]=shuffled[randomIndex];shuffled[randomIndex]=randomCard;
+    }
+    var deckRect=el("deck").getBoundingClientRect();
+    var centerX=deckRect.left+deckRect.width/2;
+    var centerY=deckRect.top+deckRect.height/2;
+    var reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    var applyOrder=function(){
+      var activeIndex=0;
+      slots.forEach(function(card){el("deck").appendChild(card.classList.contains("revealed")?card:shuffled[activeIndex++]);});
+    };
+    if(reduced){
+      await flipDrawCards(active,false);
+      applyOrder();state.draw.shuffling=false;state.draw.readyToDraw=true;button.disabled=false;updateDrawHeader("洗牌完成，可以抽卡");return;
+    }
+    updateDrawHeader("公開卡牌集中中…");
+    playTone(300,.12);
+    var positions=active.map(function(card,index){
+      var rect=card.getBoundingClientRect();
+      var dx=centerX-(rect.left+rect.width/2);
+      var dy=centerY-(rect.top+rect.height/2);
+      card.style.zIndex=String(index+1);
+      return {dx:dx,dy:dy,transform:"translate("+dx+"px,"+dy+"px) rotate("+((index%9-4)*2)+"deg) scale(.86)"};
+    });
+    var gather=active.map(function(card,index){return card.animate([{transform:"none"},{transform:positions[index].transform}],{duration:560,easing:"cubic-bezier(.45,0,.2,1)",fill:"forwards"});});
+    await Promise.all(gather.map(function(animation){return animation.finished.catch(function(){});}));
+    active.forEach(function(card,index){card.style.transform=positions[index].transform;});
+    gather.forEach(function(animation){animation.cancel();});
+    updateDrawHeader("卡牌翻回背面…");
+    await flipDrawCards(active,false,positions.map(function(position){return position.transform;}));
+    updateDrawHeader("交錯洗牌中…");
+    var riffle=active.map(function(card,index){
+      var p=positions[index],side=index%2===0?-1:1,vertical=(index%5-2)*8;
+      return card.animate([{transform:p.transform},{transform:"translate("+(p.dx+side*58)+"px,"+(p.dy+vertical)+"px) rotate("+(side*16)+"deg) scale(.86)"},{transform:"translate("+(p.dx-side*42)+"px,"+(p.dy-vertical)+"px) rotate("+(-side*12)+"deg) scale(.86)"},{transform:p.transform}],{duration:780,easing:"ease-in-out",fill:"forwards",delay:(index%12)*5});
+    });
+    await Promise.all(riffle.map(function(animation){return animation.finished.catch(function(){});}));
+    riffle.forEach(function(animation){animation.cancel();});
+    active.forEach(function(card){card.style.transform="";});
+    applyOrder();
+    updateDrawHeader("重新展開牌面…");
+    var scatter=shuffled.map(function(card,index){
+      var rect=card.getBoundingClientRect();
+      var dx=centerX-(rect.left+rect.width/2);
+      var dy=centerY-(rect.top+rect.height/2);
+      return card.animate([{transform:"translate("+dx+"px,"+dy+"px) rotate("+((index%11-5)*3)+"deg) scale(.86)",opacity:.82},{transform:"none",opacity:1}],{duration:680,easing:"cubic-bezier(.18,.72,.24,1)",delay:(index%14)*9,fill:"backwards"});
+    });
+    await Promise.all(scatter.map(function(animation){return animation.finished.catch(function(){});}));
+    active.forEach(function(card){card.style.zIndex="";});
+    state.draw.shuffling=false;
+    state.draw.readyToDraw=true;
+    button.disabled=false;
+    updateDrawHeader("洗牌完成，可以抽卡");
+    playTone(420,.12);
+  }
+
+  function playTone(frequency,duration){
+    if(state.muted) return;
+    try{
+      var AudioContext=window.AudioContext||window.webkitAudioContext;
+      if(!AudioContext) return;
+      var ctx=playTone.ctx||(playTone.ctx=new AudioContext());
+      var oscillator=ctx.createOscillator();
+      var gain=ctx.createGain();
+      oscillator.frequency.value=frequency;
+      gain.gain.setValueAtTime(.07,ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+duration);
+      oscillator.connect(gain).connect(ctx.destination);
+      oscillator.start();
+      oscillator.stop(ctx.currentTime+duration);
+    }catch(error){}
+  }
+
+  function login(){
+    if(state.bridgeConnecting){el("pin-message").textContent="正在連接 Google 試算表，請稍候…";return;}
+    var pin=el("pin-input").value.trim();
+    if(!/^\d+$/.test(pin)){el("pin-message").textContent="請輸入數字 PIN。";return;}
+    el("pin-submit").disabled=true;
+    api("login",{pin:pin},false).then(function(result){
+      state.sessionToken=result.sessionToken;
+      state.pinFailures=0;
+      el("pin-input").value="";
+      el("pin-message").textContent="請使用電腦鍵盤輸入。";
+      closeOverlay("login-overlay");
+      setScreen("admin");
+    }).catch(function(error){
+      state.pinFailures+=1;
+      el("pin-message").textContent="PIN 不正確（"+state.pinFailures+"/5）";
+      el("pin-input").select();
+      if(state.pinFailures>=5){
+        closeOverlay("login-overlay");
+        state.pinFailures=0;
+        showToast("錯誤 5 次，已關閉登入視窗");
+      }
+    }).finally(function(){el("pin-submit").disabled=state.bridgeConnecting;});
+  }
+
+  function bytesToBase64(bytes){
+    var binary="";
+    for(var index=0;index<bytes.length;index+=32768){
+      binary+=String.fromCharCode.apply(null,bytes.subarray(index,Math.min(index+32768,bytes.length)));
+    }
+    return btoa(binary);
+  }
+
+  function base64ToBytes(value){
+    var binary=atob(value);
+    var bytes=new Uint8Array(binary.length);
+    for(var index=0;index<binary.length;index+=1) bytes[index]=binary.charCodeAt(index);
+    return bytes;
+  }
+
+  async function deriveBackupKey(pin,salt,usage){
+    var material=await crypto.subtle.importKey("raw",new TextEncoder().encode(pin),"PBKDF2",false,["deriveKey"]);
+    return crypto.subtle.deriveKey({name:"PBKDF2",salt:salt,iterations:210000,hash:"SHA-256"},material,{name:"AES-GCM",length:256},false,[usage]);
+  }
+
+  async function encryptBackup(payload,pin){
+    var salt=crypto.getRandomValues(new Uint8Array(16));
+    var iv=crypto.getRandomValues(new Uint8Array(12));
+    var key=await deriveBackupKey(pin,salt,"encrypt");
+    var plain=new TextEncoder().encode(JSON.stringify(payload));
+    var encrypted=await crypto.subtle.encrypt({name:"AES-GCM",iv:iv},key,plain);
+    return {backupFormat:"class-reward-encrypted-json-v1",encrypted:true,algorithm:"AES-GCM",keyDerivation:"PBKDF2-SHA256",iterations:210000,exportedAt:new Date().toISOString(),salt:bytesToBase64(salt),iv:bytesToBase64(iv),ciphertext:bytesToBase64(new Uint8Array(encrypted))};
+  }
+
+  async function decryptBackup(wrapper,pin){
+    var salt=base64ToBytes(wrapper.salt);
+    var iv=base64ToBytes(wrapper.iv);
+    var encrypted=base64ToBytes(wrapper.ciphertext);
+    var key=await deriveBackupKey(pin,salt,"decrypt");
+    var plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:iv},key,encrypted);
+    return JSON.parse(new TextDecoder().decode(plain));
+  }
+
+  function askBackupPin(mode){
+    var help=mode==="import"
+      ?"請輸入這份備份下載時使用的解鎖 PIN。"
+      :(mode==="export-online"
+        ?"請輸入目前的管理 PIN；此 PIN 同時作為這份備份的解鎖密碼。"
+        :"目前為離線模式，無法驗證管理 PIN。請設定這份備份的數字解鎖 PIN，匯入時需輸入同一組。可使用原本的管理 PIN。");
+    el("backup-pin-title").textContent=mode==="import"?"輸入備份解鎖 PIN":"設定備份解鎖 PIN";
+    el("backup-pin-help").textContent=help;
+    el("backup-pin-input").value="";
+    el("backup-pin-error").hidden=true;
+    openOverlay("backup-pin-overlay");
+    setTimeout(function(){el("backup-pin-input").focus();},50);
+    return new Promise(function(resolve){state.backupPinResolve=resolve;});
+  }
+
+  function finishBackupPin(value){
+    if(!state.backupPinResolve) return;
+    if(value!==null&&!/^\d+$/.test(value)){
+      el("backup-pin-error").textContent="PIN 必須是數字。";
+      el("backup-pin-error").hidden=false;
+      return;
+    }
+    var resolve=state.backupPinResolve;
+    state.backupPinResolve=null;
+    closeOverlay("backup-pin-overlay");
+    resolve(value);
+  }
+
+  function compressImage(source){
+    return new Promise(function(resolve){
+      if(!source){resolve("");return;}
+      var image=new Image();
+      image.onload=function(){
+        try{
+          var scale=Math.min(1,360/image.naturalWidth,540/image.naturalHeight);
+          var canvas=document.createElement("canvas");
+          canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
+          canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+          var context=canvas.getContext("2d");
+          context.fillStyle="#ffffff";
+          context.fillRect(0,0,canvas.width,canvas.height);
+          context.drawImage(image,0,0,canvas.width,canvas.height);
+          resolve(canvas.toDataURL("image/jpeg",.74));
+        }catch(error){resolve("");}
+      };
+      image.onerror=function(){resolve("");};
+      image.src=source;
+    });
+  }
+
+  async function exportJson(){
+    if(!window.crypto||!crypto.subtle){showToast("此瀏覽器不支援加密備份");return;}
+    var pin=await askBackupPin(state.connected?"export-online":"export-offline");
+    if(pin===null) return;
+    try{
+      if(state.connected){
+        var auth=await api("login",{pin:pin},false);
+        if(auth.sessionToken) state.sessionToken=auth.sessionToken;
+      }
+      showToast("正在壓縮卡牌圖片並加密備份…");
+      var payload=deepCopy(state.data);
+      payload.exportedAt=new Date().toISOString();
+      payload.backupFormat="class-reward-data-v1";
+      payload.assets=payload.assets||{};
+      payload.assets.cardBack=await compressImage((state.data.assets&&state.data.assets.cardBack)||CARD_BACK);
+      var images=await Promise.all(state.data.cards.map(function(card){return compressImage(cardImage(card));}));
+      payload.cards.forEach(function(card,index){card.backupImageData=images[index];});
+      var wrapper=await encryptBackup(payload,pin);
+      var blob=new Blob([JSON.stringify(wrapper,null,2)],{type:"application/json"});
+      var link=document.createElement("a");
+      link.href=URL.createObjectURL(blob);
+      link.download=state.data.settings.className.replace(/[\\/:*?"<>|]/g,"_")+"_"+new Date().toISOString().replace(/[:.]/g,"-")+"_v"+state.data.dataVersion+".json";
+      link.click();
+      setTimeout(function(){URL.revokeObjectURL(link.href);},1000);
+      localStorage.setItem("class-reward-last-export",new Date().toISOString());
+      el("backup-status").textContent="最近下載："+nowText()+"（已加密）";
+      showToast("加密 JSON 備份已下載");
+    }catch(error){showToast("備份失敗："+error.message);}
+  }
+
+  function importJson(file){
+    var reader=new FileReader();
+    reader.onload=async function(){
+      try{
+        var wrapper=JSON.parse(reader.result);
+        var data=wrapper;
+        if(wrapper.encrypted){
+          var pin=await askBackupPin("import");
+          if(pin===null) return;
+          data=await decryptBackup(wrapper,pin);
+        }
+        if(!data.settings||!Array.isArray(data.students)||!Array.isArray(data.cards)) throw new Error("不是有效的班級獎勵備份");
+        state.data=data;
+        state.connected=false;
+        state.sessionToken="offline-import";
+        saveLocal();
+        renderAll();
+        showToast("加密 JSON 匯入完成，已切換為本機資料");
+      }catch(error){showToast("匯入失敗：PIN 錯誤或檔案已損壞");}
+    };
+    reader.readAsText(file,"utf-8");
+  }
+
+  function syncNow(){
+    if(!CONFIG.GAS_WEB_APP_URL){showToast("請先部署 GAS，再填入 Web App URL");return;}
+    bridgeRequest("bootstrap",{},false).then(function(result){
+      if(state.data.offlineChanges&&state.data.offlineChanges.length){
+        showToast("偵測到離線異動；下一版將提供逐筆衝突比對");
+        return;
+      }
+      state.data=result.data;state.connected=true;saveLocal();renderAll();showToast("同步完成");
+    }).catch(function(error){setOffline(error.message);showToast(error.message);});
+  }
+
+  function bindEvents(){
+    qsa("[data-close]").forEach(function(button){button.addEventListener("click",function(){
+      if(button.dataset.close==="register-overlay"&&state.registrationSubmitting) return;
+      closeOverlay(button.dataset.close);
+    });});
+    qsa(".sort-button").forEach(function(button){button.addEventListener("click",function(){state.sortKey=button.dataset.sort;localStorage.setItem("reward-sort",state.sortKey);renderDisplay();});});
+    el("sort-direction").addEventListener("click",function(){state.ascending=!state.ascending;localStorage.setItem("reward-order",state.ascending?"asc":"desc");renderDisplay();});
+    el("toggle-register").addEventListener("click",function(){state.registerMode=!state.registerMode;renderDisplay();showToast(state.registerMode?"已進入學生登記模式":"已結束學生登記模式");});
+    el("fullscreen-button").addEventListener("click",function(){if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(function(){});else document.exitFullscreen();});
+    el("login-button").addEventListener("click",function(){openOverlay("login-overlay");setTimeout(function(){el("pin-input").focus();},50);});
+    el("pin-submit").addEventListener("click",login);
+    el("pin-input").addEventListener("keydown",function(event){if(event.key==="Enter") login();});
+    el("return-display").addEventListener("click",function(){
+      var token=state.sessionToken;
+      if(state.connected&&token) bridgeRequest("logout",{},true).catch(function(){});
+      state.sessionToken="";
+      state.registerMode=false;
+      setScreen("display");
+    });
+    qsa("#admin-nav [data-panel]").forEach(function(button){button.addEventListener("click",function(){
+      qsa("#admin-nav [data-panel]").forEach(function(item){item.classList.toggle("active",item===button);});
+      qsa("[data-admin-panel]").forEach(function(panel){panel.hidden=panel.dataset.adminPanel!==button.dataset.panel;});
+    });});
+    qsa("[data-step]").forEach(function(button){button.addEventListener("click",function(){
+      var key=button.dataset.step==="points"?"pointChange":"stampChange";
+      state.registration[key]=clamp(state.registration[key]+Number(button.dataset.delta),0);
+      renderRegistration();
+    });});
+    el("convert-points").addEventListener("click",function(){
+      var rate=state.data.settings.pointsPerStamp,total=state.registration.pointBase+state.registration.pointChange,converted=Math.floor(total/rate);
+      if(!confirm("確定將 "+(converted*rate)+" 點兌換為 "+converted+" 章？")) return;
+      state.registration.pointBase=total%rate;state.registration.pointChange=0;state.registration.stampBase+=converted;state.registration.pointToStamps+=converted;
+      renderRegistration();
+    });
+    el("convert-stamps").addEventListener("click",function(){
+      var rate=state.data.settings.stampsPerDraw,total=state.registration.stampBase+state.registration.stampChange,converted=Math.floor(total/rate);
+      if(!confirm("確定將 "+(converted*rate)+" 章兌換為 "+converted+" 次抽卡？")) return;
+      state.registration.stampBase=total%rate;state.registration.stampChange=0;state.registration.pendingDraws+=converted;state.registration.stampsSpentForDraw+=converted*rate;renderRegistration();
+    });
+    el("save-registration").addEventListener("click",function(){
+      if(state.registrationSubmitting) return;
+      var reg=state.registration;
+      setRegistrationBusy(true);
+      api("submitPending",{requestId:uid("pending"),studentId:reg.studentId,pointChange:reg.pointChange+(reg.pointBase-getStudent(reg.studentId).points),stampChange:reg.stampChange+(reg.stampBase-getStudent(reg.studentId).stamps),pendingDraws:reg.pendingDraws,pointToStamps:reg.pointToStamps,stampsSpentForDraw:reg.stampsSpentForDraw},false,45000).then(function(result){
+        if(result.data) state.data=result.data;
+        saveLocal();setRegistrationBusy(false);closeOverlay("register-overlay");renderAll();showToast("已送出暫存登記");
+      }).catch(function(error){setRegistrationBusy(false);showToast(error.message+"；資料未確認寫入，請稍後再試");});
+    });
+    qsa("[data-card-filter]").forEach(function(button){button.addEventListener("click",function(){
+      state.cardFilter=button.dataset.cardFilter;
+      qsa("[data-card-filter]").forEach(function(item){item.classList.toggle("active",item===button);});
+      renderCollection(getStudent(state.selectedStudentId));
+    });});
+    el("draw-back").addEventListener("click",function(){
+      if(state.draw&&state.draw.confirming){showToast("正在核對抽卡結果，請稍候…");return;}
+      if(state.draw&&state.draw.shuffling){showToast("卡牌動畫進行中，請稍候…");return;}
+      if(state.draw&&state.draw.awaitingConfirm&&!confirm("這張卡尚未確認。返回管理後會重新同步資料，確定返回？")) return;
+      if(state.draw&&state.draw.awaitingConfirm&&state.connected){
+        bridgeRequest("bootstrap",{},false,30000).then(function(result){if(result.data){state.data=result.data;saveLocal();renderAll();}}).catch(function(){});
+      }
+      state.draw=null;
+      setScreen("admin");
+      qs('[data-panel="draw-list"]').click();
+    });
+    el("shuffle-button").addEventListener("click",shuffleDeck);
+    el("close-reveal").addEventListener("click",closeReveal);
+    el("close-reveal-area").addEventListener("click",closeReveal);
+    el("teacher-confirm").addEventListener("click",confirmCurrentDraw);
+    el("sound-button").addEventListener("click",function(){
+      state.muted=!state.muted;localStorage.setItem("reward-muted",state.muted?"1":"0");el("sound-button").textContent=state.muted?"🔇":"🔊";showToast(state.muted?"已靜音":"已開啟音效");
+    });
+    el("export-json").addEventListener("click",exportJson);
+    el("import-json-button").addEventListener("click",function(){el("import-json").click();});
+    el("import-json").addEventListener("change",function(){if(el("import-json").files[0]) importJson(el("import-json").files[0]);el("import-json").value="";});
+    el("sync-now").addEventListener("click",syncNow);
+    el("backup-pin-confirm").addEventListener("click",function(){finishBackupPin(el("backup-pin-input").value);});
+    el("backup-pin-input").addEventListener("keydown",function(event){if(event.key==="Enter") finishBackupPin(el("backup-pin-input").value);});
+    ["backup-pin-cancel","backup-pin-cancel-area","backup-pin-close"].forEach(function(id){el(id).addEventListener("click",function(){finishBackupPin(null);});});
+    el("save-inventory").addEventListener("click",saveInventory);
+    qsa("[data-manual-mode]").forEach(function(button){button.addEventListener("click",function(){state.manualMode=button.dataset.manualMode;renderManualDraw();});});
+    el("manual-single-card").addEventListener("change",function(){state.manualSelectedCardId=el("manual-single-card").value;});
+    el("manual-single-student").addEventListener("change",function(){state.manualSelectedStudentId=el("manual-single-student").value;});
+    el("save-manual-draw").addEventListener("click",saveManualDraw);
+    el("redeem-student").addEventListener("change",function(){state.redeemSelectedStudentId=el("redeem-student").value;state.redeemQuantities={};renderRedeem();});
+    el("redeem-card-grid").addEventListener("click",function(event){
+      var button=event.target.closest("[data-redeem-card]");
+      if(!button||state.redeemSaving) return;
+      var cardId=button.dataset.redeemCard,student=getStudent(state.redeemSelectedStudentId),owned=(state.data.holdings[student.id]||{})[cardId]||0;
+      state.redeemQuantities[cardId]=Math.max(0,Math.min(owned,(state.redeemQuantities[cardId]||0)+Number(button.dataset.redeemDelta)));
+      renderRedeem();
+    });
+    el("save-redeem").addEventListener("click",saveRedeem);
+    el("save-settings").addEventListener("click",function(){
+      var settings={className:el("setting-class-name").value.trim(),pointsPerStamp:clamp(el("setting-point-rate").value,1),stampsPerDraw:clamp(el("setting-stamp-rate").value,1)};
+      if(!settings.className){showToast("班級名稱不可空白");return;}
+      var thresholdChanged=settings.pointsPerStamp!==state.data.settings.pointsPerStamp||settings.stampsPerDraw!==state.data.settings.stampsPerDraw;
+      if(thresholdChanged&&(state.data.pending.length||state.data.students.some(function(student){return student.draws>0;}))){showToast("仍有待確認資料或未完成抽卡，暫不能修改點數／章數兌換門檻；班級名稱仍可單獨修改。");return;}
+      api("saveSettings",{requestId:uid("settings"),settings:settings},true).then(function(result){if(result.data)state.data=result.data;saveLocal();renderAll();showToast("設定已儲存");}).catch(function(error){showToast(error.message);});
+    });
+    el("add-student").addEventListener("click",openStudentEditor);
+    el("save-student").addEventListener("click",saveNewStudent);
+    el("new-student-name").addEventListener("keydown",function(event){if(event.key==="Enter") saveNewStudent();});
+    el("batch-add-students").addEventListener("click",openBatchStudentEditor);
+    el("batch-student-input").addEventListener("input",updateBatchStudentPreview);
+    el("save-batch-students").addEventListener("click",saveBatchStudents);
+    el("student-admin-body").addEventListener("click",function(event){
+      var button=event.target.closest("[data-toggle-student]");
+      if(button) toggleStudentStatus(button.dataset.toggleStudent);
+    });
+  }
+
+  function init(){
+    state.data=loadLocal();
+    if(localStorage.getItem("class-reward-data-reset-v1")!=="done"){
+      state.data=makeDemoData();
+      saveLocal();
+      localStorage.setItem("class-reward-data-reset-v1","done");
+    }
+    if(state.data.sourceId==="local-demo"&&state.data.demoSeedVersion!==3){
+      state.data=makeDemoData();
+      saveLocal();
+    }
+    bindEvents();
+    el("sound-button").textContent=state.muted?"🔇":"🔊";
+    renderAll();
+    setupBridge();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
