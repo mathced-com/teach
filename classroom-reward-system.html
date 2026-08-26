@@ -707,6 +707,7 @@
           clearTimeout(connectionTimer);
           saveLocal();
           renderAll();
+          preloadCardImages();
           updateLoginAvailability();
           showToast("已連接 Google 試算表");
         }).catch(function(error){
@@ -972,6 +973,34 @@
   var CARD_IMAGE_OVERRIDES={};
   CARD_TYPES.forEach(function(card){CARD_IMAGE_OVERRIDES[card.id]=card.image;});
   function cardImage(card){return card.backupImageData||CARD_IMAGE_OVERRIDES[card.id]||card.image;}
+  var cardPreloadStarted=false;
+  var cardPreloadImages=[];
+  function preloadCardImages(){
+    if(cardPreloadStarted) return;
+    cardPreloadStarted=true;
+    var cards=state.data&&Array.isArray(state.data.cards)?state.data.cards:CARD_TYPES;
+    var back=state.data&&state.data.assets&&state.data.assets.cardBack||CARD_BACK;
+    var queue=[];
+    var seen={};
+    [back].concat(cards.map(function(card){return cardImage(card);})).forEach(function(source){
+      if(!source||seen[source]) return;
+      seen[source]=true;
+      queue.push(source);
+    });
+    function schedule(callback){
+      if(window.requestIdleCallback) window.requestIdleCallback(callback,{timeout:2000});
+      else setTimeout(callback,250);
+    }
+    function pump(){
+      if(!queue.length) return;
+      var image=new Image();
+      image.decoding="async";
+      image.src=queue.shift();
+      cardPreloadImages.push(image);
+      if(queue.length) setTimeout(function(){schedule(pump);},80);
+    }
+    schedule(pump);
+  }
   function isCardHidden(card){return !card.enabled||CONFIG.HIDDEN_CARD_IDS.indexOf(card.id)>=0;}
   function orderedCards(cards){
     return cards.slice().sort(function(a,b){
