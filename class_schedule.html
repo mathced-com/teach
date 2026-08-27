@@ -33,7 +33,7 @@
             --bg-art: #f3e8ff;         /* 美勞 */
             --bg-music: #fae8ff;       /* 音樂 */
             --bg-info: #ccfbf1;        /* 資訊創課 */
-            --bg-local: #f5f5f4;       /* 本土語 */
+            --bg-local: #d1fae5;       /* 本土語 - 清新薄荷綠背景 (改為亮綠青) */
             --bg-integrated: #fef9c3;  /* 綜合 */
             --bg-school: #e0e7ff;      /* 校本 */
             --bg-free: #f8fafc;        /* 放學 */
@@ -268,7 +268,6 @@
 
         /* --------------------------------------------------------
            手機行動裝置 專屬最佳化樣式 (max-width: 767px)
-           採用 1~2 字簡稱，節省畫面並精緻呈現
            -------------------------------------------------------- */
         @media (max-width: 767px) {
             html, body {
@@ -293,7 +292,6 @@
                 width: 100%;
             }
 
-            /* 手機版標題列 */
             .mobile-header {
                 background: var(--card-bg);
                 border-radius: 14px;
@@ -327,7 +325,6 @@
                 text-align: center;
             }
 
-            /* 星期切換分頁按鈕 */
             .day-tabs {
                 display: flex;
                 background: rgba(255, 255, 255, 0.85);
@@ -373,7 +370,6 @@
                 border-radius: 50%;
             }
 
-            /* 手機版每日課程卡片列表 */
             .mobile-schedule-list {
                 display: flex;
                 flex-direction: column;
@@ -425,7 +421,7 @@
             }
 
             .mobile-card-subject .subject-name-short {
-                font-size: 1.3rem; /* 1~2字簡稱超大字體 */
+                font-size: 1.3rem;
                 font-weight: 900;
                 letter-spacing: 1px;
             }
@@ -469,7 +465,7 @@
         .sub-愛鳳教翔閱 .subject-icon, .sub-愛鳳教翔閱 .subject-name, .sub-愛鳳教翔閱 .subject-name-short { color: #000000; }
 
         /* --------------------------------------------------------
-           其他科目：不同色彩區隔
+           其他科目：不同鮮豔色彩區隔
            -------------------------------------------------------- */
         .sub-自然 { background: var(--bg-science); color: #15803d; }
         .sub-自然 .subject-icon, .sub-自然 .subject-name, .sub-自然 .subject-name-short { color: #15803d; }
@@ -487,8 +483,9 @@
         .sub-音樂 { background: var(--bg-music); color: #a21caf; }
         .sub-音樂 .subject-icon, .sub-音樂 .subject-name, .sub-音樂 .subject-name-short { color: #a21caf; }
 
-        .sub-本土語 { background: var(--bg-local); color: #57534e; }
-        .sub-本土語 .subject-icon, .sub-本土語 .subject-name, .sub-本土語 .subject-name-short { color: #57534e; }
+        /* 本土語：改為鮮明亮麗的翡翠青綠色 (完全擺脫灰色與黑色混淆) */
+        .sub-本土語 { background: var(--bg-local); color: #047857; }
+        .sub-本土語 .subject-icon, .sub-本土語 .subject-name, .sub-本土語 .subject-name-short { color: #047857; }
 
         .sub-英語 { background: var(--bg-english); color: #c2410c; }
         .sub-英語 .subject-icon, .sub-英語 .subject-name, .sub-英語 .subject-name-short { color: #c2410c; }
@@ -639,7 +636,6 @@
             <div class="mobile-status-pill" id="mobileTimeText">現在時間：載入中...</div>
         </div>
 
-        <!-- 星期切換分頁按鈕 -->
         <div class="day-tabs">
             <button class="day-tab-btn" onclick="selectMobileDay(1)" id="tab-1">一</button>
             <button class="day-tab-btn" onclick="selectMobileDay(2)" id="tab-2">二</button>
@@ -648,15 +644,12 @@
             <button class="day-tab-btn" onclick="selectMobileDay(5)" id="tab-5">五</button>
         </div>
 
-        <!-- 手機每日課程時間軸列表容器 -->
         <div class="mobile-schedule-list" id="mobileScheduleContainer">
-            <!-- 由 JavaScript 動態繪製縮寫簡稱 (1~2字) 的每日課程 -->
         </div>
     </div>
 
     <!-- JavaScript 邏輯腳本 -->
     <script>
-        // 科目 1~2 字簡稱對照表
         const shortNameMap = {
             '國語': '國',
             '數學': '數',
@@ -677,7 +670,6 @@
             '放學': '放學'
         };
 
-        // 功課表完整數據
         const scheduleData = {
             1: [
                 { period: '第 1 節', time: '8:40~9:20', sub: '鳳翔四季', class: 'sub-鳳翔四季', icon: 'fa-feather-pointed' },
@@ -741,7 +733,6 @@
             return h * 60 + m;
         }
 
-        // 渲染手機版特定星期課表（使用 1~2 字簡稱）
         function selectMobileDay(day) {
             currentSelectedMobileDay = day;
             document.querySelectorAll('.day-tab-btn').forEach(btn => btn.classList.remove('active'));
@@ -792,7 +783,6 @@
                 }
             }
 
-            // 取得 1~2 字縮寫簡稱
             const shortName = shortNameMap[item.sub] || item.sub;
 
             return `
