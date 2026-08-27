@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>115 班級功課表</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&family=Zen+Maru+Gothic:wght@700;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #e0f2fe 0%, #fef3c7 50%, #fce7f3 100%);
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --text-primary: #0f172a;
+            --text-secondary: #334155;
+            --header-bg: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            --header-text: #ffffff;
+            --th-bg: #e2e8f0;
+            --shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+
+            /* 各科目背景色 */
+            --bg-mandarin: #ffe4e6;    /* 國語 */
+            --bg-math: #e0f2fe;        /* 數學 */
+            --bg-english: #ffedd5;     /* 英語 */
+            --bg-science: #dcfce7;     /* 自然 */
+            --bg-society: #fef3c7;     /* 社會 */
+            --bg-pe: #fee2e2;          /* 體育 */
+            --bg-health: #dbeafe;      /* 健康 */
+            --bg-art: #f3e8ff;         /* 美勞 */
+            --bg-music: #fae8ff;       /* 音樂 */
+            --bg-info: #ccfbf1;        /* 資訊創課 */
+            --bg-local: #f5f5f4;       /* 本土語 */
+            --bg-integrated: #fef9c3;  /* 綜合 */
+            --bg-school: #e0e7ff;      /* 校本 */
+            --bg-free: #f8fafc;        /* 放學 */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Zen Maru Gothic', 'Noto Sans TC', sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 0;
+        }
+
+        /* --------------------------------------------------------
+           電腦 / 平板電腦 大螢幕樣式 (min-width: 768px)
+           -------------------------------------------------------- */
+        @media (min-width: 768px) {
+            html, body {
+                height: 100vh;
+                overflow: hidden;
+                padding: 10px 14px;
+            }
+
+            .mobile-only {
+                display: none !important;
+            }
+
+            .desktop-only {
+                display: flex !important;
+            }
+
+            .main-container {
+                height: 100%;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                max-width: 1450px;
+                margin: 0 auto;
+                width: 100%;
+            }
+
+            header {
+                background: var(--card-bg);
+                border-radius: 14px;
+                padding: 6px 18px;
+                box-shadow: var(--shadow);
+                display: flex;
+                flex-direction: column;
+                position: relative;
+                border: 1.5px solid rgba(255, 255, 255, 0.8);
+                flex-shrink: 0;
+            }
+
+            .title-container {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                position: relative;
+            }
+
+            .title-area {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+            }
+
+            .title-icon {
+                width: 38px;
+                height: 38px;
+                background: linear-gradient(135deg, #fbbf24, #f59e0b);
+                border-radius: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 22px;
+                color: #fff;
+                box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+            }
+
+            .title-area h1 {
+                font-size: 2.1rem;
+                font-weight: 900;
+                letter-spacing: 2px;
+                color: #0f172a;
+                line-height: 1.1;
+            }
+
+            .live-status-pill {
+                align-self: flex-end;
+                margin-top: -8px;
+                background: #fef3c7;
+                border: 1.5px solid #fde047;
+                color: #854d0e;
+                padding: 3px 14px;
+                border-radius: 20px;
+                font-size: 0.95rem;
+                font-weight: 700;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+            }
+
+            .table-card {
+                background: var(--card-bg);
+                border-radius: 16px;
+                padding: 10px;
+                box-shadow: var(--shadow);
+                border: 1.5px solid rgba(255, 255, 255, 0.8);
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+            }
+
+            table.schedule-table {
+                width: 100%;
+                height: 100%;
+                border-collapse: separate;
+                border-spacing: 5px;
+                table-layout: fixed;
+            }
+
+            table.schedule-table th {
+                padding: 6px 4px;
+                text-align: center;
+                font-size: 1.35rem;
+                font-weight: 900;
+                border-radius: 10px;
+                background: var(--th-bg);
+                color: var(--text-primary);
+                height: 40px;
+            }
+
+            table.schedule-table th.weekday-header {
+                background: var(--header-bg);
+                color: var(--header-text);
+            }
+
+            table.schedule-table th.today-column {
+                background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+                color: #fff;
+                position: relative;
+            }
+            table.schedule-table th.today-column::after {
+                content: 'TODAY';
+                position: absolute;
+                top: -6px;
+                right: 50%;
+                transform: translateX(50%);
+                background: #ef4444;
+                color: white;
+                font-size: 0.6rem;
+                padding: 1px 6px;
+                border-radius: 8px;
+                letter-spacing: 0.5px;
+            }
+
+            td.period-cell {
+                background: #f1f5f9;
+                border-radius: 10px;
+                text-align: center;
+                padding: 2px 6px;
+                vertical-align: middle;
+                width: 145px;
+                white-space: nowrap;
+            }
+
+            .period-inline {
+                font-size: 0.92rem;
+                font-weight: 900;
+                color: #0f172a;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 5px;
+                white-space: nowrap;
+            }
+
+            .period-inline small {
+                font-size: 0.82rem;
+                color: #475569;
+                font-weight: 700;
+            }
+
+            tr.rest-row td {
+                background: rgba(241, 245, 249, 0.8);
+                border-radius: 8px;
+                text-align: center;
+                padding: 3px 6px;
+                font-size: 0.92rem;
+                font-weight: 700;
+                color: #475569;
+            }
+
+            td.subject-cell {
+                border-radius: 10px;
+                padding: 2px 6px;
+                text-align: center;
+                vertical-align: middle;
+            }
+
+            .subject-box {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                height: 100%;
+            }
+
+            .subject-icon {
+                font-size: 1.35rem;
+                flex-shrink: 0;
+            }
+
+            .subject-name {
+                font-size: 1.25rem;
+                font-weight: 900;
+                letter-spacing: 1px;
+                white-space: nowrap;
+            }
+        }
+
+        /* --------------------------------------------------------
+           手機行動裝置 專屬最佳化樣式 (max-width: 767px)
+           採用 1~2 字簡稱，節省畫面並精緻呈現
+           -------------------------------------------------------- */
+        @media (max-width: 767px) {
+            html, body {
+                min-height: 100vh;
+                overflow-y: auto;
+                padding: 10px 8px;
+            }
+
+            .desktop-only {
+                display: none !important;
+            }
+
+            .mobile-only {
+                display: flex !important;
+                flex-direction: column;
+            }
+
+            .mobile-container {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
+            }
+
+            /* 手機版標題列 */
+            .mobile-header {
+                background: var(--card-bg);
+                border-radius: 14px;
+                padding: 10px;
+                box-shadow: var(--shadow);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 6px;
+                text-align: center;
+            }
+
+            .mobile-header h1 {
+                font-size: 1.5rem;
+                font-weight: 900;
+                color: #0f172a;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .mobile-status-pill {
+                background: #fef3c7;
+                border: 1px solid #fde047;
+                color: #854d0e;
+                padding: 4px 10px;
+                border-radius: 14px;
+                font-size: 0.85rem;
+                font-weight: 700;
+                width: 100%;
+                text-align: center;
+            }
+
+            /* 星期切換分頁按鈕 */
+            .day-tabs {
+                display: flex;
+                background: rgba(255, 255, 255, 0.85);
+                padding: 4px;
+                border-radius: 12px;
+                box-shadow: var(--shadow);
+                gap: 4px;
+            }
+
+            .day-tab-btn {
+                flex: 1;
+                padding: 8px 2px;
+                border: none;
+                border-radius: 8px;
+                background: transparent;
+                font-family: inherit;
+                font-size: 1.05rem;
+                font-weight: 900;
+                color: #475569;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                text-align: center;
+            }
+
+            .day-tab-btn.active {
+                background: #0284c7;
+                color: #ffffff;
+                box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+            }
+
+            .day-tab-btn.is-today-tab {
+                position: relative;
+            }
+            .day-tab-btn.is-today-tab::after {
+                content: '';
+                position: absolute;
+                bottom: 2px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 5px;
+                height: 5px;
+                background: #ef4444;
+                border-radius: 50%;
+            }
+
+            /* 手機版每日課程卡片列表 */
+            .mobile-schedule-list {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .mobile-card {
+                background: var(--card-bg);
+                border-radius: 12px;
+                padding: 8px 12px;
+                box-shadow: var(--shadow);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                border: 1px solid rgba(255, 255, 255, 0.8);
+            }
+
+            .mobile-card-time {
+                display: flex;
+                flex-direction: flex-row;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .mobile-card-pnum {
+                font-size: 1.05rem;
+                font-weight: 900;
+                color: #0f172a;
+            }
+
+            .mobile-card-ptime {
+                font-size: 0.82rem;
+                font-weight: 700;
+                color: #64748b;
+            }
+
+            .mobile-card-subject {
+                border-radius: 8px;
+                padding: 6px 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                min-width: 90px;
+            }
+
+            .mobile-card-subject .subject-icon {
+                font-size: 1.2rem;
+            }
+
+            .mobile-card-subject .subject-name-short {
+                font-size: 1.3rem; /* 1~2字簡稱超大字體 */
+                font-weight: 900;
+                letter-spacing: 1px;
+            }
+
+            .mobile-rest-card {
+                background: rgba(241, 245, 249, 0.9);
+                border-radius: 10px;
+                padding: 8px;
+                text-align: center;
+                font-size: 0.85rem;
+                font-weight: 700;
+                color: #475569;
+            }
+
+            .mobile-card.mobile-current-active {
+                outline: 3px solid #f59e0b;
+                box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+            }
+        }
+
+        /* --------------------------------------------------------
+           特定 6 個科目字體顏色為黑色：
+           國語、數學、社會、鳳翔四季、資訊創課、愛鳳教翔閱
+           -------------------------------------------------------- */
+        .sub-國語 { background: var(--bg-mandarin); color: #000000; }
+        .sub-國語 .subject-icon, .sub-國語 .subject-name, .sub-國語 .subject-name-short { color: #000000; }
+
+        .sub-數學 { background: var(--bg-math); color: #000000; }
+        .sub-數學 .subject-icon, .sub-數學 .subject-name, .sub-數學 .subject-name-short { color: #000000; }
+
+        .sub-社會 { background: var(--bg-society); color: #000000; }
+        .sub-社會 .subject-icon, .sub-社會 .subject-name, .sub-社會 .subject-name-short { color: #000000; }
+
+        .sub-鳳翔四季 { background: var(--bg-school); color: #000000; border: 1px dashed #818cf8; }
+        .sub-鳳翔四季 .subject-icon, .sub-鳳翔四季 .subject-name, .sub-鳳翔四季 .subject-name-short { color: #000000; }
+
+        .sub-資訊創課 { background: var(--bg-info); color: #000000; }
+        .sub-資訊創課 .subject-icon, .sub-資訊創課 .subject-name, .sub-資訊創課 .subject-name-short { color: #000000; }
+
+        .sub-愛鳳教翔閱 { background: var(--bg-school); color: #000000; border: 1px dashed #818cf8; }
+        .sub-愛鳳教翔閱 .subject-icon, .sub-愛鳳教翔閱 .subject-name, .sub-愛鳳教翔閱 .subject-name-short { color: #000000; }
+
+        /* --------------------------------------------------------
+           其他科目：不同色彩區隔
+           -------------------------------------------------------- */
+        .sub-自然 { background: var(--bg-science); color: #15803d; }
+        .sub-自然 .subject-icon, .sub-自然 .subject-name, .sub-自然 .subject-name-short { color: #15803d; }
+
+        .sub-體育 { background: var(--bg-pe); color: #b91c1c; }
+        .sub-體育 .subject-icon, .sub-體育 .subject-name, .sub-體育 .subject-name-short { color: #b91c1c; }
+
+        .sub-健康, .sub-健康樂活 { background: var(--bg-health); color: #1d4ed8; }
+        .sub-健康 .subject-icon, .sub-健康 .subject-name, .sub-健康 .subject-name-short,
+        .sub-健康樂活 .subject-icon, .sub-健康樂活 .subject-name, .sub-健康樂活 .subject-name-short { color: #1d4ed8; }
+
+        .sub-美勞 { background: var(--bg-art); color: #7e22ce; }
+        .sub-美勞 .subject-icon, .sub-美勞 .subject-name, .sub-美勞 .subject-name-short { color: #7e22ce; }
+
+        .sub-音樂 { background: var(--bg-music); color: #a21caf; }
+        .sub-音樂 .subject-icon, .sub-音樂 .subject-name, .sub-音樂 .subject-name-short { color: #a21caf; }
+
+        .sub-本土語 { background: var(--bg-local); color: #57534e; }
+        .sub-本土語 .subject-icon, .sub-本土語 .subject-name, .sub-本土語 .subject-name-short { color: #57534e; }
+
+        .sub-英語 { background: var(--bg-english); color: #c2410c; }
+        .sub-英語 .subject-icon, .sub-英語 .subject-name, .sub-英語 .subject-name-short { color: #c2410c; }
+
+        .sub-飛翔國際 { background: var(--bg-school); color: #4338ca; border: 1px dashed #818cf8; }
+        .sub-飛翔國際 .subject-icon, .sub-飛翔國際 .subject-name, .sub-飛翔國際 .subject-name-short { color: #4338ca; }
+
+        .sub-綜合 { background: var(--bg-integrated); color: #854d0e; }
+        .sub-綜合 .subject-icon, .sub-綜合 .subject-name, .sub-綜合 .subject-name-short { color: #854d0e; }
+
+        .sub-free { background: var(--bg-free); color: #64748b; font-weight: 700; }
+
+        /* 當前節次高亮動態框 */
+        td.current-class {
+            outline: 3.5px solid #f59e0b;
+            outline-offset: -2px;
+            animation: pulse-border 1.8s infinite;
+        }
+
+        @keyframes pulse-border {
+            0% { outline-color: #f59e0b; box-shadow: inset 0 0 6px rgba(245, 158, 11, 0.5); }
+            50% { outline-color: #ef4444; box-shadow: inset 0 0 10px rgba(239, 68, 68, 0.6); }
+            100% { outline-color: #f59e0b; box-shadow: inset 0 0 6px rgba(245, 158, 11, 0.5); }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. 電腦/平板檢視區塊 (min-width: 768px) -->
+    <div class="main-container desktop-only">
+        <header>
+            <div class="title-container">
+                <div class="title-area">
+                    <div class="title-icon"><i class="fa-solid fa-school"></i></div>
+                    <h1>115 班級功課表</h1>
+                </div>
+                <div class="live-status-pill">
+                    <i class="fa-solid fa-clock"></i>
+                    <span id="desktopTimeText">現在時間：載入中...</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="table-card">
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th style="width: 145px;"><i class="fa-solid fa-clock"></i> 節次/時間</th>
+                        <th class="weekday-header" id="col-1">星期一</th>
+                        <th class="weekday-header" id="col-2">星期二</th>
+                        <th class="weekday-header" id="col-3">星期三</th>
+                        <th class="weekday-header" id="col-4">星期四</th>
+                        <th class="weekday-header" id="col-5">星期五</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="rest-row">
+                        <td class="period-cell">
+                            <div class="period-inline">晨光時間 <small>7:55~8:30</small></div>
+                        </td>
+                        <td colspan="5">早自習 / 導師時間 / 朝會活動</td>
+                    </tr>
+                    <tr>
+                        <td class="period-cell">
+                            <div class="period-inline">第 1 節 <small>8:40~9:20</small></div>
+                        </td>
+                        <td class="subject-cell sub-鳳翔四季" data-day="1" data-period="1"><div class="subject-box"><i class="fa-solid fa-feather-pointed subject-icon"></i><span class="subject-name">鳳翔四季</span></div></td>
+                        <td class="subject-cell sub-數學" data-day="2" data-period="1"><div class="subject-box"><i class="fa-solid fa-calculator subject-icon"></i><span class="subject-name">數學</span></div></td>
+                        <td class="subject-cell sub-本土語" data-day="3" data-period="1"><div class="subject-box"><i class="fa-solid fa-comments subject-icon"></i><span class="subject-name">本土語</span></div></td>
+                        <td class="subject-cell sub-自然" data-day="4" data-period="1"><div class="subject-box"><i class="fa-solid fa-flask subject-icon"></i><span class="subject-name">自然</span></div></td>
+                        <td class="subject-cell sub-國語" data-day="5" data-period="1"><div class="subject-box"><i class="fa-solid fa-book-open subject-icon"></i><span class="subject-name">國語</span></div></td>
+                    </tr>
+                    <tr>
+                        <td class="period-cell">
+                            <div class="period-inline">第 2 節 <small>9:30~10:10</small></div>
+                        </td>
+                        <td class="subject-cell sub-社會" data-day="1" data-period="2"><div class="subject-box"><i class="fa-solid fa-earth-americas subject-icon"></i><span class="subject-name">社會</span></div></td>
+                        <td class="subject-cell sub-國語" data-day="2" data-period="2"><div class="subject-box"><i class="fa-solid fa-book-open subject-icon"></i><span class="subject-name">國語</span></div></td>
+                        <td class="subject-cell sub-愛鳳教翔閱" data-day="3" data-period="2"><div class="subject-box"><i class="fa-solid fa-book-reader subject-icon"></i><span class="subject-name">愛鳳教翔閱</span></div></td>
+                        <td class="subject-cell sub-自然" data-day="4" data-period="2"><div class="subject-box"><i class="fa-solid fa-flask subject-icon"></i><span class="subject-name">自然</span></div></td>
+                        <td class="subject-cell sub-資訊創課" data-day="5" data-period="2"><div class="subject-box"><i class="fa-solid fa-laptop-code subject-icon"></i><span class="subject-name">資訊創課</span></div></td>
+                    </tr>
+                    <tr>
+                        <td class="period-cell">
+                            <div class="period-inline">第 3 節 <small>10:30~11:10</small></div>
+                        </td>
+                        <td class="subject-cell sub-飛翔國際" data-day="1" data-period="3"><div class="subject-box"><i class="fa-solid fa-plane-departure subject-icon"></i><span class="subject-name">飛翔國際</span></div></td>
+                        <td class="subject-cell sub-自然" data-day="2" data-period="3"><div class="subject-box"><i class="fa-solid fa-leaf subject-icon"></i><span class="subject-name">自然</span></div></td>
+                        <td class="subject-cell sub-數學" data-day="3" data-period="3"><div class="subject-box"><i class="fa-solid fa-calculator subject-icon"></i><span class="subject-name">數學</span></div></td>
+                        <td class="subject-cell sub-數學" data-day="4" data-period="3"><div class="subject-box"><i class="fa-solid fa-calculator subject-icon"></i><span class="subject-name">數學</span></div></td>
+                        <td class="subject-cell sub-美勞" data-day="5" data-period="3"><div class="subject-box"><i class="fa-solid fa-palette subject-icon"></i><span class="subject-name">美勞</span></div></td>
+                    </tr>
+                    <tr>
+                        <td class="period-cell">
+                            <div class="period-inline">第 4 節 <small>11:20~12:00</small></div>
+                        </td>
+                        <td class="subject-cell sub-體育" data-day="1" data-period="4"><div class="subject-box"><i class="fa-solid fa-basketball subject-icon"></i><span class="subject-name">體育</span></div></td>
+                        <td class="subject-cell sub-鳳翔四季" data-day="2" data-period="4"><div class="subject-box"><i class="fa-solid fa-feather-pointed subject-icon"></i><span class="subject-name">鳳翔四季</span></div></td>
+                        <td class="subject-cell sub-國語" data-day="3" data-period="4"><div class="subject-box"><i class="fa-solid fa-book-open subject-icon"></i><span class="subject-name">國語</span></div></td>
+                        <td class="subject-cell sub-國語" data-day="4" data-period="4"><div class="subject-box"><i class="fa-solid fa-book-open subject-icon"></i><span class="subject-name">國語</span></div></td>
+                        <td class="subject-cell sub-美勞" data-day="5" data-period="4"><div class="subject-box"><i class="fa-solid fa-palette subject-icon"></i><span class="subject-name">美勞</span></div></td>
+                    </tr>
+                    <tr class="rest-row">
+                        <td class="period-cell">
+                            <div class="period-inline">午休時間 <small>12:40~13:20</small></div>
+                        </td>
+                        <td colspan="5">12:00~12:40 營養午餐 🍱 ｜ 12:40~13:20 靜心午休 💤</td>
+                    </tr>
+                    <tr>
+                        <td class="period-cell">
+                            <div class="period-inline">第 5 節 <small>13:30~14:10</small></div>
+                        </td>
+                        <td class="subject-cell sub-國語" data-day="1" data-period="5"><div class="subject-box"><i class="fa-solid fa-book-open subject-icon"></i><span class="subject-name">國語</span></div></td>
+                        <td class="subject-cell sub-健康" data-day="2" data-period="5"><div class="subject-box"><i class="fa-solid fa-heart-pulse subject-icon"></i><span class="subject-name">健康</span></div></td>
+                        <td class="subject-cell sub-free" data-day="3" data-period="5" rowspan="3">
+                            <div class="subject-box"><i class="fa-solid fa-house-user subject-icon"></i><span class="subject-name">放學</span></div>
+                        </td>
+                        <td class="subject-cell sub-社會" data-day="4" data-period="5"><div class="subject-box"><i class="fa-solid fa-earth-americas subject-icon"></i><span class="subject-name">社會</span></div></td>
+                        <td class="subject-cell sub-英語" data-day="5" data-period="5"><div class="subject-box"><i class="fa-solid fa-language subject-icon"></i><span class="subject-name">英語</span></div></td>
+                    </tr>
+                    <tr>
+                        <td class="period-cell">
+                            <div class="period-inline">第 6 節 <small>14:20~15:00</small></div>
+                        </td>
+                        <td class="subject-cell sub-數學" data-day="1" data-period="6"><div class="subject-box"><i class="fa-solid fa-calculator subject-icon"></i><span class="subject-name">數學</span></div></td>
+                        <td class="subject-cell sub-英語" data-day="2" data-period="6"><div class="subject-box"><i class="fa-solid fa-language subject-icon"></i><span class="subject-name">英語</span></div></td>
+                        <td class="subject-cell sub-音樂" data-day="4" data-period="6"><div class="subject-box"><i class="fa-solid fa-music subject-icon"></i><span class="subject-name">音樂</span></div></td>
+                        <td class="subject-cell sub-綜合" data-day="5" data-period="6"><div class="subject-box"><i class="fa-solid fa-puzzle-piece subject-icon"></i><span class="subject-name">綜合</span></div></td>
+                    </tr>
+                    <tr>
+                        <td class="period-cell">
+                            <div class="period-inline">第 7 節 <small>15:15~15:55</small></div>
+                        </td>
+                        <td class="subject-cell sub-健康樂活" data-day="1" data-period="7"><div class="subject-box"><i class="fa-solid fa-person-running subject-icon"></i><span class="subject-name">健康樂活</span></div></td>
+                        <td class="subject-cell sub-社會" data-day="2" data-period="7"><div class="subject-box"><i class="fa-solid fa-earth-americas subject-icon"></i><span class="subject-name">社會</span></div></td>
+                        <td class="subject-cell sub-體育" data-day="4" data-period="7"><div class="subject-box"><i class="fa-solid fa-basketball subject-icon"></i><span class="subject-name">體育</span></div></td>
+                        <td class="subject-cell sub-綜合" data-day="5" data-period="7"><div class="subject-box"><i class="fa-solid fa-puzzle-piece subject-icon"></i><span class="subject-name">綜合</span></div></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 2. 手機專屬最佳化檢視區塊 (max-width: 767px) -->
+    <div class="mobile-container mobile-only">
+        <div class="mobile-header">
+            <h1><i class="fa-solid fa-school" style="color: #f59e0b;"></i> 115 班級功課表</h1>
+            <div class="mobile-status-pill" id="mobileTimeText">現在時間：載入中...</div>
+        </div>
+
+        <!-- 星期切換分頁按鈕 -->
+        <div class="day-tabs">
+            <button class="day-tab-btn" onclick="selectMobileDay(1)" id="tab-1">一</button>
+            <button class="day-tab-btn" onclick="selectMobileDay(2)" id="tab-2">二</button>
+            <button class="day-tab-btn" onclick="selectMobileDay(3)" id="tab-3">三</button>
+            <button class="day-tab-btn" onclick="selectMobileDay(4)" id="tab-4">四</button>
+            <button class="day-tab-btn" onclick="selectMobileDay(5)" id="tab-5">五</button>
+        </div>
+
+        <!-- 手機每日課程時間軸列表容器 -->
+        <div class="mobile-schedule-list" id="mobileScheduleContainer">
+            <!-- 由 JavaScript 動態繪製縮寫簡稱 (1~2字) 的每日課程 -->
+        </div>
+    </div>
+
+    <!-- JavaScript 邏輯腳本 -->
+    <script>
+        // 科目 1~2 字簡稱對照表
+        const shortNameMap = {
+            '國語': '國',
+            '數學': '數',
+            '社會': '社',
+            '自然': '自',
+            '英語': '英',
+            '健康': '健',
+            '體育': '體',
+            '鳳翔四季': '四季',
+            '飛翔國際': '國際',
+            '健康樂活': '樂活',
+            '愛鳳教翔閱': '閱讀',
+            '本土語': '閩',
+            '音樂': '音',
+            '綜合': '綜',
+            '資訊創課': '電腦',
+            '美勞': '美',
+            '放學': '放學'
+        };
+
+        // 功課表完整數據
+        const scheduleData = {
+            1: [
+                { period: '第 1 節', time: '8:40~9:20', sub: '鳳翔四季', class: 'sub-鳳翔四季', icon: 'fa-feather-pointed' },
+                { period: '第 2 節', time: '9:30~10:10', sub: '社會', class: 'sub-社會', icon: 'fa-earth-americas' },
+                { period: '第 3 節', time: '10:30~11:10', sub: '飛翔國際', class: 'sub-飛翔國際', icon: 'fa-plane-departure' },
+                { period: '第 4 節', time: '11:20~12:00', sub: '體育', class: 'sub-體育', icon: 'fa-basketball' },
+                { period: '第 5 節', time: '13:30~14:10', sub: '國語', class: 'sub-國語', icon: 'fa-book-open' },
+                { period: '第 6 節', time: '14:20~15:00', sub: '數學', class: 'sub-數學', icon: 'fa-calculator' },
+                { period: '第 7 節', time: '15:15~15:55', sub: '健康樂活', class: 'sub-健康樂活', icon: 'fa-person-running' }
+            ],
+            2: [
+                { period: '第 1 節', time: '8:40~9:20', sub: '數學', class: 'sub-數學', icon: 'fa-calculator' },
+                { period: '第 2 節', time: '9:30~10:10', sub: '國語', class: 'sub-國語', icon: 'fa-book-open' },
+                { period: '第 3 節', time: '10:30~11:10', sub: '自然', class: 'sub-自然', icon: 'fa-leaf' },
+                { period: '第 4 節', time: '11:20~12:00', sub: '鳳翔四季', class: 'sub-鳳翔四季', icon: 'fa-feather-pointed' },
+                { period: '第 5 節', time: '13:30~14:10', sub: '健康', class: 'sub-健康', icon: 'fa-heart-pulse' },
+                { period: '第 6 節', time: '14:20~15:00', sub: '英語', class: 'sub-英語', icon: 'fa-language' },
+                { period: '第 7 節', time: '15:15~15:55', sub: '社會', class: 'sub-社會', icon: 'fa-earth-americas' }
+            ],
+            3: [
+                { period: '第 1 節', time: '8:40~9:20', sub: '本土語', class: 'sub-本土語', icon: 'fa-comments' },
+                { period: '第 2 節', time: '9:30~10:10', sub: '愛鳳教翔閱', class: 'sub-愛鳳教翔閱', icon: 'fa-book-reader' },
+                { period: '第 3 節', time: '10:30~11:10', sub: '數學', class: 'sub-數學', icon: 'fa-calculator' },
+                { period: '第 4 節', time: '11:20~12:00', sub: '國語', class: 'sub-國語', icon: 'fa-book-open' },
+                { period: '下午', time: '12:40~15:55', sub: '放學', class: 'sub-free', icon: 'fa-house-user' }
+            ],
+            4: [
+                { period: '第 1 節', time: '8:40~9:20', sub: '自然', class: 'sub-自然', icon: 'fa-flask' },
+                { period: '第 2 節', time: '9:30~10:10', sub: '自然', class: 'sub-自然', icon: 'fa-flask' },
+                { period: '第 3 節', time: '10:30~11:10', sub: '數學', class: 'sub-數學', icon: 'fa-calculator' },
+                { period: '第 4 節', time: '11:20~12:00', sub: '國語', class: 'sub-國語', icon: 'fa-book-open' },
+                { period: '第 5 節', time: '13:30~14:10', sub: '社會', class: 'sub-社會', icon: 'fa-earth-americas' },
+                { period: '第 6 節', time: '14:20~15:00', sub: '音樂', class: 'sub-音樂', icon: 'fa-music' },
+                { period: '第 7 節', time: '15:15~15:55', sub: '體育', class: 'sub-體育', icon: 'fa-basketball' }
+            ],
+            5: [
+                { period: '第 1 節', time: '8:40~9:20', sub: '國語', class: 'sub-國語', icon: 'fa-book-open' },
+                { period: '第 2 節', time: '9:30~10:10', sub: '資訊創課', class: 'sub-資訊創課', icon: 'fa-laptop-code' },
+                { period: '第 3 節', time: '10:30~11:10', sub: '美勞', class: 'sub-美勞', icon: 'fa-palette' },
+                { period: '第 4 節', time: '11:20~12:00', sub: '美勞', class: 'sub-美勞', icon: 'fa-palette' },
+                { period: '第 5 節', time: '13:30~14:10', sub: '英語', class: 'sub-英語', icon: 'fa-language' },
+                { period: '第 6 節', time: '14:20~15:00', sub: '綜合', class: 'sub-綜合', icon: 'fa-puzzle-piece' },
+                { period: '第 7 節', time: '15:15~15:55', sub: '綜合', class: 'sub-綜合', icon: 'fa-puzzle-piece' }
+            ]
+        };
+
+        const timeTable = [
+            { period: 1, start: '08:40', end: '09:20' },
+            { period: 2, start: '09:30', end: '10:10' },
+            { period: 3, start: '10:30', end: '11:10' },
+            { period: 4, start: '11:20', end: '12:00' },
+            { period: 5, start: '13:30', end: '14:10' },
+            { period: 6, start: '14:20', end: '15:00' },
+            { period: 7, start: '15:15', end: '15:55' }
+        ];
+
+        let currentSelectedMobileDay = 1;
+
+        function timeToMinutes(timeStr) {
+            const [h, m] = timeStr.split(':').map(Number);
+            return h * 60 + m;
+        }
+
+        // 渲染手機版特定星期課表（使用 1~2 字簡稱）
+        function selectMobileDay(day) {
+            currentSelectedMobileDay = day;
+            document.querySelectorAll('.day-tab-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById(`tab-${day}`);
+            if (activeBtn) activeBtn.classList.add('active');
+
+            const container = document.getElementById('mobileScheduleContainer');
+            if (!container) return;
+
+            const list = scheduleData[day] || [];
+            let html = `
+                <div class="mobile-rest-card">
+                    <i class="fa-regular fa-sun"></i> 晨光時間：7:55~8:30
+                </div>
+            `;
+
+            const now = new Date();
+            const currentDay = now.getDay();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+            list.forEach(item => {
+                if (item.period === '第 4 節') {
+                    html += itemToCardHtml(item, day, currentDay, currentMinutes);
+                    html += `
+                        <div class="mobile-rest-card">
+                            🍱 12:00~12:40 午餐 ｜ 💤 12:40~13:20 午休
+                        </div>
+                    `;
+                } else {
+                    html += itemToCardHtml(item, day, currentDay, currentMinutes);
+                }
+            });
+
+            container.innerHTML = html;
+        }
+
+        function itemToCardHtml(item, day, currentDay, currentMinutes) {
+            let isCurrentActive = false;
+            if (day === currentDay && item.period.includes('第')) {
+                const pNum = parseInt(item.period.replace(/[^0-9]/g, ''));
+                const tInfo = timeTable.find(t => t.period === pNum);
+                if (tInfo) {
+                    const s = timeToMinutes(tInfo.start);
+                    const e = timeToMinutes(tInfo.end);
+                    if (currentMinutes >= s && currentMinutes <= e) {
+                        isCurrentActive = true;
+                    }
+                }
+            }
+
+            // 取得 1~2 字縮寫簡稱
+            const shortName = shortNameMap[item.sub] || item.sub;
+
+            return `
+                <div class="mobile-card ${isCurrentActive ? 'mobile-current-active' : ''}">
+                    <div class="mobile-card-time">
+                        <span class="mobile-card-pnum">${item.period}</span>
+                        <span class="mobile-card-ptime">${item.time}</span>
+                    </div>
+                    <div class="mobile-card-subject ${item.class}">
+                        <i class="fa-solid ${item.icon} subject-icon"></i>
+                        <span class="subject-name-short">${shortName}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateLiveStatus() {
+            const now = new Date();
+            const dayNames = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            const currentDay = now.getDay();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+            let statusText = `${dayNames[currentDay]} ${hours}:${minutes}:${seconds}`;
+            let activePeriodName = "";
+
+            document.querySelectorAll('.today-column').forEach(el => el.classList.remove('today-column'));
+            document.querySelectorAll('.current-class').forEach(el => el.classList.remove('current-class'));
+
+            if (currentDay >= 1 && currentDay <= 5) {
+                const todayHeader = document.getElementById(`col-${currentDay}`);
+                if (todayHeader) todayHeader.classList.add('today-column');
+
+                const todayTab = document.getElementById(`tab-${currentDay}`);
+                if (todayTab) todayTab.classList.add('is-today-tab');
+
+                let activePeriod = null;
+                for (const t of timeTable) {
+                    if (currentMinutes >= timeToMinutes(t.start) && currentMinutes <= timeToMinutes(t.end)) {
+                        activePeriod = t.period;
+                        break;
+                    }
+                }
+
+                if (activePeriod) {
+                    const currentCell = document.querySelector(`.subject-cell[data-day="${currentDay}"][data-period="${activePeriod}"]`);
+                    if (currentCell) {
+                        currentCell.classList.add('current-class');
+                        const nameEl = currentCell.querySelector('.subject-name');
+                        if (nameEl) activePeriodName = nameEl.innerText;
+                    }
+                    statusText += ` ｜ 🎯 【第 ${activePeriod} 節】${activePeriodName}`;
+                } else if (currentMinutes >= timeToMinutes('07:55') && currentMinutes < timeToMinutes('08:40')) {
+                    statusText += ` ｜ ☀️ 晨光時間`;
+                } else if (currentMinutes >= timeToMinutes('12:00') && currentMinutes < timeToMinutes('12:40')) {
+                    statusText += ` ｜ 🍱 營養午餐`;
+                } else if (currentMinutes >= timeToMinutes('12:40') && currentMinutes < timeToMinutes('13:30')) {
+                    statusText += ` ｜ 💤 靜心午休`;
+                } else if (currentMinutes > timeToMinutes('15:55')) {
+                    statusText += ` ｜ 🎒 放學囉！`;
+                } else {
+                    statusText += ` ｜ ☕ 課間休息`;
+                }
+            } else {
+                statusText += ` ｜ 🎈 週末愉快！`;
+            }
+
+            const dText = document.getElementById('desktopTimeText');
+            if (dText) dText.innerText = `現在時間：${statusText}`;
+
+            const mText = document.getElementById('mobileTimeText');
+            if (mText) mText.innerText = `時間：${statusText}`;
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const now = new Date();
+            let day = now.getDay();
+            if (day < 1 || day > 5) day = 1;
+            selectMobileDay(day);
+
+            setInterval(updateLiveStatus, 1000);
+            updateLiveStatus();
+        });
+    </script>
+</body>
+</html>
