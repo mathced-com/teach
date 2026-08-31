@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,16 +11,34 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <style>
-        body { font-family: "Microsoft JhengHei", "Heiti TC", sans-serif; }
-        .no-select { user-select: none; -webkit-user-select: none; }
+        body {
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
+        }
+
+        .no-select {
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
         /* 微動畫：按鈕出現 */
         @keyframes slideUp {
-            0% { opacity: 0; transform: translateY(10px); }
-            100% { opacity: 1; transform: translateY(0); }
+            0% {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        .anim-appear { animation: slideUp 0.2s ease-out forwards; }
+
+        .anim-appear {
+            animation: slideUp 0.2s ease-out forwards;
+        }
     </style>
 </head>
+
 <body class="bg-gray-100 h-screen w-screen overflow-hidden flex flex-col">
     <div id="root" class="h-full flex flex-col"></div>
 
@@ -33,7 +52,7 @@
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
         );
-        
+
         const XIcon = ({ className }) => (
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -78,19 +97,24 @@
 
         // --- 資料設定 ---
         const DEFAULT_TASKS = [
-            { id: 'task_01', name: '1、2排掃拖地', personnel: '25, 20, 26', completed: false, checkStatus: 'none' },
-            { id: 'task_02', name: '3、4排掃拖地', personnel: '1, 10, 8', completed: false, checkStatus: 'none' },
-            { id: 'task_03', name: '5、6排掃拖地', personnel: '18, 21, 22', completed: false, checkStatus: 'none' },
-            { id: 'task_04', name: '教室前後掃拖', personnel: '3, 4, 5', completed: false, checkStatus: 'none' },
-            { id: 'task_05', name: '走廊掃拖地', personnel: '16, 17, 23', completed: false, checkStatus: 'none' },
-            { id: 'task_06', name: '後陽台掃地', personnel: '6', completed: false, checkStatus: 'none' },
-            { id: 'task_07', name: '拖把用水桶', personnel: '7', completed: false, checkStatus: 'none' },
-            { id: 'task_08', name: '講桌前後公布欄', personnel: '19', completed: false, checkStatus: 'none' },
-            { id: 'task_09', name: '擦黑板', personnel: '28', completed: false, checkStatus: 'none' },
-            { id: 'task_10', name: '走廊窗戶鞋櫃', personnel: '24', completed: false, checkStatus: 'none' },
-            { id: 'task_11', name: '老師窗戶落地窗', personnel: '29', completed: false, checkStatus: 'none' },
-            { id: 'task_12', name: '前後門及欄杆', personnel: '27', completed: false, checkStatus: 'none' },
-            { id: 'task_13', name: '掃具間及回收', personnel: '9, 11, 12', completed: false, checkStatus: 'none' },
+            { id: 'task_01', name: '1、2排掃拖地', personnel: '13, 21 , 22', completed: false, checkStatus: 'none' },
+            { id: 'task_02', name: '3、4排掃拖地', personnel: '18, 19 , 24', completed: false, checkStatus: 'none' },
+            { id: 'task_03', name: '5、6排掃拖地', personnel: '16, 23 , 27', completed: false, checkStatus: 'none' },
+            { id: 'task_04', name: '教室前後掃拖地', personnel: '9, 14, 29', completed: false, checkStatus: 'none' },
+            { id: 'task_05', name: '走廊掃拖地', personnel: '7, 10', completed: false, checkStatus: 'none' },
+            { id: 'task_06', name: '後陽台掃地', personnel: '26', completed: false, checkStatus: 'none' },
+            { id: 'task_07', name: '電梯前區域及排水溝', personnel: '5', completed: false, checkStatus: 'none' },
+            { id: 'task_08', name: '講桌餐桌公布欄', personnel: '28', completed: false, checkStatus: 'none' },
+            { id: 'task_09', name: '走廊欄杆鞋櫃', personnel: '8', completed: false, checkStatus: 'none' },
+            { id: 'task_10', name: '擦黑板', personnel: '3', completed: false, checkStatus: 'none' },
+            { id: 'task_11', name: '擦書櫃、整理書櫃', personnel: '25', completed: false, checkStatus: 'none' },
+            { id: 'task_12', name: '後公布欄、兩側及下方', personnel: '1', completed: false, checkStatus: 'none' },
+            { id: 'task_13', name: '擦走廊窗戶', personnel: '15', completed: false, checkStatus: 'none' },
+            { id: 'task_14', name: '擦老師窗戶落地窗', personnel: '11', completed: false, checkStatus: 'none' },
+            { id: 'task_15', name: '擦前後門', personnel: '2', completed: false, checkStatus: 'none' },
+            { id: 'task_16', name: '拖把用水桶', personnel: '4', completed: false, checkStatus: 'none' },
+            { id: 'task_17', name: '掃具間及回收', personnel: '6, 17 , 20', completed: false, checkStatus: 'none' },
+
         ];
 
         function App() {
@@ -100,7 +124,7 @@
                     if (saved) {
                         const parsedSaved = JSON.parse(saved);
                         if (parsedSaved.length === DEFAULT_TASKS.length) {
-                             return parsedSaved.map((t, i) => ({
+                            return parsedSaved.map((t, i) => ({
                                 ...t,
                                 name: DEFAULT_TASKS[i].name,
                                 checkStatus: t.checkStatus || (t.checked ? 'approved' : 'none')
@@ -136,7 +160,7 @@
             }, [tasks]);
 
             const toggleCompleted = (taskId) => {
-                setTasks(prevTasks => 
+                setTasks(prevTasks =>
                     prevTasks.map(task => {
                         if (task.id !== taskId) return task;
                         const newCompleted = !task.completed;
@@ -147,14 +171,14 @@
 
             const handleCheckClick = (e, task) => {
                 // 阻止事件冒泡，避免觸發 window click 立刻關閉
-                e.stopPropagation(); 
-                
+                e.stopPropagation();
+
                 if (!task.completed) {
                     setShowWarning(true);
                     setTimeout(() => setShowWarning(false), 1500);
                     return;
                 }
-                
+
                 if (activeTaskId === task.id) {
                     setActiveTaskId(null);
                 } else {
@@ -164,16 +188,16 @@
 
             const applyCheckStatus = (e, taskId, status) => {
                 // 阻止事件冒泡，確保按鈕點擊有效
-                e.stopPropagation(); 
-                
-                setTasks(prevTasks => 
+                e.stopPropagation();
+
+                setTasks(prevTasks =>
                     prevTasks.map(task => {
                         if (task.id !== taskId) return task;
 
                         const newCompleted = status === 'improvement' ? false : task.completed;
-                        
-                        return { 
-                            ...task, 
+
+                        return {
+                            ...task,
                             checkStatus: status,
                             completed: newCompleted
                         };
@@ -206,8 +230,8 @@
             const approvedCount = tasks.filter(t => t.checkStatus === 'approved').length;
 
             return (
-                <div className="h-full flex flex-col bg-gray-200 p-2 no-select relative">
-                    
+                <div className="h-full flex flex-col bg-gray-200 p-2 no-select relative overflow-y-auto sm:overflow-hidden">
+
                     {/* 警告訊息 */}
                     {showWarning && (
                         <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-black bg-opacity-80 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 pointer-events-none anim-appear">
@@ -224,17 +248,17 @@
 
                         <div className="flex-1 flex justify-center items-center gap-2">
                             <ClipboardCheck className="w-7 h-7 hidden sm:block" />
-                            <h1 className="text-2xl font-bold tracking-wide text-center">
+                            <h1 className="text-xl sm:text-2xl font-bold tracking-wide text-center">
                                 教室掃地檢查表
                             </h1>
                         </div>
-                        
+
                         <div className="flex items-center gap-3">
                             <div className="hidden sm:flex gap-3 text-lg font-bold mr-2">
                                 <span className="text-green-200">完: {completedCount}</span>
                                 <span className="text-purple-200">檢: {approvedCount}</span>
                             </div>
-                            <button 
+                            <button
                                 onClick={resetAll}
                                 disabled={resetting}
                                 className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg shadow transition-colors"
@@ -244,15 +268,15 @@
                         </div>
                     </div>
 
-                    {/* 格狀內容區 */}
-                    <div className="flex-grow grid grid-cols-4 lg:grid-cols-5 grid-rows-4 lg:grid-rows-3 gap-2 h-full z-0">
+                    {/* 格狀內容區 (2欄捲動時使用獨立動態高度 auto-rows-[105px]，3欄以上維持全滿螢幕無捲動) */}
+                    <div className="flex-grow grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 auto-rows-[105px] sm:auto-rows-fr sm:grid-rows-6 md:grid-rows-5 lg:grid-rows-4 gap-2 h-auto sm:h-full min-h-0 z-0 pb-2 sm:pb-0">
                         {tasks.map((task) => {
                             const isActive = activeTaskId === task.id;
 
                             return (
-                                <div 
-                                    key={task.id} 
-                                    className={`bg-white rounded-xl border-2 shadow-sm flex flex-col overflow-hidden transition-all relative
+                                <div
+                                    key={task.id}
+                                    className={`bg-white rounded-xl border-2 shadow-sm flex flex-col overflow-hidden transition-all relative h-full
                                         ${isActive ? 'ring-2 ring-purple-300' : ''}
                                         ${task.checkStatus === 'approved' ? 'border-purple-500 shadow-purple-100' : ''}
                                         ${task.checkStatus === 'improvement' ? 'border-red-400 shadow-red-50' : ''}
@@ -260,59 +284,59 @@
                                         ${task.checkStatus === 'none' && !task.completed ? 'border-gray-300' : ''}
                                     `}
                                 >
-                                    {/* 標題 (加入文字變色邏輯) */}
-                                    <div className="bg-gray-50 px-1 flex items-center justify-center h-[32%] border-b border-gray-200">
-                                        <div className={`font-bold text-xl sm:text-2xl leading-tight text-center px-1 
+                                    {/* 標題 (流式動態字體縮放) */}
+                                    <div className="bg-gray-50 px-0.5 flex items-center justify-center h-[32%] border-b border-gray-200 overflow-hidden">
+                                        <div className={`font-bold leading-tight text-center px-0.5 text-[clamp(0.8rem,1.25vw,1.4rem)]
                                             ${task.checkStatus === 'improvement' ? 'text-red-600' : 'text-gray-800'}
                                         `}>
                                             {task.name}
                                         </div>
                                     </div>
 
-                                    {/* 人員 */}
-                                    <div className="bg-white px-1 flex items-center justify-center h-[14%] border-b border-gray-100">
-                                        <span className="inline-block bg-gray-100 text-gray-600 px-2 rounded text-base font-bold">
+                                    {/* 人員 (流式動態字體縮放) */}
+                                    <div className="bg-white px-0.5 flex items-center justify-center h-[16%] border-b border-gray-100 overflow-hidden">
+                                        <span className="inline-block bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[clamp(0.7rem,0.95vw,1rem)] font-bold truncate max-w-full">
                                             {task.personnel}
                                         </span>
                                     </div>
 
-                                    {/* 按鈕區 */}
-                                    <div className="flex-grow flex divide-x-2 divide-gray-200 h-[54%] relative">
+                                    {/* 按鈕區 (彈性百分比圖示縮放) */}
+                                    <div className="flex-grow flex divide-x-2 divide-gray-200 h-[52%] relative">
                                         {/* 左邊：完成鈕 */}
                                         <button
                                             onClick={() => toggleCompleted(task.id)}
-                                            className={`flex-1 flex items-center justify-center transition-colors active:bg-gray-200
+                                            className={`flex-1 flex items-center justify-center transition-colors active:bg-gray-200 p-1
                                                 ${task.completed ? 'bg-green-100 text-green-600' : 'bg-white text-gray-300 hover:bg-gray-50'}
                                             `}
                                         >
                                             {task.completed ? (
-                                                <CheckCircle className="w-16 h-16 drop-shadow-sm" />
+                                                <CheckCircle className="w-[50%] h-[50%] max-w-[3.5rem] max-h-[3.5rem] min-w-[1.25rem] min-h-[1.25rem] drop-shadow-sm" />
                                             ) : (
-                                                <XIcon className="w-12 h-12 opacity-30" />
+                                                <XIcon className="w-[40%] h-[40%] max-w-[2.75rem] max-h-[2.75rem] min-w-[1rem] min-h-[1rem] opacity-30" />
                                             )}
                                         </button>
 
                                         {/* 右邊：檢查鈕 (容器) */}
                                         <div className="flex-1 relative">
                                             {isActive ? (
-                                                // 展開狀態：顯示兩個小按鈕 (使用絕對定位覆蓋)
+                                                // 展開狀態：顯示兩個小按鈕
                                                 <div className="absolute inset-0 flex flex-col z-20 anim-appear bg-white">
-                                                    <button 
+                                                    <button
                                                         onClick={(e) => applyCheckStatus(e, task.id, 'approved')}
-                                                        className="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-600 flex items-center justify-center border-b border-purple-200 cursor-pointer"
+                                                        className="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-600 flex items-center justify-center border-b border-purple-200 cursor-pointer p-0.5"
                                                     >
-                                                        <div className="flex items-center gap-1">
-                                                            <ClipboardCheck className="w-6 h-6" />
-                                                            <span className="font-bold text-lg">通過</span>
+                                                        <div className="flex items-center gap-1 overflow-hidden">
+                                                            <ClipboardCheck className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                                                            <span className="font-bold text-[clamp(0.75rem,1.05vw,1.1rem)] whitespace-nowrap">通過</span>
                                                         </div>
                                                     </button>
-                                                    <button 
+                                                    <button
                                                         onClick={(e) => applyCheckStatus(e, task.id, 'improvement')}
-                                                        className="flex-1 bg-red-100 hover:bg-red-200 text-red-500 flex items-center justify-center cursor-pointer"
+                                                        className="flex-1 bg-red-100 hover:bg-red-200 text-red-500 flex items-center justify-center cursor-pointer p-0.5"
                                                     >
-                                                        <div className="flex items-center gap-1">
-                                                            <ClipboardAlert className="w-6 h-6" />
-                                                            <span className="font-bold text-lg">待加強</span>
+                                                        <div className="flex items-center gap-1 overflow-hidden">
+                                                            <ClipboardAlert className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
+                                                            <span className="font-bold text-[clamp(0.75rem,1.05vw,1.1rem)] whitespace-nowrap">待加強</span>
                                                         </div>
                                                     </button>
                                                 </div>
@@ -320,20 +344,20 @@
                                                 // 正常狀態：顯示大按鈕
                                                 <button
                                                     onClick={(e) => handleCheckClick(e, task)}
-                                                    className={`w-full h-full flex items-center justify-center transition-colors active:bg-gray-200 cursor-pointer
+                                                    className={`w-full h-full flex items-center justify-center transition-colors active:bg-gray-200 cursor-pointer p-1
                                                         ${task.checkStatus === 'approved' ? 'bg-purple-100 text-purple-600' : ''}
                                                         ${task.checkStatus === 'improvement' ? 'bg-red-50 text-red-500' : ''}
                                                         ${task.checkStatus === 'none' ? 'bg-white text-gray-200 hover:bg-gray-50' : ''}
                                                     `}
                                                 >
                                                     {task.checkStatus === 'approved' && (
-                                                        <ClipboardCheck className="w-14 h-14 drop-shadow-sm" strokeWidth={2.5} />
+                                                        <ClipboardCheck className="w-[50%] h-[50%] max-w-[3.5rem] max-h-[3.5rem] min-w-[1.25rem] min-h-[1.25rem] drop-shadow-sm" strokeWidth={2.5} />
                                                     )}
                                                     {task.checkStatus === 'improvement' && (
-                                                        <ClipboardAlert className="w-14 h-14 drop-shadow-sm" strokeWidth={2.5} />
+                                                        <ClipboardAlert className="w-[50%] h-[50%] max-w-[3.5rem] max-h-[3.5rem] min-w-[1.25rem] min-h-[1.25rem] drop-shadow-sm" strokeWidth={2.5} />
                                                     )}
                                                     {task.checkStatus === 'none' && (
-                                                        <ClipboardCheck className="w-10 h-10 opacity-30" strokeWidth={1.5} />
+                                                        <ClipboardCheck className="w-[40%] h-[40%] max-w-[2.75rem] max-h-[2.75rem] min-w-[1rem] min-h-[1rem] opacity-30" strokeWidth={1.5} />
                                                     )}
                                                 </button>
                                             )}
@@ -351,4 +375,5 @@
         root.render(<App />);
     </script>
 </body>
+
 </html>
