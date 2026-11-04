@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>智慧考程看板 v3.5 (趣味時間軸)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root { 
+      --primary-color: #2c3e50; 
+      --bg-color: #ecf0f1; 
+      
+      /* 狀態顏色 */
+      --color-safe: #27ae60;
+      --color-warn: #f39c12;
+      --color-alert: #c0392b;
+      --color-wait: #3498db;
+
+      /* 字體大小 (初始值會被 JS 覆蓋) */
+      --schedule-font-size: 1.2rem;
+      --note-font-size: 1.8rem;
+    }
+    body { font-family: 'Noto Sans TC', sans-serif; margin: 0; padding: 0; height: 100vh; display: flex; flex-direction: column; background-color: var(--bg-color); overflow: hidden; }
+    
+    /* Top Bar */
+    #top-bar { background: #34495e; color: white; padding: 5px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; flex-shrink: 0; }
+    .mode-switch label { margin-right: 15px; cursor: pointer; }
+
+    /* Header */
+    #header { 
+      flex: 0 0 30%; 
+      background: #fff; 
+      display: flex; 
+      padding: 0; 
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      position: relative;
+    }
+    #box-now { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; border-right: 1px solid #ddd; padding: 10px; }
+    #box-remain { flex: 2; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; overflow: hidden; padding: 10px; }
+    
+    .time-label { font-size: 1rem; color: #7f8c8d; margin-top: 5px; z-index: 2; position: relative;}
+    .time-value { font-size: 5rem; font-weight: bold; font-variant-numeric: tabular-nums; line-height: 1; z-index: 2; position: relative; transition: color 0.3s;}
+    #clock-val { color: var(--primary-color); }
+    #progress-bg-layer { position: absolute; top: 0; left: 0; height: 100%; width: 0%; background-color: var(--color-safe); opacity: 0.2; z-index: 1; transition: width 1s linear, background-color 0.5s; }
+    #status-display { font-size: 3rem; font-weight: bold; color: var(--primary-color); z-index: 3; margin-bottom: 10px; line-height: 1.2; text-align: center; width: 100%; }
+    
+    /* Time Sync */
+    #time-sync-wrapper { position: absolute; top: 10px; right: 10px; z-index: 20; display: flex; flex-direction: column; align-items: flex-end; }
+    #btn-sync-toggle { background: rgba(0,0,0,0.1); color: #7f8c8d; border: 1px solid #ccc; padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.3s; }
+    #btn-sync-toggle:hover { background: #34495e; color: #fff; }
+    #sync-panel { display: none; margin-top: 5px; background: rgba(255,255,255,0.95); padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: right; }
+    .btn-adj { padding: 4px 8px; cursor: pointer; background: #2c3e50; color: #fff; border: none; border-radius: 4px; margin: 2px; font-size: 0.8rem; }
+    #offset-display { display: block; margin-top: 5px; font-size: 0.8rem; color: #e74c3c; }
+
+    /* Manual Controls */
+    #manual-controls { display: none; position: absolute; bottom: 10px; right: 20px; z-index: 10; background: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 8px; border: 1px solid #ccc; }
+    #manual-controls input { width: 60px; text-align: center; font-size: 1rem; padding: 2px;}
+
+    /* Main Content */
+    #main { flex: 1; display: flex; padding: 20px; gap: 20px; overflow: hidden; /* 防止撐開外層 */ }
+    
+    /* Left Panel (Schedule) */
+    #left-panel { flex: 1; background: #fff; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    #schedule-list { 
+      flex: 1; 
+      overflow-y: hidden; /* 隱藏捲軸，改由自動縮放控制 */ 
+      display: flex; 
+      flex-direction: column;
+      justify-content: flex-start; /* 內容置頂 */
+    }
+
+    /* Right Panel (Notes) */
+    #right-panel { flex: 2; background: #fff; border-radius: 10px; padding: 20px; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    #note-content { 
+      white-space: pre-wrap; line-height: 1.4; color: #2c3e50; flex: 1; 
+      overflow: hidden; /* 隱藏捲軸，改由自動縮放 */
+      font-size: var(--note-font-size); 
+      display: flex; align-items: center; justify-content: center; text-align: left; /* 預設垂直置中 */
+    }
+    /* 如果內容很多，靠上對齊 */
+    #note-content.align-top { align-items: flex-start; }
+
+    .panel-title { font-size: 1.5rem; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    .btn-group { display: flex; gap: 5px; align-items: center; }
+    .btn-font { background: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; padding: 2px 8px; font-size: 0.9rem; cursor: pointer; border-radius: 4px; font-weight: bold; }
+    
+    .schedule-item { 
+      display: flex; justify-content: space-between; padding: 0.5em 10px; /* 改用 em padding 以隨字體縮放 */
+      border-bottom: 1px solid #f0f0f0; 
+      font-size: var(--schedule-font-size); 
+      line-height: 1.4;
+      white-space: nowrap; /* 讓系統知道要盡量不換行 */
+    }
+    .schedule-item.active { background-color: #fff3cd; border-left: 5px solid var(--color-alert); font-weight: bold; }
+    .schedule-item.next { border-left: 5px solid var(--color-safe); background-color: #e8f8f5; }
+
+    /* Modals */
+    .btn-edit { background-color: #3498db; color: white; border: none; padding: 5px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem; }
+    .btn-save { background-color: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1.2rem; margin-top: 10px; width: 100%; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: #fff; padding: 20px; border-radius: 10px; width: 600px; max-height: 90vh; overflow-y: auto; }
+    textarea { width: 100%; height: 200px; font-size: 1.2rem; padding: 10px; box-sizing: border-box;}
+    input { padding: 8px; font-size: 1rem; box-sizing: border-box;}
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 5px; }
+    #loading-mask { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.8); z-index:2000; display:flex; justify-content:center; align-items:center; font-size:2rem; color:#555; }
+
+    /* v3.5: visual layers never control the clock. */
+    [hidden] { display:none !important; }
+    #top-bar { flex-wrap:wrap; gap:6px; }
+    .visual-tools { display:flex; gap:8px; align-items:center; }
+    .visual-tools button,.visual-tools select { padding:4px 9px; border:1px solid #bdc3c7; border-radius:5px; background:white; color:#2c3e50; }
+    #main,#left-panel,#right-panel { min-height:0; min-width:0; }
+    #clock-val { font-size:clamp(1.8rem,5.7vw,5rem); }
+    #countdown-val { font-size:clamp(2.6rem,7vw,6.5rem); }
+    #status-display { font-size:clamp(1.3rem,3vw,3rem); }
+    #fun-timeline { flex:0 0 clamp(125px,18vh,160px); position:relative; margin:8px 20px 0; border-radius:14px; overflow:hidden; background:linear-gradient(#e4f4d4 55%,#d98b69 55%); border:1px solid #becdb0; }
+    #fun-timeline[data-theme="dolphin"] { background:linear-gradient(#e5f6ff 45%,#81d6e7 45%,#4cb4d1); border-color:#a1cbd8; }
+    .lane { position:absolute; left:0; right:0; top:72%; border-top:2px dashed #ffffffc9; }
+    .lane:after { content:''; position:absolute; top:15px; width:100%; border-top:1px solid #ffffff80; }
+    .actor-percent { position:absolute; top:-12px; left:50%; transform:translateX(-50%); color:#284550; background:#fffffff0; border:1px solid #aac8cc; border-radius:12px; padding:1px 7px; font-size:13px; line-height:18px; font-weight:bold; white-space:nowrap; z-index:2; }
+    .track-caption { position:absolute; top:7px; left:14px; right:14px; display:flex; justify-content:space-between; color:#36554b; font-size:clamp(12px,1.2vw,17px); font-weight:bold; }
+    .track-area { position:absolute; left:12px; right:12px; top:24px; bottom:5px; }
+    .finish-marker { position:absolute; right:90px; top:17%; bottom:7%; width:12px; background:conic-gradient(#fff 25%,#34495e 0 50%,#fff 0 75%,#34495e 0) 0 0 / 12px 12px; }
+    [data-theme="dolphin"] .finish-marker { width:30px; top:5%; bottom:8%; border:7px solid #eab94c; border-radius:50%; background:transparent; box-shadow:inset 2px 0 #fff8; }
+    .actor-position { position:absolute; width:82px; height:82px; bottom:3%; left:0; transition:left 1.6s ease-in-out; }
+    .actor-motion,.actor-art { width:100%; height:100%; transform-origin:50% 80%; }
+    .actor-art svg { width:100%; height:100%; overflow:visible; }
+    .mood-focus,.mood-sprint,.sweat,.speed-lines { opacity:0; }
+    [data-stage="effort"] .mood-relaxed,[data-stage="sprint"] .mood-relaxed { opacity:0; }
+    [data-stage="effort"] .mood-focus,[data-stage="effort"] .sweat,[data-stage="sprint"] .mood-sprint,[data-stage="sprint"] .speed-lines { opacity:1; }
+    [data-stage="effort"] .actor-art { transform:rotate(5deg); }
+    [data-stage="sprint"] .actor-art { transform:rotate(12deg); }
+    [data-stage="sprint"] .ears { transform:rotate(-18deg); transform-origin:65px 38px; }
+    .moving .actor-motion { animation:run-hop .32s ease-in-out infinite; }
+    [data-theme="dolphin"] .moving .actor-motion { animation:swim .4s ease-in-out infinite; }
+    .moving .feet { animation:feet .25s alternate infinite; transform-origin:center; }
+    .moving .tail,[data-idle="tail"] .tail { animation:tail .45s alternate infinite; transform-origin:40px 54px; }
+    [data-idle="stretch"] .actor-motion { animation:stretch 3s ease-in-out; }
+    [data-idle="ear"] .ears { animation:tail .65s alternate 4; transform-origin:65px 38px; }
+    [data-idle="sleep"] .actor-motion { animation:breathe 4s ease-in-out; }
+    [data-idle="sleep"] .mood-relaxed { transform:scaleY(.35); transform-origin:0 42px; }
+    [data-idle="hop"] .actor-motion { animation:run-hop .8s ease-in-out 3; }
+    [data-idle="breathe"] .actor-motion { animation:breathe 3s ease-in-out; }
+    [data-idle="step"] .feet { animation:feet .5s alternate 6; transform-origin:center; }
+    [data-idle="blink"] .mood-relaxed { animation:blink 3s; transform-origin:0 42px; }
+    [data-idle="roll"] .actor-motion { animation:gentle-roll 3s ease-in-out; }
+    [data-idle="bubble"] .bubbles { animation:bubble 3s ease-out; }
+    [data-idle="sprint"] .actor-motion { animation:run-hop .22s ease-in-out infinite; }
+    .finishing .actor-motion { animation:finish-jump 1.7s ease-in-out forwards !important; }
+    .celebration { display:none; position:absolute; right:9px; bottom:10px; font-size:28px; color:#d39426; }
+    .complete .celebration { display:block; }
+    #fun-timeline.complete { border-color:#d9ac33; }
+    #animation-reminder { position:fixed; bottom:16px; right:20px; max-width:min(480px,calc(100vw - 40px)); padding:12px 18px; border:2px solid #9cc7d1; background:#fffffff5; color:#284550; border-radius:18px; z-index:60; box-shadow:0 6px 24px #17384830; pointer-events:none; }
+    #animation-reminder p { margin:0; font-size:clamp(16px,1.8vw,24px); font-weight:bold; }
+    .reminder-scene { height:110px; position:relative; display:flex; align-items:flex-end; gap:8px; }
+    .reminder-character { width:100px; height:100px; }
+    .reminder-character svg { width:100%; height:100%; }
+    .scene-props { display:flex; align-items:center; font-size:30px; gap:7px; }
+    .scene-props b { font-size:20px; background:#ffecb1; padding:5px; border-radius:5px; }
+    .event-half .reminder-character { animation:remind-dolphin 5s both; }
+    .event-ten .reminder-character { animation:remind-penguin 5s both; }
+    .event-one .reminder-character { animation:remind-lion 6s both; }
+    .event-end .reminder-character { animation:finish-jump 2s both; }
+    .event-half .scene-props { animation:write 0.3s alternate 12; }
+    .event-ten .scene-props { animation:inspect 5s both; }
+    .event-one .scene-props { animation:inspect 6s both; }
+    /* Floating reminders do not participate in the page flex layout. */
+    #main { order:2; }
+    #animation-reminder { position:fixed; top:var(--reminder-top,45vh); bottom:auto; left:50%; right:auto; transform:translateX(-50%); box-sizing:border-box; width:min(680px,calc(100% - 40px)); max-width:calc(100% - 40px); max-height:calc(100vh - 24px); overflow:hidden; margin:0; padding:8px 14px; text-align:center; }
+    .reminder-scene { height:88px; justify-content:center; align-items:center; }
+    .reminder-character { width:88px; height:88px; flex-shrink:0; }
+    .animation-settings { width:min(600px,calc(100vw - 56px)); }
+    .setting-row { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid #eee; }
+    .setting-row select { padding:7px; font-size:1rem; }
+    .test-buttons { display:flex; gap:8px; flex-wrap:wrap; margin:15px 0; }
+    .test-buttons button { padding:8px 12px; cursor:pointer; }
+    @keyframes run-hop { 50% { transform:translateY(-6px); } }
+    @keyframes feet { to { transform:rotate(-14deg) translateX(3px); } }
+    @keyframes swim { 50% { transform:translateY(-3px) rotate(-6deg); } }
+    @keyframes tail { to { transform:rotate(15deg); } }
+    @keyframes stretch { 50% { transform:scaleY(1.12) rotate(-6deg); } }
+    @keyframes breathe { 50% { transform:scale(1.04,.96); } }
+    @keyframes blink { 46%,54% { transform:scaleY(1); } 50% { transform:scaleY(.1); } }
+    @keyframes gentle-roll { 50% { transform:rotate(-20deg) translateY(-4px); } }
+    @keyframes bubble { to { transform:translateY(-18px); opacity:0; } }
+    @keyframes finish-jump { 40% { transform:translateY(-30px) rotate(-15deg); } 100% { transform:translateY(0); } }
+    @keyframes remind-dolphin { 0% { transform:translate(-180px,30px) rotate(-90deg); opacity:0; } 10% { opacity:1; } 25%,70% { transform:translate(0,0) rotate(0deg); opacity:1; } 80% { transform:translate(12px,-8px) rotate(0deg); opacity:1; } 100% { transform:translate(180px,30px) rotate(90deg); opacity:0; } }
+    @keyframes remind-penguin { 0% { transform:translateX(-220px); opacity:0; } 20%,80% { transform:translateX(0); opacity:1; } 100% { transform:translateX(-220px); opacity:0; } }
+    @keyframes remind-lion { 0% { transform:translateY(130px); opacity:0; } 15%,75% { transform:translateY(0); opacity:1; } 85% { transform:rotate(16deg); } 100% { transform:translateY(130px); opacity:0; } }
+    @keyframes write { to { transform:rotate(3deg) translateY(2px); } }
+    @keyframes inspect { 30%,60% { transform:translateX(9px) rotate(-4deg); } }
+    @media(max-width:800px) { #main { padding:10px; gap:10px; } #left-panel,#right-panel { padding:10px; } .panel-title { font-size:1.1rem; flex-wrap:wrap; gap:5px; } #header { flex-basis:29%; } #fun-timeline { margin:6px 10px 0; } #manual-controls { bottom:2px; right:5px; font-size:12px; } }
+    @media(max-height:650px) { #fun-timeline { flex-basis:125px; } #main { padding:8px; gap:8px; } .panel-title { margin-bottom:5px; padding-bottom:5px; } }
+    @media(prefers-reduced-motion:reduce) { .actor-position { transition:none !important; } #fun-timeline *,#animation-reminder * { animation:none !important; } }
+  </style>
+</head>
+<body>
+
+  <div id="loading-mask">資料讀取中...</div>
+
+  <div id="top-bar">
+    <div class="mode-switch">
+      計時模式：
+      <label><input type="radio" name="mode" value="schedule" checked onclick="switchMode('schedule')"> 📅 智慧考程表</label>
+      <label><input type="radio" name="mode" value="manual" onclick="switchMode('manual')"> ⏳ 手動倒數計時</label>
+    </div>
+    <div class="visual-tools"><label for="visual-mode">畫面</label><select id="visual-mode" onchange="ExamAnimations.configure('mode',this.value)"><option value="normal">正常模式</option><option value="fun">趣味模式</option></select><button onclick="ExamAnimations.openSettings()">動畫設定</button><span>v3.5</span></div>
+  </div>
+
+  <div id="header">
+    <div id="box-now">
+      <div class="time-label">現在時間</div>
+      <div id="clock-val" class="time-value">--:--:--</div>
+    </div>
+
+    <div id="box-remain">
+      <div id="progress-bg-layer"></div>
+      <div id="status-display">準備中</div>
+      <div id="countdown-val" class="time-value">--:--:--</div>
+      <div id="label-remain" class="time-label">剩餘時間</div>
+    </div>
+
+    <div id="manual-controls">
+      <input type="number" id="manual-min" value="10" min="1"> 分鐘
+      <button onclick="startManualTimer()" class="btn-adj">開始</button>
+      <button onclick="stopManualTimer()" class="btn-adj" style="background:#c0392b;">停止</button>
+    </div>
+
+    <div id="time-sync-wrapper">
+      <button id="btn-sync-toggle" onclick="toggleSyncPanel()">⚙️ 校正時間</button>
+      <div id="sync-panel">
+        <div style="font-size:0.8rem; color:#555; margin-bottom:5px;">微調系統時間 (Sync)</div>
+        <div><button class="btn-adj" onclick="adjustTime(60)">+1分</button><button class="btn-adj" onclick="adjustTime(-60)">-1分</button></div>
+        <div><button class="btn-adj" onclick="adjustTime(1)">+1秒</button><button class="btn-adj" onclick="adjustTime(-1)">-1秒</button></div>
+        <span id="offset-display">(無校正)</span>
+      </div>
+    </div>
+  </div>
+
+  <section id="fun-timeline" hidden aria-label="考試趣味時間軸" data-theme="rabbit" data-stage="relaxed">
+    <div class="track-caption"><span>起點</span><span id="track-state">輕鬆期</span><span>終點</span></div>
+    <div class="lane"></div><div class="track-area"><div class="finish-marker"></div><div id="track-position" class="actor-position"><span id="track-percent" class="actor-percent">100%</span><div class="actor-motion"><div id="track-art" class="actor-art"></div></div></div><div class="celebration" aria-hidden="true">✦ · ✧</div></div>
+  </section>
+  <aside id="animation-reminder" hidden role="status" aria-live="polite"></aside>
+  <div id="modal-animation" class="modal" role="dialog" aria-modal="true" aria-labelledby="animation-title"><div class="modal-content animation-settings">
+    <h3 id="animation-title">動畫設定</h3>
+    <label class="setting-row">顯示模式<select id="setting-mode" onchange="ExamAnimations.configure('mode',this.value)"><option value="normal">正常</option><option value="fun">趣味</option></select></label>
+    <label class="setting-row">趣味主題<select id="setting-theme" onchange="ExamAnimations.configure('theme',this.value)"><option value="rabbit">兔子跑道</option><option value="dolphin">海豚泳道</option></select></label>
+    <div class="setting-row">前進間隔<span>每 5%（20 個區間）</span></div>
+    <label class="setting-row">啟用浮動提醒<input id="setting-floating" type="checkbox" onchange="ExamAnimations.configure('floating',this.checked)"></label>
+    <label class="setting-row">考試進行一半<input id="setting-half" type="checkbox" onchange="ExamAnimations.configure('half',this.checked)"></label>
+    <label class="setting-row">剩餘 10 分鐘<input id="setting-ten" type="checkbox" onchange="ExamAnimations.configure('ten',this.checked)"></label>
+    <label class="setting-row">最後 1 分鐘<input id="setting-one" type="checkbox" onchange="ExamAnimations.configure('one',this.checked)"></label>
+    <label class="setting-row">考試結束<input id="setting-end" type="checkbox" onchange="ExamAnimations.configure('end',this.checked)"></label>
+    <label class="setting-row">隨機待機動畫<input id="setting-idle" type="checkbox" onchange="ExamAnimations.configure('idle',this.checked)"></label>
+    <div class="setting-row">播放音效<span>靜音（本版不播放聲音）</span></div>
+    <div class="test-buttons"><button onclick="ExamAnimations.test('half')">測試過半</button><button onclick="ExamAnimations.test('ten')">測試 10 分鐘</button><button onclick="ExamAnimations.test('one')">測試 1 分鐘</button><button onclick="ExamAnimations.test('end')">測試結束</button></div>
+    <p style="color:#637583;font-size:.9rem">設定自動保存在此瀏覽器。角色採內嵌 SVG，預留主題註冊介面供後續擴充素材。</p>
+    <button class="btn-save" onclick="closeModal('modal-animation')">完成</button>
+  </div></div>
+  <div id="main">
+    <div id="left-panel">
+      <div class="panel-title">
+        <span>今日考程</span>
+        <div class="btn-group">
+          <button class="btn-font" onclick="adjustFontSize('schedule', 0.1)">A+</button>
+          <button class="btn-font" onclick="adjustFontSize('schedule', -0.1)">A-</button>
+          <button class="btn-edit" onclick="openScheduleEditor()" style="margin-left:5px;">編輯</button>
+        </div>
+      </div>
+      <div id="schedule-list"></div>
+    </div>
+    <div id="right-panel">
+      <div class="panel-title">
+        <span>考生注意事項</span>
+        <div class="btn-group">
+          <button class="btn-font" onclick="adjustFontSize('note', 0.1)">A+</button>
+          <button class="btn-font" onclick="adjustFontSize('note', -0.1)">A-</button>
+          <button class="btn-edit" onclick="openNoteEditor()" style="margin-left:5px;">編輯</button>
+        </div>
+      </div>
+      <div id="note-content"></div>
+    </div>
+  </div>
+
+  <div id="modal-schedule" class="modal"><div class="modal-content"><h3>編輯考程</h3><table id="edit-table"><thead><tr><th>科目</th><th>開始</th><th>結束</th></tr></thead><tbody id="edit-tbody"></tbody></table><button onclick="addScheduleRow()" style="margin-top:10px;">+ 新增一行</button><div style="margin-top:20px;text-align:right;"><button class="btn-edit" style="background:#95a5a6" onclick="closeModal('modal-schedule')">取消</button><button class="btn-save" style="width:auto;" onclick="saveSchedule()">儲存並更新</button></div></div></div>
+  <div id="modal-note" class="modal"><div class="modal-content"><h3>編輯叮嚀內容</h3><textarea id="edit-note-text"></textarea><div style="margin-top:20px;text-align:right;"><button class="btn-edit" style="background:#95a5a6" onclick="closeModal('modal-note')">取消</button><button class="btn-save" style="width:auto;" onclick="saveNote()">儲存並更新</button></div></div></div>
+
+<script>
+  const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyTLTALtHJNzeE0mZeMV9F8FxVL9C2ajDf9CArppXsLVz-AZhYTSWsf9_-Hk8orewIG6g/exec";
+
+  let scheduleData = [];
+  let timeOffset = 0;
+  let currentMode = 'schedule';
+  let manualEndTime = null;
+  let manualDurationMin = 10;
+  let currentFontSizes = { schedule: 1.2, note: 1.8 };
+
+  window.onload = function() {
+    ExamAnimations.init();
+    loadData();
+    updateSystem();
+    setInterval(updateSystem, 1000);
+    // 視窗改變大小時，重新計算字體
+    window.addEventListener('resize', () => {
+      autoFitFonts('schedule');
+      autoFitFonts('note');
+    });
+  };
+
+  function toggleSyncPanel() { const p = document.getElementById('sync-panel'); const b = document.getElementById('btn-sync-toggle'); p.style.display = p.style.display==='block'?'none':'block'; b.innerText = p.style.display==='block'?'❌ 關閉面板':'⚙️ 校正時間'; }
+  
+  // 手動調整字體 (基於自動計算後的結果增減)
+  function adjustFontSize(target, delta) { 
+    let newSize = currentFontSizes[target] + delta; 
+    if (newSize < 0.5) newSize = 0.5; 
+    currentFontSizes[target] = newSize; 
+    document.documentElement.style.setProperty(`--${target}-font-size`, `${newSize.toFixed(2)}rem`); 
+  }
+  
+  function loadData() {
+    document.getElementById('loading-mask').style.display = 'flex';
+    fetch(GAS_API_URL).then(r => r.json()).then(d => {
+      onDataLoaded(d);
+      document.getElementById('loading-mask').style.display = 'none';
+    }).catch(e => {
+      document.getElementById('loading-mask').style.display = 'none';
+      alert("讀取失敗，請檢查網路狀態。");
+    });
+  }
+
+  function sendDataToGAS(payload) {
+    document.getElementById('loading-mask').innerText = "儲存中..."; document.getElementById('loading-mask').style.display = 'flex';
+    fetch(GAS_API_URL, { method: "POST", body: JSON.stringify(payload) }).then(r => r.json()).then(res => { alert(res.message); loadData(); })
+    .catch(e => { alert("儲存失敗"); document.getElementById('loading-mask').style.display = 'none'; });
+  }
+
+  function onDataLoaded(data) {
+    scheduleData = data.schedule || [];
+    const noteEl = document.getElementById('note-content');
+    noteEl.innerText = data.note || "";
+    renderSchedule();
+    
+    // 資料載入後，執行自動排版
+    // 使用 setTimeout 確保 DOM 已經渲染完成
+    setTimeout(() => {
+        autoFitFonts('schedule');
+        autoFitFonts('note');
+    }, 100);
+  }
+
+  // === 核心：自動字體縮放演算法 ===
+  function autoFitFonts(target) {
+    if (target === 'schedule') {
+        const container = document.getElementById('schedule-list');
+        const items = container.querySelectorAll('.schedule-item');
+        if (items.length === 0) return;
+
+        // 考程表邏輯：
+        // 從大字體開始嘗試 (例如 4rem)，如果高度溢出或寬度溢出，就縮小
+        let size = 4.0;
+        const minSize = 0.8;
+        const parentH = container.clientHeight; // 扣除標題高度
+        const parentW = container.clientWidth;  // 扣除 padding
+
+        // 簡單的二分法或迴圈檢測 (這裡用遞減法比較穩)
+        // 為了效能，設定最大迴圈次數
+        for (; size > minSize; size -= 0.1) {
+            document.documentElement.style.setProperty(`--schedule-font-size`, `${size}rem`);
+            
+            // 檢查是否溢出
+            // 1. 檢查總高度
+            if (container.scrollHeight > parentH) continue;
+            
+            // 2. 檢查是否有任何單行寬度溢出
+            let widthOverflow = false;
+            items.forEach(item => {
+                if (item.scrollWidth > parentW) widthOverflow = true;
+            });
+            if (widthOverflow) continue;
+
+            // 都沒溢出，這是最佳大小
+            break;
+        }
+        currentFontSizes.schedule = size; // 更新基準值
+    } 
+    else if (target === 'note') {
+        const el = document.getElementById('note-content');
+        if (!el.innerText.trim()) return;
+
+        let size = 6.0; // 叮嚀可以非常大
+        const minSize = 1.0;
+        const parent = document.getElementById('right-panel');
+        const parentH = el.clientHeight; 
+        const parentW = el.clientWidth;
+
+        // 移除垂直置中設定，先測量真實高度
+        el.classList.add('align-top');
+
+        for (; size > minSize; size -= 0.2) {
+            document.documentElement.style.setProperty(`--note-font-size`, `${size}rem`);
+            // 檢查高度與寬度 (雖然有換行，但單字太長也可能溢出)
+            if (el.scrollHeight <= parentH && el.scrollWidth <= parentW) {
+                break;
+            }
+        }
+        
+        // 如果最終字體很小(內容多)，保持靠上對齊；如果字體大(內容少)，改回垂直置中
+        if (size > 3.0) el.classList.remove('align-top');
+        else el.classList.add('align-top');
+
+        currentFontSizes.note = size;
+    }
+  }
+
+  // --- Timer & Logic (維持 v3.3) ---
+  function updateSystem() {
+    const now = new Date(Date.now() + timeOffset);
+    document.getElementById('clock-val').innerText = now.toLocaleTimeString('zh-TW', { hour12: false });
+    if (currentMode === 'schedule') updateScheduleMode(now);
+    else updateManualMode(now);
+    ExamAnimations.update(now);
+  }
+
+  function updateScheduleMode(now) {
+    let statusText = "目前無考試", remainingText = "--:--:--", labelText = "狀態", progressPercent = 0, foundExam = false, nextExam = null, colorState = 'var(--primary-color)';
+    const todayStr = now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate()+' ';
+    const listItems = document.querySelectorAll('.schedule-item');
+    listItems.forEach(el => { el.classList.remove('active'); el.classList.remove('next'); });
+
+    for (let i = 0; i < scheduleData.length; i++) {
+      const start = new Date(todayStr + scheduleData[i][1]); const end = new Date(todayStr + scheduleData[i][2]);
+      if (now >= start && now <= end) {
+        foundExam = true; statusText = `正在考試：${scheduleData[i][0]}`; remainingText = formatCountDown(end - now); labelText = "距離收卷";
+        progressPercent = ((now - start) / (end - start)) * 100;
+        const pR = 100 - progressPercent;
+        if(pR<10) colorState='var(--color-alert)'; else if(pR<=40) colorState='var(--color-warn)'; else colorState='var(--color-safe)';
+        if(listItems[i]) listItems[i].classList.add('active'); break;
+      }
+      if (!foundExam && !nextExam && now < start) nextExam = { subject: scheduleData[i][0], start: start, index: i };
+    }
+
+    if (!foundExam) {
+      if (nextExam) {
+        statusText = `下一節：${nextExam.subject}`; remainingText = formatCountDown(nextExam.start - now); labelText = "距離開考"; colorState = 'var(--color-wait)';
+        if(listItems[nextExam.index]) listItems[nextExam.index].classList.add('next');
+      } else {
+        statusText = "今日考試結束"; remainingText = "--:--:--"; labelText = "狀態"; colorState = 'var(--primary-color)';
+      }
+    }
+
+    document.getElementById('status-display').innerText = statusText; document.getElementById('label-remain').innerText = labelText;
+    const c = document.getElementById('countdown-val'); c.innerText = remainingText; c.style.color = colorState;
+    const bg = document.getElementById('progress-bg-layer'); if(foundExam){ bg.style.width=progressPercent+"%"; bg.style.backgroundColor=colorState; }else{ bg.style.width="0%"; }
+  }
+
+  function updateManualMode(now) {
+    document.getElementById('label-remain').innerText = "剩餘時間";
+    if (!manualEndTime) { updateDisplay("手動模式：等待開始", "--:--:--", 0, '#ccc'); return; }
+    const diff = manualEndTime - now;
+    if (diff <= 0) { updateDisplay("考試結束！", "00:00:00", 100, 'var(--color-alert)'); return; }
+    const totalMs = manualDurationMin*60000; const progressPercent = ((totalMs-diff)/totalMs)*100;
+    const pR = 100 - progressPercent; let color = 'var(--color-safe)'; if(pR<10)color='var(--color-alert)'; else if(pR<=40)color='var(--color-warn)';
+    updateDisplay(`倒數計時中 (${manualDurationMin}分)`, formatCountDown(diff), progressPercent, color);
+  }
+
+  function updateDisplay(status, remainText, bgPercent, color) {
+    document.getElementById('status-display').innerText = status;
+    const c = document.getElementById('countdown-val'); c.innerText = remainText; c.style.color = color;
+    const bg = document.getElementById('progress-bg-layer'); bg.style.width = bgPercent + "%"; bg.style.backgroundColor = color;
+  }
+
+  // Utils
+  function switchMode(mode) { currentMode = mode; document.getElementById('manual-controls').style.display = mode === 'manual' ? 'block' : 'none'; ExamAnimations.suspend(); updateSystem(); }
+  function startManualTimer() { const min = parseFloat(document.getElementById('manual-min').value); if (!min || min <= 0) return alert("請輸入有效"); manualDurationMin = min; manualEndTime = new Date(Date.now()+timeOffset + min*60000); ExamAnimations.saveManual(); updateSystem(); }
+  function stopManualTimer() { manualEndTime = null; ExamAnimations.saveManual(); ExamAnimations.suspend(); updateSystem(); }
+  function formatCountDown(ms) { if(ms<0)ms=0; const t=Math.floor(ms/1000),h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60; return`${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`; }
+  function adjustTime(s){ timeOffset+=s*1000; const sign = timeOffset >= 0 ? "+" : ""; document.getElementById('offset-display').innerText = `(${sign}${timeOffset/1000}s)`; updateSystem(); }
+  function renderSchedule(){const c=document.getElementById('schedule-list');c.innerHTML='';scheduleData.forEach(i=>{c.innerHTML+=`<div class="schedule-item"><span class="schedule-subject">${i[0]}</span><span class="schedule-time">${i[1]}~${i[2]}</span></div>`;});}
+  function closeModal(id){document.getElementById(id).style.display='none';}
+  function openScheduleEditor(){const t=document.getElementById('edit-tbody');t.innerHTML='';scheduleData.forEach(i=>addScheduleRow(i[0],i[1],i[2]));if(scheduleData.length===0)addScheduleRow();document.getElementById('modal-schedule').style.display='flex';}
+  function addScheduleRow(s='',st='',en=''){const t=document.createElement('tr');t.innerHTML=`<td><input value="${s}"></td><td><input type="time" value="${st}"></td><td><input type="time" value="${en}"></td><td><button onclick="this.closest('tr').remove()" style="color:red;">X</button></td>`;document.getElementById('edit-tbody').appendChild(t);}
+  function saveSchedule(){const r=document.querySelectorAll('#edit-tbody tr'),n=[];r.forEach(t=>{const i=t.querySelectorAll('input');if(i[0].value)n.push([i[0].value,i[1].value,i[2].value]);});closeModal('modal-schedule');sendDataToGAS({schedule:n});}
+  function openNoteEditor(){document.getElementById('edit-note-text').value=document.getElementById('note-content').innerText;document.getElementById('modal-note').style.display='flex';}
+  function saveNote(){const n=document.getElementById('edit-note-text').value;closeModal('modal-note');sendDataToGAS({note:n});}
+
+  // v3.5 animation module. GAS payloads and the original timer stay independent.
+  const ExamAnimations = (() => {
+    const KEY='exam-board-v35';
+    const defaults={mode:'normal',theme:'rabbit',floating:true,idle:true,half:true,ten:true,one:true,end:true};
+    const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))||fallback;}catch(e){return fallback;}};
+    const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch(e){/* private browsing: keep working in memory */}};
+    let settings={...defaults}, records={}, last=null, queue=[], active=null, reminderTimer=0, moveTimer=0, idleTimer=0, previousIdle='',lastReminderAt=-Infinity, themeDrawn='',lastStep=-1,restorePosition=true,ready=false;
+    const $=id=>document.getElementById(id);
+    const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Characters are original inline vector drawings. All profiles point right.
+    const svg=body=>`<svg viewBox="0 0 120 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g stroke="#294759" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${body}</g></svg>`;
+    const eyes=`<g class="mood-relaxed"><ellipse cx="83" cy="39" rx="3.2" ry="4" fill="#294759" stroke="none"/><circle cx="84" cy="37.8" r="1" fill="white" stroke="none"/><path d="M88 51q5 5 10-1" fill="none" stroke-width="1.8"/></g><g class="mood-focus"><circle cx="83" cy="40" r="2.5" fill="#294759"/><path d="M78 34l9 2M88 52h7"/></g><g class="mood-sprint"><path d="M78 36l9 4-7 3M87 51l9-2v6h-8z" fill="white"/></g><path class="sweat" d="M67 40q-10 14 0 13q7-1 0-13" fill="#80d8ee" stroke="none"/><g class="speed-lines" stroke="#8b9fa8"><path d="M7 47h21M2 58h20M10 70h17"/></g>`;
+    const themes={
+      rabbit:{label:'兔子跑道',art:()=>svg(`<ellipse cx="58" cy="88" rx="39" ry="5" fill="#29475922" stroke="none"/><circle cx="30" cy="66" r="12" fill="white"/><ellipse cx="57" cy="67" rx="28" ry="21" fill="#fff7ed"/><g class="ears"><path d="M66 37Q48 0 61 3Q76 5 76 35M78 35Q75-5 87 3Q98 9 87 36" fill="#fff7ed"/><path d="M65 11l7 20M85 11l-1 19" stroke="#efb7b9" stroke-width="5"/></g><path d="M66 32Q84 25 94 37L105 44Q114 51 102 57Q96 66 76 61Q60 58 60 45Z" fill="#fff7ed"/><ellipse cx="105" cy="47" rx="3" ry="2" fill="#d7838d" stroke="none"/><g class="feet" fill="#efb7b9"><ellipse cx="46" cy="85" rx="16" ry="6"/><ellipse cx="77" cy="84" rx="16" ry="6"/></g>${eyes}`),pools:{relaxed:['stretch','ear','sleep','hop'],effort:['breathe','step','ear'],sprint:['sprint','breathe','step']}},
+      dolphin:{label:'海豚泳道',art:()=>svg(`<g class="bubbles" fill="none" stroke="#fff"><circle cx="26" cy="28" r="5"/><circle cx="15" cy="47" r="3"/><circle cx="40" cy="15" r="3"/></g><g class="tail" fill="#54b9df"><path d="M40 59Q12 42 6 49L19 64L6 78Q22 86 43 66Z"/></g><path d="M48 42L53 18Q65 20 69 38" fill="#54b9df"/><path d="M28 59Q43 36 74 31Q97 27 100 42L113 44Q119 50 102 54Q97 73 73 74Q45 76 28 59Z" fill="#66c6eb"/><path d="M42 63Q71 68 99 53Q95 74 73 74Q55 73 42 63" fill="#d9f5ff" stroke="none"/><path d="M63 61Q62 80 79 82L81 65" fill="#49acd3"/>${eyes}`),pools:{relaxed:['tail','bubble','blink','roll'],effort:['tail','breathe','bubble'],sprint:['sprint','tail','bubble']}}
+    };
+    const penguin=()=>svg(`<ellipse cx="59" cy="58" rx="32" ry="37" fill="#344d66"/><ellipse cx="62" cy="65" rx="23" ry="28" fill="#fff9ec"/><path d="M29 51L12 73M89 51l16 18" stroke-width="10"/><circle cx="50" cy="38" r="4" fill="white"/><circle cx="72" cy="38" r="4" fill="white"/><path d="M56 47l15 0-8 10z" fill="#eeb442"/><path d="M36 93h20M71 93h20" stroke="#eeb442" stroke-width="8"/>`);
+    const lion=()=>svg(`<path d="M33 57Q10 40 28 27Q20 7 44 14Q59-6 75 13Q100 5 98 28Q119 42 100 59Q106 80 83 80H38Q16 77 33 57" fill="#b87a38"/><circle cx="63" cy="43" r="28" fill="#f5cb72"/><ellipse cx="63" cy="80" rx="22" ry="15" fill="#f5cb72"/><circle cx="51" cy="38" r="3"/><circle cx="76" cy="38" r="3"/><path d="M59 48h9l-4 6z" fill="#795139"/><path d="M64 54q-7 9-13 1m13-1q7 9 13 1" fill="none"/><path d="M42 76L21 57M83 76l20-20" stroke="#f5cb72" stroke-width="10"/>`);
+    const events={half:{text:'考試過一半囉！繼續專心作答！',duration:5000,art:()=>themes.dolphin.art(),props:'<span>▤</span><span>✎</span><span>✧</span>'},ten:{text:'剩下10分鐘！掌握作答時間，記得檢查！',duration:5000,art:penguin,props:'<span>◷</span><span>▤</span><span>⌕</span><b>10分鐘</b>'},one:{text:'最後1分鐘！確認姓名、座號與答案！',duration:6000,art:lion,props:'<span>◷</span><b>姓名 · 座號 · 答案</b>'},end:{text:'考試結束，請停止作答',duration:5000,art:()=>themes[settings.theme].art(),props:'<span>✦</span><b>請停止作答</b>'}};
+    function init(){
+      settings={...defaults,...read(KEY+'-settings',{})};
+      if(!themes[settings.theme])settings.theme='rabbit';
+      if(!['normal','fun'].includes(settings.mode))settings.mode='normal';
+      records=read(KEY+'-events',{});
+      const m=read(KEY+'-manual',null);
+      if(m && Number.isFinite(m.end) && Number.isFinite(m.duration) && m.duration>0 && m.end>0){manualEndTime=new Date(m.end);manualDurationMin=m.duration;currentMode='manual';document.querySelector('input[name="mode"][value="manual"]').checked=true;$('manual-controls').style.display='block';$('manual-min').value=m.duration;}
+      ready=true; syncSettings();
+      window.addEventListener('resize',()=>{restorePosition=true;if(last)render(last,false);positionReminder();});
+      if(window.ResizeObserver){const observer=new ResizeObserver(positionReminder);observer.observe($('header'));observer.observe($('fun-timeline'));}
+      document.addEventListener('visibilitychange',()=>{if(document.hidden){stopMotion();clearReminder();}else{restorePosition=true;updateSystem();}});
+    }
+    function syncSettings(){ $('visual-mode').value=settings.mode; for(const k of ['mode','theme','floating','idle','half','ten','one','end']){const el=$('setting-'+k);if(el.type==='checkbox')el.checked=settings[k];else el.value=settings[k];} }
+    function configure(key,value){settings[key]=value;write(KEY+'-settings',settings);syncSettings();restorePosition=true;stopMotion();if(!settings.floating)clearReminder();if(last)render(last,false);positionReminder();setTimeout(()=>{autoFitFonts('schedule');autoFitFonts('note');},0);}
+    function saveManual(){write(KEY+'-manual',manualEndTime?{end:+manualEndTime,duration:manualDurationMin}:null);}
+    function snapshot(now){
+      if(currentMode==='manual'){
+        if(!manualEndTime)return null;
+        const end=+manualEndTime,start=end-manualDurationMin*60000;
+        return {id:'manual:'+start+':'+end,start,end,now:+now,subject:'手動倒數'};
+      }
+      const day=now.getFullYear()+'/'+(now.getMonth()+1)+'/'+now.getDate()+' ';
+      let finished=null;
+      for(let i=0;i<scheduleData.length;i++){
+        const row=scheduleData[i], start=+new Date(day+row[1]),end=+new Date(day+row[2]);
+        if(!(end>start))continue;
+        const item={id:'schedule:'+day+JSON.stringify(row)+':'+i,start,end,now:+now,subject:row[0]};
+        if(+now>=start && +now<end)return item;
+        if(+now>=end && (!finished || end>finished.end))finished=item;
+      }
+      // A completed lane can remain until the next examination begins.
+      return finished;
+    }
+    function mark(id,key){if(!records[id])records[id]={};records[id][key]=true;const keys=Object.keys(records);if(keys.length>120)delete records[keys[0]];write(KEY+'-events',records);}
+    function stopMotion(){clearTimeout(moveTimer);clearTimeout(idleTimer);idleTimer=0;$('track-position').classList.remove('moving','finishing');$('fun-timeline').removeAttribute('data-idle');}
+    function positionReminder(){
+      const el=$('animation-reminder');if(el.hidden)return;
+      const anchor=$('fun-timeline').hidden?$('header'):$('fun-timeline');
+      const top=Math.max(12,Math.min(anchor.getBoundingClientRect().bottom+10,window.innerHeight-el.offsetHeight-12));
+      el.style.setProperty('--reminder-top',top+'px');
+    }
+    function clearReminder(){clearTimeout(reminderTimer);queue=[];active=null;$('animation-reminder').hidden=true;$('animation-reminder').replaceChildren();}
+    function suspend(){stopMotion();clearReminder();last=null;lastStep=-1;restorePosition=true;$('fun-timeline').hidden=true;}
+    function update(now){
+      if(!ready)return;
+      const next=snapshot(now);
+      if(!next){suspend();return;}
+      next.remaining=Math.max(0,next.end-next.now);next.ratio=Math.max(0,Math.min(1,next.remaining/(next.end-next.start)));
+      const fresh=!last||last.id!==next.id;
+      if(fresh){stopMotion();clearReminder();lastStep=-1;restorePosition=true;previousIdle='';}
+      const ended=next.remaining===0;
+      const crossedEnd=!fresh&&last.remaining>0&&ended;
+      render(next,crossedEnd);
+      const thresholds={half:(next.end-next.start)/2,ten:600000,one:60000,end:0};
+      const crossed=[];
+      for(const key of ['half','ten','one','end']){
+        const threshold=thresholds[key];
+        if((next.end-next.start)<=threshold && key!=='end')continue;
+        if(records[next.id]?.[key])continue;
+        // Initial loads consume past events without replay. Later ticks detect crossings.
+        if(next.remaining<=threshold){mark(next.id,key);if(!fresh&&last.remaining>threshold&&settings[key])crossed.push(key);}
+      }
+      if(ended){if(fresh || crossedEnd)clearReminder();if(crossed.includes('end'))enqueue('end');}
+      else if(!document.hidden){
+        // A resumed tab or simultaneous thresholds produce only the highest priority.
+        const key=['one','ten','half'].find(k=>crossed.includes(k));
+        if(key && (next.now-lastReminderAt>=20000 || key==='one')){
+          if(key==='one')clearReminder();enqueue(key);
+        }
+      }
+      last=next;
+    }
+    function render(s,finish){
+      const track=$('fun-timeline'),actor=$('track-position');
+      track.hidden=settings.mode!=='fun';
+      if(track.hidden || document.hidden){stopMotion();restorePosition=true;return;}
+      const stage=s.ratio<=.15?'sprint':s.ratio<=.5?'effort':'relaxed';
+      if(track.dataset.stage!==stage){clearTimeout(idleTimer);idleTimer=0;track.removeAttribute('data-idle');}
+      track.dataset.stage=stage; track.dataset.theme=settings.theme;
+      if(themeDrawn!==settings.theme){$('track-art').innerHTML=themes[settings.theme].art();themeDrawn=settings.theme;restorePosition=true;}
+      const done=s.remaining===0;
+      $('track-percent').textContent=(done?0:Math.max(1,Math.ceil(s.ratio*100)))+'%';
+      track.classList.toggle('complete',done);
+      $('track-state').textContent=done?'考試結束，請停止作答':({relaxed:'輕鬆期',effort:'努力期',sprint:'衝刺期'}[stage]);
+      const step=done?20:Math.min(19,Math.floor((1-s.ratio)*20+1e-8));
+      if(step!==lastStep || restorePosition){
+        stopMotion();
+        const animate=!restorePosition && !reduced() && (step>lastStep || finish);
+        // Marker is 90px from the right; the final position clears it by a full body.
+        const available=Math.max(0,actor.parentElement.clientWidth-actor.offsetWidth);
+        const beforeFinish=Math.max(0,available-110);
+        actor.style.transition=animate?'left '+(finish?'1.2':'1.6')+'s ease-in-out':'none';
+        actor.style.left=(done?available:beforeFinish*(step/20))+'px';
+        if(animate){actor.classList.add(finish?'finishing':'moving');moveTimer=setTimeout(()=>{actor.classList.remove('moving','finishing');startIdle(stage);},finish?1700:1600);}
+        lastStep=step;restorePosition=false;
+      }
+      if(!done&&!actor.classList.contains('moving')&&!actor.classList.contains('finishing'))startIdle(stage);
+    }
+    function startIdle(stage){
+      if(idleTimer || !settings.idle || reduced() || !last || last.remaining<=0 || settings.mode!=='fun' || document.hidden)return;
+      const pool=themes[settings.theme].pools[stage].filter(x=>x!==previousIdle);
+      const action=pool[Math.floor(Math.random()*pool.length)];previousIdle=action;$('fun-timeline').dataset.idle=action;
+      idleTimer=setTimeout(()=>{idleTimer=0;startIdle($('fun-timeline').dataset.stage);},2000+Math.random()*3000);
+    }
+    function enqueue(key,test=false){if(!test&&(!settings.floating||document.hidden))return;if(queue.some(item=>item.key===key))return;queue.push({key,test});queue.sort((a,b)=>['end','one','ten','half'].indexOf(a.key)-['end','one','ten','half'].indexOf(b.key));playNext();}
+    function playNext(){
+      if(active || !queue.length)return;
+      active=queue.shift();const item=events[active.key],el=$('animation-reminder');
+      el.className='event-'+active.key;
+      el.innerHTML=`<div class="reminder-scene" aria-hidden="true"><div class="reminder-character">${item.art()}</div><div class="scene-props">${item.props}</div></div><p>${item.text}</p>`;
+      el.hidden=false;positionReminder();lastReminderAt=last?last.now:Date.now()+timeOffset;
+      reminderTimer=setTimeout(()=>{el.hidden=true;el.replaceChildren();active=null;playNext();},item.duration);
+    }
+    return {init,update,configure,saveManual,suspend,openSettings(){syncSettings();$('modal-animation').style.display='flex';},test(key){clearReminder();enqueue(key,true);},registerTheme(name,definition){themes[name]=definition;}};
+  })();
+
+</script>
+</body>
+</html>
